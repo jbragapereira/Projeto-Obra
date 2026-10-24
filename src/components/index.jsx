@@ -18,11 +18,13 @@ const PATHS = {
   mais: <><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></>,
   camera: <><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></>,
   check: <path d="M5 12l5 5L20 7" />,
+  topo: <path d="M12 19V5M5 12l7-7 7 7" />,
   planilha: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 11h7M9 14h7M9 17h4" /></>,
   obra: <><path d="M3 21h18M5 21V9l7-5 7 5v12" /><path d="M10 21v-6h4v6" /></>,
   sair: <><path d="M15 4h4v16h-4" /><path d="M10 8l-4 4 4 4M6 12h10" /></>,
   ferramenta: <path d="M14 7l3-3 3 3-3 3M17 4l-9 9-3 7 7-3 9-9" />,
   critico: <path d="M12 3l8 9-8 9-8-9z" />,
+  planejamento: <><rect x="3" y="4" width="18" height="17" rx="1" /><path d="M7 9h6M7 13h10M7 17h4" /></>,
   trocar: <><path d="M7 4L3 8l4 4" /><path d="M3 8h14" /><path d="M17 20l4-4-4-4" /><path d="M21 16H7" /></>,
 }
 
@@ -41,10 +43,10 @@ export function Meta({ children }) {
   return <div className="meta">{itens.map((x, i) => <span key={i}>{x}</span>)}</div>
 }
 
-export function Critico({ origem }) {
+export function Critico() {
   return (
     <span className="critico">
-      <Icon nome="critico" tamanho={14} />Crítico{origem ? ` (${origem === 'À mão' ? 'à mão' : 'MS Project'})` : ''}
+      <Icon nome="critico" tamanho={14} />Crítico
     </span>
   )
 }
@@ -142,6 +144,27 @@ export function Fase2({ titulo, texto }) {
       <h2>{titulo}</h2>
       <p>{texto}</p>
     </section>
+  )
+}
+
+/* ── Botão flutuante "Topo": aparece depois que a página desce e volta ao cabeçalho ── */
+export function VoltarAoTopo({ aPartirDe = 300 }) {
+  const [visivel, setVisivel] = useState(false)
+  useEffect(() => {
+    const olhar = () => setVisivel(window.scrollY > aPartirDe)
+    olhar()
+    window.addEventListener('scroll', olhar, { passive: true })
+    return () => window.removeEventListener('scroll', olhar)
+  }, [aPartirDe])
+  if (!visivel) return null
+  const subir = () => {
+    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: suave ? 'smooth' : 'auto' })
+  }
+  return (
+    <button className="voltar-topo" onClick={subir} aria-label="Voltar ao topo da página">
+      <Icon nome="topo" tamanho={20} /><span>Topo</span>
+    </button>
   )
 }
 

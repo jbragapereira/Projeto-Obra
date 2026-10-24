@@ -1,6 +1,7 @@
 // A casca do app para todos os perfis: menu lateral (tela larga), barra
 // inferior (celular), cabeçalho com o SELETOR DE OBRA e a tela atual.
-// O menu de cada perfil vem de lib/perfis.js.
+// O menu de cada perfil vem de lib/perfis.js. O botão "Topo" mora aqui: vale para todo menu,
+// inclusive os que ainda vão ser criados.
 //
 // Trocar de obra remonta a tela inteira (key={obraId}): nada da obra
 // anterior sobra na tela — lista, filtro, gaveta ou formulário pela metade.
@@ -8,18 +9,19 @@ import { useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
 import { MENUS, dividirMenu, telaInicial } from '../lib/perfis.js'
 import { dmy } from '../lib/datas.js'
-import { Carregando, ErroCarga, Icon, Meta, Sheet, Vazio } from '../components/index.jsx'
+import { Carregando, ErroCarga, Icon, Meta, Sheet, Vazio, VoltarAoTopo } from '../components/index.jsx'
 import Painel from '../screens/painel.jsx'
 import Diario from '../screens/diario.jsx'
-import Servicos from '../screens/servicos.jsx'
+import Orcamento from '../screens/orcamento.jsx'
 import Medicao from '../screens/medicao.jsx'
 import Recados from '../screens/recados.jsx'
 import Ajustes from '../screens/ajustes.jsx'
 import Perfil from '../screens/perfil.jsx'
 import Avanco from '../screens/avanco.jsx'
 import Fotos from '../screens/fotos.jsx'
+import Planejamento from '../screens/planejamento.jsx'
 
-const TELAS = { painel: Painel, diario: Diario, servicos: Servicos, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos }
+const TELAS = { painel: Painel, diario: Diario, orcamento: Orcamento, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos, planejamento: Planejamento }
 
 export default function Shell({ profile, onSair }) {
   const { obras, obra, obraId, erro, trocarObra } = useObra()
@@ -51,7 +53,7 @@ export default function Shell({ profile, onSair }) {
         </div>
         <nav>
           {menu.map((m) => (
-            <button key={m.id} onClick={() => goto(m.id)} aria-current={telaAtual === m.id ? 'page' : undefined}>
+            <button key={m.id} className={m.secundario ? 'secundario' : undefined} onClick={() => goto(m.id)} aria-current={telaAtual === m.id ? 'page' : undefined}>
               <Icon nome={m.icone} /><span>{m.rotulo}</span>{m.fase2 && <span className="f2">F2</span>}
             </button>
           ))}
@@ -95,6 +97,8 @@ export default function Shell({ profile, onSair }) {
           <Tela key={obraId ?? 'sem-obra'} profile={profile} obra={obra} goto={goto} params={rota.params} onSair={onSair} />
         )}
       </div>
+
+      <VoltarAoTopo />
 
       <nav className="bottom" aria-label="Navegação">
         {barra.map((m) => (

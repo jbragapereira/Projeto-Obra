@@ -21,4 +21,8 @@ export const tamanhoArquivo = (bytes) =>
     ? `${(bytes / (1000 * 1000)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
     : `${Math.max(1, Math.round(bytes / 1000)).toLocaleString('pt-BR')} KB`
 
+// BDI e outras taxas guardadas como fração: 0.242 → "24,20%"
+export const percentual = (v) =>
+  `${((v ?? 0) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+
 export const pct = (parte, total) => (total ? Math.round((parte / total) * 100) : 0)

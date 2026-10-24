@@ -39,7 +39,8 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
 
 1. `if` de negócio dentro de tela vai para `lib`, mesmo com três linhas.
 2. Constante compartilhada tem um dono só: papéis e menus em `perfis.js`; situações de obra em
-   `obras.js`; de medição em `medicao.js`; clima em `diario.js`; situação de serviço em `painel.js`.
+   `obras.js`; de medição em `medicao.js`; clima em `diario.js`; situação de serviço em `painel.js`;
+   fontes e origem do item do orçamento em `orcamento.js`.
    O texto é idêntico ao CHECK do banco — se divergir, o salvamento falha calado.
 3. Quem não vê valores (Equipe da obra, Fiscalização) **não recebe** valores: `dados.js` tira
    `preco_unitario` e os totais em R$ antes de devolver. Não esconda R$ só na tela.
@@ -86,6 +87,10 @@ Ainda não está no ar. Quando estiver: a pessoa diz "sobe pro GitHub", o agente
   lendo a outra. A política usa a função `minhas_obras()` (ver `PRD-BACKEND.md`, Permissões).
 - **Foto do diário nunca passa de 5 MB.** A tela comprime antes (`src/components/comprimirFoto.js`), `dados.js` recusa o que passar, e o banco tem CHECK em `fotos.tamanho_bytes`. O limite mora só em `src/lib/fotos.js`.
 - **Foto do diário guarda data, hora, GPS e endereço** (a fiscalização exige). A compressão por canvas apaga o EXIF: o bloco original é devolvido ao arquivo por `src/lib/exif.js`. Mudou a compressão, rode `tests/exif.mjs`. GPS do aparelho só para foto tirada agora pelo botão "Tirar foto" (e arquivo dos últimos 15 min) — nunca em foto escolhida da galeria, mesmo baixada agora. O endereço vem de `buscarEndereco` em `dados.js` (Nominatim, fila de 1 pedido/s).
+- **Orçamento trunca, não arredonda.** P. Unit. = TRUNCAR(C. Unit. × (1 + BDI), 2) e P. Total = TRUNCAR(Qtd ×
+  P. Unit., 2), como a planilha da HCL. Conta de orçamento passa por `src/lib/orcamento.js` (o teste confere as 418
+  linhas reais da ARRECIFES). `qtd_contratada` que a camada de dados devolve é a **vigente** (orçada + aditivos);
+  quantidade e preço de item só mudam por aditivo.
 - **Datas são texto `AAAA-MM-DD` no fuso local** (`src/lib/datas.js`). Nunca `toISOString()`
   para data: vira UTC e pula um dia no Brasil.
 

@@ -68,7 +68,7 @@ export default function ServicoDetalhe({ a, medicao, responsavel, comValores, po
   return (
     <Sheet
       titulo={s.descricao}
-      subtitulo={`${s.codigo}${s.critico ? `, crítico (${s.critico_origem === 'À mão' ? 'marcado à mão' : 'MS Project'})` : ''}`}
+      subtitulo={`${s.codigo}${s.critico ? ', crítico' : ''}`}
       topo={<div style={{ marginTop: 8 }}><Pill situacao={a.situacao} /></div>}
       onFechar={onFechar}
     >

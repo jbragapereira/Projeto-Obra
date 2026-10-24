@@ -12,8 +12,10 @@
 // Toda função devolve { data, erro }.
 // ============================================================
 import * as mock from './mockData.js'
-import { addDias, hojeISO } from './datas.js'
-import { podeEditar, podeLancar, podeVerValores, veTodasAsObras } from './perfis.js'
+import { addDias, dataHoraLocal, hojeISO } from './datas.js'
+import { podeEditar, podeLancar, podePlanejar, podeVerValores, veTodasAsObras } from './perfis.js'
+import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
+import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
 import { congelarMeta, podeIniciar } from './medicao.js'
 import { aceitaLancamento, validarObra } from './obras.js'
 import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo } from './diario.js'
@@ -41,6 +43,8 @@ function semValores(registro) {
   if (podeVerValores(sessao.role)) return registro
   const limpo = { ...registro }
   delete limpo.preco_unitario
+  delete limpo.custo_unitario
+  delete limpo.bdi
   delete limpo.valor_planejado
   delete limpo.valor_medido
   return limpo
@@ -111,14 +115,125 @@ export function salvarObra(obra) {
   return ok(copia(nova))
 }
 
-/* ── Serviços e responsáveis (sempre da obra atual) ── */
+/* ── Orçamento: itens (serviços), aditivos e grupos (sempre da obra atual) ── */
+
+// qtd_orcada = como veio na planilha; qtd_contratada = a vigente (com aditivos), a que o app inteiro usa.
+const aditivosDo = (servicoId) => daObra(mock.aditivos).filter((a) => a.servico_id === servicoId)
+const comVigente = (s) => ({ ...s, qtd_contratada: qtdVigente(s.qtd_orcada, aditivosDo(s.id)) })
+const acumuladoDo = (servicoId) => daObra(mock.lancamentos).filter((l) => l.servico_id === servicoId).reduce((soma, l) => soma + l.quantidade, 0)
+const codigosOcupados = (excetoId) => [...daObra(mock.servicos).filter((x) => x.id !== excetoId).map((x) => x.codigo), ...daObra(mock.grupos).map((g) => g.codigo)]
 
 export function listarServicos() {
   const e = checar(); if (e) return falha(e)
+  const nomes = Object.fromEntries(mock.profiles.map((p) => [p.id, p.nome]))
   const lista = daObra(mock.servicos)
+    .map((s) => ({ ...comVigente(s), editor: s.alterado_por ? nomes[s.alterado_por] ?? '—' : null }))
     .map(semValores)
-    .sort((a, b) => a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true }))
+    .sort((a, b) => compararCodigos(a.codigo, b.codigo))
   return ok(copia(lista))
+}
+
+// Cabeçalho do orçamento (base de referência, encargos, BDIs). Quem não vê valores não recebe.
+export function buscarDadosOrcamento() {
+  const e = checar(); if (e) return falha(e)
+  if (!podeVerValores(sessao.role)) return ok(null)
+  return ok(copia(daObra(mock.orcamentos)[0] ?? null))
+}
+
+export function listarAditivos() {
+  const e = checar(); if (e) return falha(e)
+  const nomes = Object.fromEntries(mock.profiles.map((p) => [p.id, p.nome]))
+  return ok(copia(daObra(mock.aditivos)
+    .map((a) => ({ ...a, autor: nomes[a.criado_por] ?? '—', editor: a.alterado_por ? nomes[a.alterado_por] ?? '—' : null }))
+    .sort((a, b) => b.data.localeCompare(a.data))))
+}
+
+// Cria (sem id) ou corrige (com id) um aditivo.
+// a: { id?, servico_id, numero, data, quantidade (positiva), tipo: 'acrescimo'|'supressao', motivo }
+export function salvarAditivo(a) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro lança ou corrige aditivo.')
+  const atual = a.id ? daObra(mock.aditivos).find((x) => x.id === a.id) : null
+  if (a.id && !atual) return falha('Aditivo não encontrado nesta obra.')
+  const s = daObra(mock.servicos).find((x) => x.id === (atual?.servico_id ?? a.servico_id))
+  if (!s) return falha('Item não encontrado nesta obra.')
+  const vigenteAtual = comVigente(s).qtd_contratada
+  const vigente = atual ? arredondarQtd(vigenteAtual - atual.quantidade) : vigenteAtual
+  const { erros, quantidade } = validarAditivo(a, { vigente, vigenteAtual, acumulado: acumuladoDo(s.id) })
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const campos = { numero: a.numero.trim(), data: a.data, quantidade, motivo: a.motivo.trim() }
+  if (atual) {
+    Object.assign(atual, campos, { alterado_por: sessao.id, alterado_em: dataHoraLocal(new Date()) })
+    return ok(copia(atual))
+  }
+  const novo = { id: novoId('ad'), obra_id: obraAtual, servico_id: s.id, ...campos, criado_por: sessao.id, alterado_por: null, alterado_em: null }
+  mock.aditivos.push(novo)
+  return ok(copia(novo))
+}
+
+export function excluirAditivo(aditivoId) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro exclui aditivo.')
+  const aditivo = daObra(mock.aditivos).find((x) => x.id === aditivoId)
+  if (!aditivo) return falha('Aditivo não encontrado nesta obra.')
+  const s = daObra(mock.servicos).find((x) => x.id === aditivo.servico_id)
+  const motivo = podeExcluirAditivo({ aditivo, vigenteAtual: comVigente(s).qtd_contratada, acumulado: acumuladoDo(s.id) })
+  if (motivo) return falha(motivo)
+  mock.aditivos.splice(mock.aditivos.indexOf(aditivo), 1)
+  return ok(copia(aditivo))
+}
+
+// Cria (sem id) ou corrige (com id) um item novo. O Item sai sozinho, o próximo dentro do grupo
+// (dentro de 2.1 com 2.1.8 → 2.1.9). Na correção, o grupo só muda se o item nunca teve lançamento.
+// i: { id?, grupo, fonte, codigo_ref, descricao, unidade, quantidade, custo_unitario, bdi, aditivo_numero, responsavel_id }
+export function salvarItemNovo(i) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro inclui ou corrige item novo.')
+  const atual = i.id ? daObra(mock.servicos).find((x) => x.id === i.id) : null
+  if (i.id && !atual) return falha('Item não encontrado nesta obra.')
+  if (atual && atual.origem !== ORIGENS_ITEM.novo) return falha('Item da planilha muda só por aditivo.')
+  const acumulado = atual ? acumuladoDo(atual.id) : 0
+  const erros = validarItemNovo(i, daObra(mock.grupos).map((g) => g.codigo), { minimo: atual ? minimoDoItemNovo({ qtdOrcada: atual.qtd_orcada, vigente: comVigente(atual).qtd_contratada, acumulado }) : 0, acumulado })
+  if (i.responsavel_id && !daObra(mock.responsaveis).some((r) => r.id === i.responsavel_id)) erros.responsavel_id = 'Responsável de outra obra.'
+  const mudouGrupo = atual && paiDoCodigo(atual.codigo) !== i.grupo
+  if (mudouGrupo && acumulado > 0) erros.grupo = 'O item já tem lançamento no Diário: o grupo não muda mais.'
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const campos = {
+    fonte: i.fonte, codigo_ref: i.codigo_ref?.trim() ?? '', descricao: i.descricao.trim(), unidade: i.unidade.trim().toUpperCase(),
+    qtd_orcada: i.quantidade, custo_unitario: i.custo_unitario, bdi: i.bdi, preco_unitario: precoUnitario(i.custo_unitario, i.bdi),
+    aditivo_numero: i.aditivo_numero.trim(), responsavel_id: i.responsavel_id || null,
+  }
+  if (atual) {
+    Object.assign(atual, campos, { alterado_por: sessao.id, alterado_em: dataHoraLocal(new Date()) })
+    if (mudouGrupo) atual.codigo = proximoCodigo(i.grupo, codigosOcupados(atual.id))
+    return ok(copia(semValores(comVigente(atual))))
+  }
+  const novo = {
+    id: novoId('s'), obra_id: obraAtual, codigo: proximoCodigo(i.grupo, codigosOcupados()), ...campos,
+    origem: ORIGENS_ITEM.novo, frente: '', data_inicio_planejada: null, data_fim_planejada: null,
+    critico: false, critico_origem: CRITICO_A_MAO, ativo: true, alterado_por: null, alterado_em: null,
+  }
+  mock.servicos.push(novo)
+  return ok(copia(semValores(comVigente(novo))))
+}
+
+// Desfaz um item novo criado por engano (sem lançamento, foto nem medição planejada). Leva junto os aditivos dele.
+export function excluirItemNovo(servicoId) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro exclui item novo.')
+  const item = daObra(mock.servicos).find((x) => x.id === servicoId)
+  if (!item) return falha('Item não encontrado nesta obra.')
+  const doItem = (lista) => daObra(lista).filter((x) => x.servico_id === servicoId)
+  const motivo = podeExcluirItemNovo({
+    item, temLancamento: doItem(mock.lancamentos).length > 0, temFoto: doItem(mock.fotos).length > 0,
+    planejadoNaMedicao: doItem(mock.medicaoItens).some((m) => m.qtd_planejada > 0),
+  })
+  if (motivo) return falha(motivo)
+  for (const lista of [mock.aditivos, mock.medicaoItens]) {
+    for (let k = lista.length - 1; k >= 0; k--) if (lista[k].obra_id === obraAtual && lista[k].servico_id === servicoId) lista.splice(k, 1)
+  }
+  mock.servicos.splice(mock.servicos.indexOf(item), 1)
+  return ok(copia(semValores(item)))
 }
 
 export function marcarCritico(servicoId, critico) {
@@ -127,8 +242,54 @@ export function marcarCritico(servicoId, critico) {
   const s = daObra(mock.servicos).find((x) => x.id === servicoId)
   if (!s) return falha('Serviço não encontrado nesta obra.')
   s.critico = critico
-  s.critico_origem = 'À mão'
+  s.critico_origem = CRITICO_A_MAO
   return ok(copia(s))
+}
+
+export function listarGrupos() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.grupos)))
+}
+
+// Cria um grupo novo, com código automático dentro do grupo de cima (ou na raiz).
+export function criarGrupo({ pai, nome }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cria grupos.')
+  const limpo = nome?.trim()
+  if (!limpo) return falha('Informe o nome do grupo.')
+  if (pai && !codigoValido(pai)) return falha('Grupo de cima inválido.')
+  const codigo = proximoCodigo(pai ?? null, codigosOcupados())
+  const novo = { id: novoId('gr'), obra_id: obraAtual, codigo, nome: limpo }
+  mock.grupos.push(novo)
+  return ok(copia(novo))
+}
+
+// EAP: grava de uma vez as datas dos ITENS lançadas no modo "Editar datas" — tudo ou nada.
+// Etapa e subetapa não têm data gravada: a EAP calcula pelas datas dos itens de dentro.
+// mudancas: [{ id, inicio, fim }]. Devolve { erros: { id: mensagem } } quando alguma linha tem erro.
+export function salvarDatasEap(mudancas) {
+  const e = checar(); if (e) return falha(e)
+  if (!podePlanejar(sessao.role)) return falha('Só o engenheiro lança as datas da EAP.')
+  const erros = {}
+  const alvos = mudancas.map((m) => {
+    const item = daObra(mock.servicos).find((s) => s.id === m.id)
+    const erro = item ? validarDatas({ inicio: m.inicio, fim: m.fim }) : 'Item não encontrado nesta obra.'
+    if (erro) erros[m.id] = erro
+    return { m, item }
+  })
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira as datas marcadas.', erros })
+  for (const { m, item } of alvos) Object.assign(item, { data_inicio_planejada: m.inicio || null, data_fim_planejada: m.fim || null })
+  return ok({ salvas: mudancas.length })
+}
+
+export function arquivarServico(servicoId, arquivar) {
+  const e = checar(); if (e) return falha(e)
+  if (!podePlanejar(sessao.role)) return falha('Só o engenheiro arquiva serviços.')
+  const s = daObra(mock.servicos).find((x) => x.id === servicoId)
+  if (!s) return falha('Serviço não encontrado nesta obra.')
+  if (s.origem !== ORIGENS_ITEM.novo) return falha('Só item novo é arquivado. Item da planilha muda por aditivo.')
+  s.ativo = !arquivar
+  return ok(copia(semValores(comVigente(s))))
 }
 
 export function listarResponsaveis() {

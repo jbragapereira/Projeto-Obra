@@ -1,5 +1,10 @@
 # Plano do Projeto — Projeto Obra
 
+> **Mudança de 24/10/2026 (decisão do engenheiro), vale sobre o que estiver escrito abaixo:**
+> - O menu **Serviços passou a se chamar Orçamento**. É nele que entra o orçamento da obra em Excel (Fonte, Código, Item, Descrição, Unidade, Quantidade, C. Unitário, BDI por linha, P. Unitário, P. Total), com **aditivo de quantidade** e **item novo** incluídos pelo app. A EAP do Planejamento é montada a partir do Orçamento e enxerga toda mudança feita nele.
+> - O cadastro de **Responsáveis (e de funções) saiu de Serviços e foi para o Diário**, na aba "Responsáveis e funções". Só o engenheiro cadastra.
+> - **O MS Project fica de fora por enquanto.** Crítico é só marcado à mão; as datas de início e fim são lançadas na EAP, nos itens; as de etapa e subetapa saem sozinhas dos itens (início mais cedo, fim mais tarde).
+
 > Fonte da verdade deste projeto. Quando mudar de ideia, mude aqui primeiro.
 > Última atualização: 23/10/2026 — Etapas 1, 2 e 3 fechadas com o engenheiro. PRD-FRONTEND.md e PRD-BACKEND.md escritos a partir deste plano.
 
@@ -260,7 +265,7 @@ Login  →  "Conta aguardando liberação" (quem ainda não foi liberado)
 ├── Engenheiro
 │   ├── Painel do mês  (início)  →  gaveta do serviço  →  Acionar encarregado (F2)
 │   ├── Diário  →  dia  ·  aba Fotos
-│   ├── Serviços  →  detalhe  ·  Importar planilha / MS Project  ·  aba Responsáveis
+│   ├── Orçamento  →  detalhe  ·  Importar orçamento (Excel)  ·  aditivo  ·  item novo
 │   ├── Medição  →  período  ·  Planejar o mês  ·  Fechar e exportar (F2)
 │   ├── Recados e pendências (F2)
 │   └── Ajustes  →  Obras  ·  Pessoas e liberações  ·  Meu perfil

@@ -1,5 +1,10 @@
 # PRD Backend — Projeto Obra
 
+> **Mudança de 24/10/2026 (decisão do engenheiro), vale sobre o que estiver escrito abaixo:**
+> - O menu **Serviços passou a se chamar Orçamento**. É nele que entra o orçamento da obra em Excel (Fonte, Código, Item, Descrição, Unidade, Quantidade, C. Unitário, BDI por linha, P. Unitário, P. Total), com **aditivo de quantidade** e **item novo** incluídos pelo app. A EAP do Planejamento é montada a partir do Orçamento e enxerga toda mudança feita nele.
+> - O cadastro de **Responsáveis (e de funções) saiu de Serviços e foi para o Diário**, na aba "Responsáveis e funções". Só o engenheiro cadastra.
+> - **O MS Project fica de fora por enquanto.** Crítico é só marcado à mão; as datas de início e fim são lançadas na EAP, nos itens; as de etapa e subetapa saem sozinhas dos itens (início mais cedo, fim mais tarde).
+
 > Especificação dos dados e das permissões. Lido na etapa de criar o banco no Supabase.
 > O SQL não está aqui: ele é escrito na hora de construir, a partir desta descrição.
 > Fonte das decisões: `PLANO-DO-PROJETO.md`.
@@ -106,31 +111,108 @@ Para que serve: os empreiteiros, as empresas especializadas e a mão de obra pr�
 
 ---
 
-## Tabela `servicos` (F1)
+## Tabela `servicos` (F1) — os itens do orçamento
 
-Para que serve: os 100+ itens do escopo contratado de cada obra.
+Para que serve: cada linha de item do orçamento da obra (a ARRECIFES tem 418). As linhas de etapa e
+subgrupo ficam em `grupos`. O Painel, o Diário, a Medição e a EAP usam estes mesmos itens.
 
 | Campo | Tipo | Obrigatório | Observação |
 |---|---|---|---|
 | id | uuid | sim | chave |
 | obra_id | uuid | sim | → obras |
-| codigo | text | sim | o código da planilha contratual; único por obra |
+| codigo | text | sim | o **Item** da planilha sem o ponto final ("2.1.1."→"2.1.1"); único por obra |
+| fonte | text | sim | CHECK: `SINAPI`, `SICRO`, `COMPOSIÇÃO`, `COTAÇÃO` |
+| codigo_ref | text | não | o **Código** da composição (ex.: 98459, C-12) |
 | descricao | text | sim | |
 | frente | text | não | |
-| unidade | text | sim | m², m³, m, un, kg… |
-| qtd_contratada | numeric(14,3) | sim | maior que zero |
-| preco_unitario | numeric(14,2) | sim | maior ou igual a zero; **nunca chega à Equipe da obra** |
+| unidade | text | sim | como na planilha (M2, M3, UN, UNXMES…) |
+| qtd_orcada | numeric(14,3) | sim | a quantidade da planilha (ou a incluída, no item novo); não muda depois |
+| custo_unitario | numeric(14,2) | não | C. Unit.; **nunca chega à Equipe da obra** |
+| bdi | numeric(7,4) | não | por linha (0,2420 = 24,20%); **nunca chega à Equipe da obra** |
+| preco_unitario | numeric(14,2) | sim | P. Unit. = TRUNCAR(custo × (1 + BDI), 2); **nunca chega à Equipe da obra** |
+| origem | text | sim | CHECK: `Planilha`, `Item novo` |
+| aditivo_numero | text | não | no item novo: o aditivo que o incluiu |
 | responsavel_id | uuid | não | → responsaveis da mesma obra |
-| data_inicio_planejada | date | não | do MS Project |
-| data_fim_planejada | date | não | do MS Project; não pode ser antes do início |
-| critico | boolean | sim | padrão falso |
-| critico_origem | text | sim | CHECK: `MS Project`, `À mão`; padrão `MS Project` |
-| ativo | boolean | sim | padrão verdadeiro; serviço suprimido por aditivo fica inativo |
+| data_inicio_planejada | date | não | lançada na EAP |
+| data_fim_planejada | date | não | lançada na EAP; não pode ser antes do início |
+| critico | boolean | sim | padrão falso; marcado à mão |
+| critico_origem | text | sim | CHECK: `MS Project`, `À mão`; hoje sempre `À mão` (MS Project fora por enquanto) |
+| ativo | boolean | sim | padrão verdadeiro; item novo pode ser arquivado |
+| alterado_por | uuid | não | → profiles; quem corrigiu o item novo por último |
+| alterado_em | timestamptz | não | quando |
 | created_at | timestamptz | sim | automático |
 
-**Relações:** pertence a uma obra e a um responsável; tem vários lançamentos, fotos e itens de medição.
+**Quantidade vigente** (a que o app inteiro usa como "contratada"): `qtd_orcada` + soma dos `aditivos` do item.
+No banco, uma view `servicos_vigentes` entrega `qtd_contratada` já somada; a camada de dados lê dela.
+**P. Total** = TRUNCAR(quantidade × P. Unit., 2). As contas truncam, como a planilha (`src/lib/orcamento.js`).
+**Relações:** pertence a uma obra e a um responsável; tem aditivos, lançamentos, fotos e itens de medição.
 **Índices úteis:** (`obra_id`, `codigo`) único, (`obra_id`, `responsavel_id`).
-**Regra de negócio:** a importação do MS Project só muda `critico` quando `critico_origem = 'MS Project'`.
+
+---
+
+## Tabela `grupos` (F1, desde 24/10/2026)
+
+Para que serve: as linhas de etapa (1, 2…) e subgrupo (2.1, 2.2…) do orçamento. A EAP usa os mesmos.
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| codigo | text | sim | único por obra, e não pode repetir o código de um item |
+| nome | text | sim | |
+
+**Grupo não tem data gravada.** Na EAP, o início da etapa ou subetapa é o início mais cedo dos itens de
+dentro, e o fim é o fim mais tarde (em todos os níveis), calculado na hora (`montarEap`).
+**Datas da EAP:** o engenheiro grava as datas dos itens de uma vez (`salvarDatasEap`), tudo ou nada: uma
+linha com fim antes do início (ou só uma das datas) recusa o lote inteiro.
+
+---
+
+## Tabela `aditivos` (F1, desde 24/10/2026)
+
+Para que serve: cada aditivo de quantidade (acréscimo ou supressão) de um item.
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| servico_id | uuid | sim | → servicos da mesma obra |
+| numero | text | sim | ex.: "1º aditivo" |
+| data | date | sim | |
+| quantidade | numeric(14,3) | sim | positiva = acréscimo; negativa = supressão; diferente de zero |
+| motivo | text | sim | |
+| criado_por | uuid | sim | → profiles |
+| alterado_por | uuid | não | → profiles; quem corrigiu por último |
+| alterado_em | timestamptz | não | quando |
+| created_at | timestamptz | sim | automático |
+
+**Correção e exclusão (só o Engenheiro):** o aditivo pode ser corrigido (tipo, quantidade, número, data, motivo)
+ou excluído, desde que a quantidade vigente não DIMINUA para baixo do executado. Item novo pode ser corrigido
+(todos os campos; o grupo só enquanto não houver lançamento, e a quantidade não desce abaixo do executado) e
+excluído só sem lançamento, foto ou medição planejada — senão, arquiva. Item da planilha nunca é corrigido nem
+excluído: muda por aditivo.
+
+**Regra de negócio:** a supressão não deixa a quantidade vigente abaixo do já executado (soma dos
+lançamentos do item), nem abaixo de zero. Conferido em `validarAditivo` e, no banco, por gatilho.
+
+---
+
+## Tabela `orcamentos` (F1, desde 24/10/2026)
+
+Para que serve: o cabeçalho do orçamento de cada obra (uma linha por obra).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras; único |
+| base_referencia | text | não | ex.: SINAPI-PE março/2026, SICRO… |
+| mes_referencia | text | não | |
+| encargos | text | não | regime de encargos sociais |
+| periodo | text | não | ex.: 10 meses |
+| bdi_servico | numeric(7,4) | não | sugerido no item novo |
+| bdi_material | numeric(7,4) | não | sugerido no item novo |
+
+Equipe da obra e Fiscalização não leem esta tabela.
 
 ---
 
@@ -356,7 +438,11 @@ Uma função só decide "obras dela", e toda política usa a mesma frase: `obra_
 - **Criar / editar / desativar:** só o Engenheiro.
 - **Apagar:** ninguém.
 
-### `servicos`
+### `servicos`, `grupos`, `aditivos`, `orcamentos`
+
+Leem quem é da obra (Equipe sem as colunas de valor e sem `orcamentos`). Só o Engenheiro inclui item novo, grupo e aditivo.
+
+### `servicos` (o que já valia)
 - **Ver:** Engenheiro e Diretoria veem tudo. A Equipe da obra vê **sem** `preco_unitario`. A Fiscalização vê com `preco_unitario`, mas **sem** `responsavel_id`, datas planejadas e crítico.
 - **Criar / editar / desativar:** só o Engenheiro.
 - **Apagar:** ninguém.

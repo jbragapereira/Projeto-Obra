@@ -1,5 +1,10 @@
 # PRD Frontend — Projeto Obra
 
+> **Mudança de 24/10/2026 (decisão do engenheiro), vale sobre o que estiver escrito abaixo:**
+> - O menu **Serviços passou a se chamar Orçamento**. É nele que entra o orçamento da obra em Excel (Fonte, Código, Item, Descrição, Unidade, Quantidade, C. Unitário, BDI por linha, P. Unitário, P. Total), com **aditivo de quantidade** e **item novo** incluídos pelo app. A EAP do Planejamento é montada a partir do Orçamento e enxerga toda mudança feita nele.
+> - O cadastro de **Responsáveis (e de funções) saiu de Serviços e foi para o Diário**, na aba "Responsáveis e funções". Só o engenheiro cadastra.
+> - **O MS Project fica de fora por enquanto.** Crítico é só marcado à mão; as datas de início e fim são lançadas na EAP, nos itens; as de etapa e subetapa saem sozinhas dos itens (início mais cedo, fim mais tarde).
+
 > Especificação da interface. Quem constrói lê este arquivo.
 > Nesta fase não existe banco: as telas funcionam com os dados de exemplo do fim deste arquivo.
 > Fonte das decisões: `PLANO-DO-PROJETO.md`. Quando uma decisão mudar, ela muda lá primeiro e depois aqui.
@@ -37,17 +42,25 @@ O **seletor de obra** fica no alto de todas as telas, menos no Login e no aviso 
 ```
 Login  →  Conta aguardando liberação
 │
-├── Engenheiro:      Painel do mês · Diário (aba Fotos) · Serviços (aba Responsáveis) · Medição · Recados (F2) · Ajustes
-├── Diretoria:       Painel do mês · Diário (aba Fotos) · Serviços · Medição · Recados (F2) · Meu perfil
-├── Equipe da obra:  Lançar o dia · Painel do mês · Serviços · Meu perfil
+├── Engenheiro:      Painel do mês · Diário (abas Diário do dia, Responsáveis e funções) · Orçamento · Planejamento · Medição · Recados (F2) · Ajustes
+├── Diretoria:       Painel do mês · Diário (abas Diário do dia, Responsáveis e funções; aba Fotos ainda não feita) · Orçamento · Planejamento · Medição · Meu perfil · Recados (F2)
+├── Equipe da obra:  Lançar o dia · Painel do mês · Planejamento · Orçamento (sem R$) · Meu perfil
 └── Fiscalização:    Avanço por serviço (F2) · Fotos da semana (F2) · Meu perfil
 ```
 
 Barra inferior no celular:
-- Engenheiro: Painel · Diário · Serviços · Medição · Mais (Recados, Ajustes).
-- Diretoria: Painel · Diário · Serviços · Medição · Mais (Recados, Meu perfil).
-- Equipe da obra: Lançar o dia · Painel · Serviços · Meu perfil.
+- Engenheiro: Painel · Diário · Orçamento · Planejar · Mais (Medição, Ajustes, Recados).
+- Diretoria: Painel · Diário · Orçamento · Planejar · Mais (Medição, Meu perfil, Recados).
+- Equipe da obra: Lançar o dia · Painel · Planejar · Orçamento · Meu perfil.
 - Fiscalização: Avanço · Fotos · Meu perfil.
+
+---
+
+## Em todas as telas: botão "Topo"
+
+Em **todo menu** (inclusive os que forem criados depois), quando a página desce mais de 300 px aparece um
+botão flutuante **"↑ Topo"** que acompanha a rolagem e volta ao cabeçalho da tela. No celular fica acima da
+barra de baixo; no computador, no canto inferior direito. Mora uma vez só, na casca do app (`Shell.jsx`).
 
 ---
 
@@ -230,52 +243,71 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 
 ---
 
-## Tela: Serviços (F1)
+## Tela: Orçamento (F1, era "Serviços" até 24/10/2026)
 
 **Quem acessa:** Engenheiro (edita), Diretoria (vê), Equipe da obra (vê sem R$).
-**Chega aqui por:** item de menu Serviços.
+**Chega aqui por:** item de menu Orçamento.
 
-**O que aparece**
-Abas **Serviços** e **Responsáveis** (a aba Responsáveis só aparece para o Engenheiro e a Diretoria). Na aba Serviços: busca, filtros (responsável, frente, crítico, ativos/inativos) e a lista dos 100+ serviços da obra, pelo código. No celular, cartões; no computador, tabela.
+**O que mostra**
+- **Totais** (só quem vê valores): orçamento original, aditivos (+/−) e orçamento vigente. Abaixo, recolhido,
+  "Base de referência, encargos e BDI" (base, mês de referência, encargos, período, BDI de serviço e de material).
+- **A planilha**, em árvore: etapa (1), subgrupo (1.1) e item (1.1.1). De início só as etapas aparecem;
+  "Abrir tudo" e "Fechar tudo". Cada grupo mostra o subtotal vigente e o seu % do orçamento.
+- **Colunas no computador:** Item, Fonte, Código, Descrição, Und, Quant., C. Unit., BDI, P. Unit., P. Total, % do orçamento.
+  Quantidade com aditivo aparece "orçada riscada → vigente". Marcas: "Item novo", "Aditivo", "Crítico".
+  **% do orçamento** = valor do item (ou subtotal do grupo) ÷ orçamento **vigente** (original + aditivos); o total dá 100,00%.
+  A Equipe vê só Item, Descrição, Und e Quant.
+- **No celular:** a mesma árvore em linhas (grupo com subtotal e % do orçamento; item com quantidade, P. Total e % do orçamento).
+- **Busca** (item, código ou descrição) e filtros **Todos, Com aditivo, Itens novos, Críticos, Arquivados**.
+- O avanço físico (executado no Diário) fica no detalhe do item e na EAP; a Equipe não vê a coluna de %, que vem dos valores.
 
-**Campos e informações**
+**Detalhe do item (gaveta):** fonte e código, unidade, quantidade orçada, aditivos, vigente, executado,
+saldo, responsável e, para quem vê valores, C. Unit., BDI, P. Unit. e P. Total vigente; a lista de aditivos do item.
 
-| Campo | Tipo | Obrigatório | Observação |
-|---|---|---|---|
-| Código | texto | sim | da planilha contratual |
-| Descrição | texto | sim | |
-| Frente | texto | não | |
-| Unidade | texto | sim | |
-| Qtd contratada | número | sim | |
-| Preço unitário | R$ | sim | escondido da Equipe da obra |
-| Valor total | R$ | — | qtd × preço; escondido da Equipe da obra |
-| Responsável | escolha | não | |
-| Início planejado | data | não | do MS Project |
-| Fim planejado | data | não | do MS Project |
-| Crítico | caixinha | sim | com a etiqueta "do MS Project" ou "marcado à mão" |
-| Qtd executada acumulada | número | — | soma de todos os lançamentos |
-| % acumulado | % | — | sobre o contratado |
-| Ativo | sim/não | sim | serviço suprimido por aditivo fica inativo |
+**Ações (só o Engenheiro)**
+- **Aditivo de quantidade:** acréscimo ou supressão, quantidade, número do aditivo, data e motivo. Mostra
+  a vigente atual → nova e a diferença em R$. Supressão abaixo do executado é recusada com o motivo.
+- **Item novo:** grupo (o Item sai sozinho, o próximo do grupo), fonte, código, descrição, unidade, quantidade,
+  C. Unitário, BDI (o de serviço, o de material/equipamento ou outro), aditivo que o incluiu e responsável.
+  P. Unit. e P. Total aparecem na hora, truncados como na planilha. Item novo pode ser arquivado.
+- **Corrigir e excluir aditivo:** cada aditivo da lista do item tem "Corrigir" (mesmo formulário, preenchido,
+  com a vigente antes → depois) e "Excluir" (pede confirmação e diz para quanto a vigente volta). Recusa o que
+  deixaria a vigente abaixo do executado.
+- **Corrigir e excluir item novo:** "Corrigir item novo" abre o formulário preenchido (P. Unit. recalculado,
+  truncado); o grupo fica travado se o item já tem lançamento. "Excluir item novo" só aparece sem execução;
+  com execução, fica "Arquivar". Item da planilha não tem esses botões.
+- **Quem corrigiu:** o item e o aditivo corrigidos mostram "corrigido por <nome> em <data e hora>".
+- **Grupo:** etapa nova ou subgrupo dentro de um grupo; o código sai sozinho.
+- **Marcar como crítico.**
+- **Importar orçamento (Excel):** Etapa 4 (lê todas as linhas e colunas do modelo da HCL).
 
-**Ações**
-- **Importar planilha contratual (Excel):** o Engenheiro escolhe o arquivo, indica qual coluna é código, descrição, unidade, quantidade e preço unitário, vê uma prévia ("124 serviços encontrados, 3 com problema") e confirma. Se a importação for repetida, serviços com o mesmo código são atualizados e os novos são criados; nenhum é apagado.
-- **Importar Excel do MS Project:** liga cada linha ao serviço pelo código e preenche início, fim e crítico (coluna "Crítica", Sim/Não). Serviços com crítico "marcado à mão" não mudam. Mostra quantos foram atualizados e quais códigos não foram encontrados.
-- **Marcar crítico à mão:** a caixinha muda e ganha a etiqueta "marcado à mão".
-- **Seguir o MS Project:** no detalhe do serviço, devolve o controle do crítico para a próxima importação.
-- **Editar e trocar responsável:** no detalhe do serviço.
-- **Desativar:** o serviço some do painel e dos lançamentos, mas o histórico fica.
-- **Tocar num serviço:** abre o detalhe com os dados e o histórico de lançamentos.
+**A EAP do Planejamento lê estes mesmos itens e grupos:** tudo o que muda aqui aparece lá.
 
-**Aba Responsáveis**
-Lista com nome, tipo (`Empreiteiro`, `Empresa especializada`, `Mão de obra própria`) e contato. O Engenheiro cria, edita e desativa. **(F2)** Tocar num responsável abre os serviços dele com o avanço do mês: é o que substitui a "aba por empreiteiro".
+**Estado vazio:** "Nenhum item nesta obra ainda. Comece importando o orçamento da obra em Excel."
 
-**Regras por perfil**
-- **Engenheiro:** tudo.
-- **Diretoria:** só vê, com valores.
-- **Equipe da obra:** só a aba Serviços, sem preço unitário nem valor total.
+---
 
-**Estado vazio**
-"Nenhum serviço nesta obra. Importe a planilha contratual." · Responsáveis: "Nenhum responsável cadastrado."
+## Tela: Planejamento — aba EAP (F1, desde 24/10/2026)
+
+**Quem acessa:** Engenheiro (lança as datas), Diretoria e Equipe da obra (veem). Fiscalização não vê.
+**Chega aqui por:** menu Planejamento, primeira aba. As abas Longo, Médio e Curto prazo vêm nas próximas etapas.
+
+**O que mostra:** a árvore do Orçamento (etapa › subgrupo › item), sem lista paralela: itens e grupos
+vêm do Orçamento e **não são criados nem editados aqui** (botão "Ir para o Orçamento"). Cada linha tem
+o período planejado (início a fim, dias corridos) e a **barra de avanço** do Diário (item: executado ÷
+quantidade vigente; grupo: média ponderada pelo valor, ou simples para quem não vê valores). Busca,
+"Abrir tudo", "Fechar tudo", filtros **Sem datas** e **Arquivados**, e o contador "N itens sem datas".
+Tocar numa linha abre o detalhe (datas, dias, avanço, quantidade, valor para quem vê valores, responsável).
+
+**Datas de etapa e subetapa são automáticas:** o grupo nunca recebe data. O início dele é o **início mais
+cedo** entre os itens de dentro, e o fim é o **fim mais tarde** — em todos os níveis (o item puxa a
+subetapa, que puxa a etapa). Grupo só com itens sem data fica "Sem datas".
+
+**Editar datas (só o Engenheiro):** "Editar datas" abre a árvore inteira com **Início e Fim em cada item**
+(etapa e subetapa não têm campo; o período delas muda na hora, enquanto se digita). Uma barra fixa no
+topo mostra "N item(ns) com data não salva", **Salvar datas** (grava tudo de uma vez) e **Cancelar**
+(descarta, com confirmação). **Fim antes do início** (ou só uma data) deixa a linha vermelha e impede
+salvar. No celular, os dois campos ficam embaixo do item; no computador, numa coluna à direita.
 
 ---
 

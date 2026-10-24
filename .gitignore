@@ -5,3 +5,7 @@ dist
 .vercel
 .DS_Store
 *.log
+
+# Planilhas originais das obras (têm dados pessoais no rodapé): ficam só neste computador
+OBRAARRECIFESJORDÃO/
+*.xlsx

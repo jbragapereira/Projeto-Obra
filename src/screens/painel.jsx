@@ -34,7 +34,7 @@ export default function Painel({ profile, obra, goto }) {
       <div className="view">
         <Vazio titulo="Esta obra ainda não tem serviços"
           texto="Importe a planilha contratual e o painel passa a mostrar, toda manhã, o que está andando e o que parou."
-          acao={podeEditar(profile.role) ? 'Ir para Serviços' : null} onAcao={() => goto('servicos')} />
+          acao={podeEditar(profile.role) ? 'Ir para Orçamento' : null} onAcao={() => goto('orcamento')} />
       </div>
     )
   }

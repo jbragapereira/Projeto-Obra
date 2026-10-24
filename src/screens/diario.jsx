@@ -1,7 +1,7 @@
 // Diário de obra (Engenheiro e Diretoria) / Lançar o dia (Equipe da obra).
 // Escolhe o dia (hoje por padrão), lança ou corrige o diário daquele dia,
 // e mostra o histórico em cartões. Tudo da obra escolhida no seletor.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   buscarEndereco, buscarMedicaoAtual, juntar, listarDiarios, listarFotos, listarFuncoes, listarItensMedicao,
   listarLancamentos, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
@@ -12,13 +12,14 @@ import {
   totalEfetivo, ultimoDiaDeCorrecao, validarEfetivo,
 } from '../lib/diario.js'
 import { analisarServico, ORDEM_SITUACAO } from '../lib/painel.js'
-import { podeEditar, podeLancar } from '../lib/perfis.js'
+import { podeEditar, podeLancar, rotuloDoDiario, veCadastrosDoDiario } from '../lib/perfis.js'
 import { TIPOS_RESPONSAVEL, aceitaLancamento } from '../lib/obras.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
 import { dataHoraCurta, dataLonga, dm, dmy, hojeISO } from '../lib/datas.js'
 import { ORIGENS_DATA } from '../lib/fotos.js'
 import { CampoNumero, Carregando, Critico, ErroCarga, Faixa, Icon, Meta, Pill, Vazio, avisar, useDados } from '../components/index.jsx'
 import { prepararFoto } from '../components/prepararFoto.js'
+import DiarioCadastros from './diarioCadastros.jsx'
 
 async function carregar() {
   const r = await juntar({
@@ -115,8 +116,10 @@ function formularioDe(dados, dia, diario) {
   }
 }
 
-export default function Diario({ profile, obra }) {
+function DiarioDoDia({ profile, obra, versaoCadastro }) {
   const { data, erro, carregando, recarregar } = useDados(carregar)
+  // Cadastro novo na outra aba: recarrega a lista sem perder o lançamento em andamento.
+  useEffect(() => { if (versaoCadastro) recarregar() }, [versaoCadastro])
   const hoje = hojeISO()
   const [dia, setDia] = useState(hoje)
   const [form, setForm] = useState(null)
@@ -130,13 +133,9 @@ export default function Diario({ profile, obra }) {
   if (erro) return <ErroCarga erro={erro} onTentar={recarregar} />
 
   const lanca = podeLancar(profile.role)
-  const titulo = (
-    <Faixa><div className="faixa-titulo">{lanca && profile.role !== 'Engenheiro' ? 'Lançar o dia' : 'Diário de obra'}
-      <span style={{ fontWeight: 400, color: 'var(--head-sub)', marginLeft: 10 }}>{dataLonga(dia)}</span></div></Faixa>
-  )
 
   if (!data.servicos.length) {
-    return <>{titulo}<div className="view"><Vazio titulo="Ainda não há o que lançar"
+    return <><div className="view"><Vazio titulo="Ainda não há o que lançar"
       texto="Assim que o engenheiro importar os serviços desta obra, eles aparecem aqui para você lançar o dia." /></div></>
   }
 
@@ -160,6 +159,7 @@ export default function Diario({ profile, obra }) {
 
   const seletorDeDia = (
     <section className="card card-b dia-card">
+      <div className="big" style={{ flexBasis: '100%' }}>{dataLonga(dia)}</div>
       <label className="field"><span>Dia do diário</span>
         <input className="ipt" type="date" value={dia} max={hoje} min={lanca ? primeiro ?? undefined : undefined} disabled={comprimindo.length > 0}
           onChange={(e) => { if (e.target.value) trocarDia(e.target.value) }} />
@@ -203,7 +203,6 @@ export default function Diario({ profile, obra }) {
     const motivo = diarioDoDia ? null : porQueNaoLanca({ role: profile.role, lancaDiario: lanca, obraAceita: aceitaLancamento(obra) })
     return (
       <>
-        {titulo}
         <div className="view">
           {seletorDeDia}
           {diarioDoDia ? (
@@ -344,7 +343,6 @@ export default function Diario({ profile, obra }) {
 
   return (
     <>
-      {titulo}
       <div className="view">
         {seletorDeDia}
 
@@ -538,6 +536,24 @@ export default function Diario({ profile, obra }) {
 
         {historico}
       </div>
+    </>
+  )
+}
+
+// O Diário tem duas abas. As duas ficam montadas: trocar de aba não perde o lançamento pela metade.
+export default function Diario({ profile, obra }) {
+  const [aba, setAba] = useState('dia')
+  const [versaoCadastro, setVersaoCadastro] = useState(0)
+  return (
+    <>
+      <Faixa>
+        <div className="tabs" role="tablist" aria-label="Diário">
+          <button className="tab" role="tab" aria-selected={aba === 'dia'} onClick={() => setAba('dia')}>{rotuloDoDiario(profile.role)}</button>
+          {veCadastrosDoDiario(profile.role) && <button className="tab" role="tab" aria-selected={aba === 'cadastros'} onClick={() => setAba('cadastros')}>Responsáveis e funções</button>}
+        </div>
+      </Faixa>
+      <div hidden={aba !== 'dia'}><DiarioDoDia profile={profile} obra={obra} versaoCadastro={versaoCadastro} /></div>
+      {aba === 'cadastros' && <DiarioCadastros profile={profile} onMudou={() => setVersaoCadastro((v) => v + 1)} />}
     </>
   )
 }

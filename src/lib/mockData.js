@@ -13,6 +13,8 @@
 import { addDias, hojeISO } from './datas.js'
 import { congelarMeta } from './medicao.js'
 import { FUNCOES_PADRAO } from './diario.js'
+import { CRITICO_A_MAO, ORIGENS_ITEM, precoUnitario } from './orcamento.js'
+import { GRUPOS_ARRECIFES, ITENS_ARRECIFES, ORCAMENTO_ARRECIFES } from './mockOrcamentoArrecifes.js'
 
 // Vire para false quando o banco estiver ligado.
 export const USAR_MOCK = true
@@ -28,7 +30,7 @@ export const obras = [
   },
   {
     id: 'obra-ba', nome: 'ARRECIFES JORDÃO ALTO', codigo: 'AJA-112',
-    endereco: 'Av. Central, 2.300 — Jordão Alto (exemplo)', cliente: 'Secretaria de Educação (exemplo)',
+    endereco: 'Praça Presidente Kennedy, Jordão Alto, Recife', cliente: 'Secretaria de Educação (exemplo)',
     numero_contrato: '112/2026', data_inicio: d(-40), data_entrega: d(250), situacao: 'Em andamento',
   },
 ]
@@ -59,43 +61,41 @@ export const responsaveis = [
   { id: 'r-ba-prop', obra_id: 'obra-ba', nome: 'Mão de obra própria', tipo: 'Mão de obra própria', contato: '', ativo: true },
 ]
 
-// Um serviço por linha, com os lançamentos que ele recebeu e o planejado do mês.
+// INSS: orçamento de exemplo, um item por linha, com os lançamentos que ele recebeu e o planejado do mês.
+// item = [fonte, código, unidade, quantidade orçada, custo unitário]; o BDI é o de serviço (24,20%).
 // anterior = quanto foi feito antes da medição atual (espalhado em 4 lançamentos).
 // periodo = [[dias a partir de hoje, quantidade], ...] dentro da medição atual.
 const VN = [
-  { id: 's-vn-121', codigo: '1.2.1', descricao: 'Tapume com telha metálica', frente: 'Canteiro', unidade: 'm', qtd: 180, preco: 145, resp: 'r-pedra', ini: -40, fim: 13, critico: true, origem: 'MS Project',
+  { codigo: '1.2.1', descricao: 'Tapume com telha metálica', item: ['SINAPI', '98459', 'M', 180, 117], resp: 'r-pedra', ini: -40, fim: 13, critico: true,
     plan: 120, anterior: 60, periodo: [[-17, 12], [-14, 10], [-8, 8]] },
-  { id: 's-vn-511', codigo: '5.1.1', descricao: 'Contrapiso e = 5 cm', frente: 'Pisos', unidade: 'm²', qtd: 980, preco: 41, resp: 'r-pedra', ini: -5, fim: 38, critico: false, origem: 'MS Project',
+  { codigo: '5.1.1', descricao: 'Contrapiso e = 5 cm', item: ['SINAPI', '87630', 'M2', 980, 33], resp: 'r-pedra', ini: -5, fim: 38, critico: false,
     plan: 300, anterior: 0, periodo: [] },
-  { id: 's-vn-613', codigo: '6.1.3', descricao: 'Eletroduto PVC 25 mm embutido', frente: 'Instalações', unidade: 'm', qtd: 1500, preco: 18.9, resp: 'r-ponto', ini: -20, fim: 18, critico: true, origem: 'À mão',
+  { codigo: '6.1.3', descricao: 'Eletroduto PVC 25 mm embutido', item: ['SINAPI', '91852', 'M', 1500, 15.22], resp: 'r-ponto', ini: -20, fim: 18, critico: true,
     plan: 400, anterior: 0, periodo: [[-15, 60], [-9, 55], [-3, 45]] },
-  { id: 's-vn-314', codigo: '3.1.4', descricao: 'Alvenaria de vedação com bloco cerâmico', frente: 'Alvenaria', unidade: 'm²', qtd: 1850, preco: 68.5, resp: 'r-pedra', ini: -70, fim: 28, critico: true, origem: 'MS Project',
+  { codigo: '3.1.4', descricao: 'Alvenaria de vedação com bloco cerâmico', item: ['SINAPI', '103324', 'M2', 1850, 55.15], resp: 'r-pedra', ini: -70, fim: 28, critico: true,
     plan: 600, anterior: 650, periodo: [[-21, 60], [-17, 70], [-14, 80], [-9, 60], [-6, 50], [-3, 50], [-1, 40]] },
-  { id: 's-vn-421', codigo: '4.2.1', descricao: 'Chapisco e reboco interno', frente: 'Revestimento', unidade: 'm²', qtd: 2400, preco: 32, resp: 'r-vn-prop', ini: -60, fim: 38, critico: false, origem: 'MS Project',
+  { codigo: '4.2.1', descricao: 'Chapisco e reboco interno', item: ['COMPOSIÇÃO', 'C-41', 'M2', 2400, 25.77], resp: 'r-vn-prop', ini: -60, fim: 38, critico: false,
     plan: 900, anterior: 1000, periodo: [[-20, 90], [-16, 100], [-13, 110], [-8, 120], [-3, 140], [-1, 140]] },
-  { id: 's-vn-322', codigo: '3.2.2', descricao: 'Verga e contraverga de concreto', frente: 'Alvenaria', unidade: 'm', qtd: 260, preco: 38, resp: 'r-vn-prop', ini: -60, fim: 11, critico: false, origem: 'MS Project',
+  { codigo: '3.2.2', descricao: 'Verga e contraverga de concreto', item: ['SINAPI', '93184', 'M', 260, 30.6], resp: 'r-vn-prop', ini: -60, fim: 11, critico: false,
     plan: 140, anterior: 120, periodo: [[-10, 40], [-7, 45], [-2, 35]] },
-  { id: 's-vn-232', codigo: '2.3.2', descricao: 'Demolição de piso cerâmico', frente: 'Demolições', unidade: 'm²', qtd: 350, preco: 22, resp: 'r-vn-prop', ini: -25, fim: 2, critico: false, origem: 'MS Project',
+  { codigo: '2.3.2', descricao: 'Demolição de piso cerâmico', item: ['SINAPI', '97633', 'M2', 350, 17.71], resp: 'r-vn-prop', ini: -25, fim: 2, critico: false,
     plan: 350, anterior: 0, periodo: [[-22, 120], [-20, 130], [-17, 100]], concluidoNo: -17 },
-  { id: 's-vn-111', codigo: '1.1.1', descricao: 'Placa da obra em chapa galvanizada', frente: 'Canteiro', unidade: 'm²', qtd: 6, preco: 250, resp: 'r-pedra', ini: -100, fim: -90, critico: false, origem: 'MS Project',
+  { codigo: '1.1.1', descricao: 'Placa da obra em chapa galvanizada', item: ['SINAPI', '103689', 'M2', 6, 201.29], resp: 'r-pedra', ini: -100, fim: -90, critico: false,
     plan: 0, anterior: 0, periodo: [], antigo: [[-95, 6]], concluidoNo: -95 },
-  { id: 's-vn-811', codigo: '8.1.1', descricao: 'Instalação de louças sanitárias', frente: 'Instalações', unidade: 'un', qtd: 24, preco: 380, resp: 'r-vn-prop', ini: 80, fim: 110, critico: false, origem: 'MS Project',
+  { codigo: '8.1.1', descricao: 'Instalação de louças sanitárias', item: ['COTAÇÃO', 'COT-03', 'UN', 24, 305.95], resp: 'r-vn-prop', ini: 80, fim: 110, critico: false,
     plan: 0, anterior: 0, periodo: [] },
-  { id: 's-vn-912', codigo: '9.1.2', descricao: 'Limpeza final de obra', frente: 'Entrega', unidade: 'm²', qtd: 1450, preco: 6.5, resp: 'r-vn-prop', ini: 130, fim: 140, critico: true, origem: 'MS Project',
+  { codigo: '9.1.2', descricao: 'Limpeza final de obra', item: ['COMPOSIÇÃO', 'C-77', 'M2', 1450, 5.23], resp: 'r-vn-prop', ini: 130, fim: 140, critico: true,
     plan: 0, anterior: 0, periodo: [] },
 ]
 
+// ARRECIFES: o orçamento real (mockOrcamentoArrecifes.js) e, para alguns itens, o que a obra já fez.
 const BA = [
-  { id: 's-ba-112', codigo: '1.1.2', descricao: 'Escavação manual de sapatas', frente: 'Fundações', unidade: 'm³', qtd: 60, preco: 85, resp: 'r-silva', ini: -12, fim: 7, critico: true, origem: 'MS Project',
-    plan: 60, anterior: 0, periodo: [[-10, 16], [-7, 14], [-3, 10], [0, 8]] },
-  { id: 's-ba-211', codigo: '2.1.1', descricao: 'Concreto fck 25 MPa em fundações', frente: 'Fundações', unidade: 'm³', qtd: 60, preco: 620, resp: 'r-silva', ini: -9, fim: 22, critico: true, origem: 'MS Project',
-    plan: 40, anterior: 0, periodo: [[-8, 8], [-4, 7], [-1, 7]] },
-  { id: 's-ba-224', codigo: '2.2.4', descricao: 'Armação em aço CA-50', frente: 'Fundações', unidade: 'kg', qtd: 7800, preco: 9.8, resp: 'r-ba-prop', ini: -20, fim: 17, critico: false, origem: 'MS Project',
-    plan: 2500, anterior: 0, periodo: [[-18, 300], [-14, 350], [-9, 400], [-4, 450], [0, 400]] },
-  { id: 's-ba-131', codigo: '1.3.1', descricao: 'Locação da obra', frente: 'Serviços iniciais', unidade: 'm²', qtd: 850, preco: 4.2, resp: 'r-ba-prop', ini: -22, fim: -18, critico: false, origem: 'MS Project',
-    plan: 850, anterior: 0, periodo: [[-21, 850]], concluidoNo: -21 },
-  { id: 's-ba-231', codigo: '2.3.1', descricao: 'Impermeabilização de viga baldrame', frente: 'Fundações', unidade: 'm²', qtd: 420, preco: 36, resp: 'r-silva', ini: -8, fim: 32, critico: false, origem: 'MS Project',
-    plan: 180, anterior: 0, periodo: [[-6, 40]] },
+  { codigo: '2.1.7', resp: 'r-silva', ini: -38, fim: -30, critico: false, plan: 0, anterior: 0, periodo: [], antigo: [[-35, 130], [-32, 130]], concluidoNo: -32 },
+  { codigo: '3.3.1', resp: 'r-ba-prop', ini: -22, fim: -18, critico: false, plan: 805.52, anterior: 0, periodo: [[-21, 805.52]], concluidoNo: -21 },
+  { codigo: '3.4.1', resp: 'r-silva', ini: -20, fim: 12, critico: true, plan: 900, anterior: 0, periodo: [[-18, 150], [-14, 200], [-10, 180], [-7, 160], [-3, 120], [0, 90]] },
+  { codigo: '3.1.4', resp: 'r-silva', ini: -17, fim: 5, critico: true, plan: 79.75, anterior: 0, periodo: [[-16, 20], [-12, 18]] },
+  { codigo: '3.5.3', resp: 'r-ba-prop', ini: -8, fim: 40, critico: false, plan: 250, anterior: 0, periodo: [[-6, 40], [-2, 35]] },
+  { codigo: '2.4.1', resp: 'r-ba-prop', ini: -25, fim: 200, critico: false, plan: 20, anterior: 0, periodo: [[-21, 1], [-20, 1], [-14, 1], [-7, 1], [-1, 1]] },
 ]
 
 const AUTOR = { 'obra-vn': 'p-lucas', 'obra-ba': 'p-marcos' }
@@ -114,7 +114,25 @@ const EQUIPE_TIPICA = {
   'r-ba-prop': [['Armador', 3], ['Servente', 2], ['Encarregado', 1]],
 }
 
+// Grupos do orçamento (as linhas que não são item: etapa 1, subgrupo 1.2...). A EAP usa os mesmos.
+export const grupos = [
+  ...[['1', 'Serviços preliminares'], ['1.1', 'Placas e sinalização'], ['1.2', 'Tapumes e proteções'], ['2', 'Demolições e retiradas'],
+    ['2.3', 'Pisos existentes'], ['3', 'Alvenaria'], ['3.1', 'Vedação'], ['3.2', 'Vergas e contravergas'], ['4', 'Revestimentos'],
+    ['4.2', 'Revestimento interno'], ['5', 'Pisos'], ['5.1', 'Contrapisos'], ['6', 'Instalações elétricas'], ['6.1', 'Infraestrutura elétrica'],
+    ['8', 'Louças e metais'], ['8.1', 'Louças sanitárias'], ['9', 'Serviços finais'], ['9.1', 'Limpeza']]
+    .map(([codigo, nome]) => ({ id: `gr-vn-${codigo}`, obra_id: 'obra-vn', codigo, nome })),
+  ...GRUPOS_ARRECIFES.map(([codigo, nome]) => ({ id: `gr-ba-${codigo}`, obra_id: 'obra-ba', codigo, nome })),
+]
+
+// Dados de cabeçalho do orçamento de cada obra (uma linha por obra).
+export const orcamentos = [
+  { id: 'orc-vn', obra_id: 'obra-vn', base_referencia: 'SINAPI-PE (exemplo)', mes_referencia: 'MARÇO DE 2026', encargos: 'NÃO DESONERADA (exemplo)',
+    periodo: '10 MESES', bdi_servico: 0.242, bdi_material: 0.1528 },
+  { id: 'orc-ba', obra_id: 'obra-ba', ...ORCAMENTO_ARRECIFES },
+]
+
 export const servicos = []
+export const aditivos = []
 export const diarios = []
 export const efetivo = []
 export const lancamentos = []
@@ -122,15 +140,22 @@ export const fotos = []
 export const medicoes = []
 export const medicaoItens = []
 
-function montarObra(obraId, specs) {
+const itemDoOrcamento = (obraId, [codigo, fonte, codigoRef, descricao, unidade, qtd, custo, bdi, preco]) => ({
+  id: `s-${obraId.slice(5)}-${codigo}`, obra_id: obraId, codigo, fonte, codigo_ref: codigoRef, descricao, unidade,
+  qtd_orcada: qtd, custo_unitario: custo, bdi, preco_unitario: preco ?? precoUnitario(custo, bdi),
+  origem: ORIGENS_ITEM.planilha, aditivo_numero: null, responsavel_id: null, frente: '',
+  data_inicio_planejada: null, data_fim_planejada: null, critico: false, critico_origem: CRITICO_A_MAO, ativo: true,
+  alterado_por: null, alterado_em: null,
+})
+
+// specs: o que a obra já fez em alguns itens (pelo Item); os demais itens do orçamento ficam sem lançamento.
+function montarObra(obraId, itens, specs) {
+  servicos.push(...itens.map((i) => itemDoOrcamento(obraId, i)))
   const brutos = []
   for (const s of specs) {
-    servicos.push({
-      id: s.id, obra_id: obraId, codigo: s.codigo, descricao: s.descricao, frente: s.frente,
-      unidade: s.unidade, qtd_contratada: s.qtd, preco_unitario: s.preco, responsavel_id: s.resp,
-      data_inicio_planejada: d(s.ini), data_fim_planejada: d(s.fim),
-      critico: s.critico, critico_origem: s.origem, ativo: true,
-    })
+    const servico = servicos.find((x) => x.obra_id === obraId && x.codigo === s.codigo)
+    Object.assign(servico, { responsavel_id: s.resp, data_inicio_planejada: d(s.ini), data_fim_planejada: d(s.fim), critico: s.critico })
+    Object.assign(s, { id: servico.id, unidade: servico.unidade, preco: servico.preco_unitario })
     const anteriores = s.anterior ? [-60, -50, -40, -30].map((n) => [n, s.anterior / 4]) : []
     for (const [n, q] of [...anteriores, ...(s.antigo ?? []), ...s.periodo]) {
       brutos.push({ servico: s, data: d(n), quantidade: q, concluido: s.concluidoNo === n })
@@ -194,11 +219,12 @@ function montarMedicoes(obraId, specs, anteriores) {
   })
 }
 
-montarMedicoes('obra-vn', montarObra('obra-vn', VN), [
+const ITENS_VN = VN.map((s) => [s.codigo, s.item[0], s.item[1], s.descricao, s.item[2], s.item[3], s.item[4], 0.242])
+montarMedicoes('obra-vn', montarObra('obra-vn', ITENS_VN, VN), [
   { ini: -84, fim: -54, plan: 182000, medido: 186400 },
   { ini: -53, fim: -23, plan: 210000, medido: 193200 },
 ])
-montarMedicoes('obra-ba', montarObra('obra-ba', BA), [
+montarMedicoes('obra-ba', montarObra('obra-ba', ITENS_ARRECIFES, BA), [
   { ini: -53, fim: -23, plan: 38000, medido: 39500 },
 ])
 
@@ -208,3 +234,13 @@ if (diaChuva) {
   diaChuva.clima_tarde = 'Chuva forte'
   diaChuva.ocorrencias = 'Paralisação parcial por chuva às 14h.'
 }
+
+// INSS: um aditivo (acréscimo no tapume, supressão nas louças) e um item novo, para o exemplo mostrar os dois.
+aditivos.push(
+  { id: 'ad-vn-1', obra_id: 'obra-vn', servico_id: 's-vn-1.2.1', numero: '1º aditivo', data: d(-30), quantidade: 40, motivo: 'Ampliação do canteiro para o acesso lateral.', criado_por: 'p-eng', alterado_por: null, alterado_em: null },
+  { id: 'ad-vn-2', obra_id: 'obra-vn', servico_id: 's-vn-8.1.1', numero: '1º aditivo', data: d(-30), quantidade: -4, motivo: 'Dois sanitários retirados do projeto.', criado_por: 'p-eng', alterado_por: null, alterado_em: null },
+)
+servicos.push({
+  ...itemDoOrcamento('obra-vn', ['1.2.2', 'COTAÇÃO', 'COT-11', 'Proteção de fachada com tela de nylon', 'M2', 320, 14.5, 0.242]),
+  origem: ORIGENS_ITEM.novo, aditivo_numero: '1º aditivo', responsavel_id: 'r-pedra', data_inicio_planejada: d(5), data_fim_planejada: d(25),
+})
