@@ -198,6 +198,41 @@ Para que serve: o diário de cada dia de cada obra.
 
 ---
 
+## Tabela `funcoes` (F1, desde 24/10/2026)
+
+Para que serve: as funções de quem trabalha na obra (pedreiro, servente, eletricista…), para o efetivo do diário.
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| nome | text | sim | único por obra (sem diferenciar maiúscula) |
+| ativo | boolean | sim | padrão verdadeiro |
+| created_at | timestamptz | sim | automático |
+
+**Regra de negócio:** toda obra nova nasce com as funções padrão (Pedreiro, Servente, Carpinteiro, Armador, Eletricista, Encanador, Pintor, Encarregado, Mestre de obras — `FUNCOES_PADRAO` em `src/lib/diario.js`). O engenheiro cadastra outras pelo próprio diário.
+
+---
+
+## Tabela `efetivo` (F1, desde 24/10/2026)
+
+Para que serve: quantas pessoas de cada função, de cada responsável, trabalharam no dia.
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras; o mesmo do diário |
+| diario_id | uuid | sim | → diarios |
+| responsavel_id | uuid | sim | → responsaveis da mesma obra |
+| funcao_id | uuid | sim | → funcoes da mesma obra |
+| quantidade | integer | sim | CHECK: entre 1 e 999 |
+| created_at | timestamptz | sim | automático |
+
+**Índices úteis:** (`diario_id`, `responsavel_id`, `funcao_id`) único — a mesma função do mesmo responsável aparece uma vez por dia.
+**Regra de negócio:** ao salvar o diário, o efetivo do dia é substituído pelo que veio.
+
+---
+
 ## Tabela `lancamentos` (F1)
 
 Para que serve: a quantidade executada de cada serviço em cada dia. Daqui saem todos os números do painel.
@@ -211,6 +246,7 @@ Para que serve: a quantidade executada de cada serviço em cada dia. Daqui saem 
 | responsavel_id | uuid | não | → responsaveis; **quem executou naquele dia**, guardado aqui porque o responsável do serviço pode mudar depois |
 | quantidade | numeric(14,3) | sim | maior ou igual a zero |
 | concluido | boolean | sim | padrão falso |
+| memoria_calculo | text | não | memória de cálculo da quantidade deste serviço no dia (texto livre, no cartão do serviço). Não aparece no resumo do dia nem no histórico, só no formulário do diário (24/10/2026) |
 | lancado_por | uuid | sim | → profiles |
 | corrigido_por | uuid | não | → profiles |
 | corrigido_em | timestamptz | não | |
@@ -331,10 +367,18 @@ Uma função só decide "obras dela", e toda política usa a mesma frase: `obra_
 - **Criar / editar / iniciar / fechar:** só o Engenheiro.
 - **Apagar:** só o Engenheiro, e só medição em `Planejando`.
 
-### `diarios`, `lancamentos`, `fotos`
+### `diarios`, `lancamentos`, `fotos`, `efetivo`
 - **Ver:** Engenheiro, Diretoria e Equipe da obra, nas obras delas. A Fiscalização (F2) vê só as fotos da semana (sem `tirada_por`) e o avanço somado por serviço; não vê diários nem lançamentos.
 - **Criar:** Engenheiro e Equipe da obra, só nas obras delas, e só em obra que não esteja `Concluída`.
 - **Editar:** quem lançou, até as 23h59 do dia seguinte à data do diário; o Engenheiro, sempre.
+- **Dia do diário:** nunca no futuro. A Equipe da obra cria o diário de hoje ou de ontem; o Engenheiro, de qualquer dia desde o início da obra (decisão de 24/10/2026). Regra em `podeLancarData`, `src/lib/diario.js`.
+- **Concluído automático:** o lançamento fica `concluido` sozinho quando a quantidade do dia cobre o **saldo do item** (contratado − acumulado; na correção, o lançado no próprio dia volta para o saldo). Quem lança pode desmarcar. Regras `saldoDoItem` e `concluiPeloSaldo` em `src/lib/diario.js`.
+- **Dia parado também é diário:** o diário é aceito com produção, efetivo, memória de cálculo **ou** ocorrências — um dia de chuva sem produção se registra.
+
+### `funcoes`
+- **Ver:** Engenheiro, Diretoria e Equipe da obra, nas obras delas.
+- **Criar / desativar:** só o Engenheiro (também pelo diário, no botão "+ Nova função").
+- **Apagar:** ninguém.
 - **Apagar:** ninguém. Um lançamento errado é corrigido para zero.
 
 ### `acionamentos` (F2)
@@ -409,4 +453,4 @@ Ideias para depois, se fizerem falta: e-mail às 7h com os serviços que viraram
 ## Decidir depois de usar
 
 - `[DESCOBRIR NO USO: quantos dias sem avanço contam como "parado"]` — por enquanto ficou: 5 dias.
-- `[DESCOBRIR NO USO: efetivo diário por responsável]` — por enquanto ficou: fora da v1 (sem tabela). Volta se a fiscalização ou a diretoria pedirem.
+- Efetivo diário: entrou na v1 em 24/10/2026, por função e por responsável (tabelas `funcoes` e `efetivo`).

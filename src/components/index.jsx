@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { COR_SITUACAO } from '../lib/painel.js'
 import { emMil } from '../lib/formato.js'
+import { arredondar, formatarNumero, lerNumero, limparDigitacao } from '../lib/numero.js'
 
 /* ── Ícones (SVG desenhados à mão; nada de emoji) ── */
 const PATHS = {
@@ -66,6 +67,34 @@ export function Pill({ situacao }) {
 export function Dinheiro({ valor }) {
   const { valor: v, sufixo } = emMil(valor ?? 0)
   return <><span className="cur">R$</span>{v}{sufixo && <span className="suf">{sufixo}</span>}</>
+}
+
+/* ── Campo de número do jeito brasileiro ("1.234,56") ──
+   Guarda o texto do jeito que a pessoa digita e avisa o número entendido.
+   Quando o valor muda por fora (botões − e +), o texto acompanha. */
+export function CampoNumero({ valor, onMudar, onConfirmar, casas = 3, inteiro = false, ...props }) {
+  const [texto, setTexto] = useState(valor ? formatarNumero(valor, casas) : '')
+  const [anterior, setAnterior] = useState(valor)
+  if (valor !== anterior) {
+    setAnterior(valor)
+    if (lerNumero(texto) !== valor) setTexto(valor ? formatarNumero(valor, casas) : '')
+  }
+  const invalido = texto !== '' && (lerNumero(texto) === null || (inteiro && !Number.isInteger(lerNumero(texto))))
+  return (
+    <input type="text" inputMode={inteiro ? 'numeric' : 'decimal'} autoComplete="off" value={texto} aria-invalid={invalido || undefined} {...props}
+      onChange={(e) => {
+        const t = limparDigitacao(e.target.value)
+        setTexto(t)
+        const n = arredondar(lerNumero(t), casas)
+        onMudar?.(n === null ? (t === '' ? null : valor) : n)
+      }}
+      onBlur={() => {
+        const n = arredondar(lerNumero(texto), casas)
+        if (n === null && texto !== '') return // texto que não dá para entender: fica marcado e nada é gravado
+        if (n !== null) setTexto(n ? formatarNumero(n, casas) : '')
+        onConfirmar?.(n)
+      }} />
+  )
 }
 
 /* ── Faixa escura com o título da tela ── */

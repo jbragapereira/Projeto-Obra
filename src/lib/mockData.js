@@ -12,6 +12,7 @@
 // ============================================================
 import { addDias, hojeISO } from './datas.js'
 import { congelarMeta } from './medicao.js'
+import { FUNCOES_PADRAO } from './diario.js'
 
 // Vire para false quando o banco estiver ligado.
 export const USAR_MOCK = true
@@ -99,8 +100,23 @@ const BA = [
 
 const AUTOR = { 'obra-vn': 'p-lucas', 'obra-ba': 'p-marcos' }
 
+// Funções de cada obra (as padrão + as que o engenheiro cadastrar).
+export const funcoes = ['obra-vn', 'obra-ba'].flatMap((obraId) =>
+  FUNCOES_PADRAO.map((nome, i) => ({ id: `fn-${obraId}-${i}`, obra_id: obraId, nome, ativo: true })))
+const funcao = (obraId, nome) => funcoes.find((x) => x.obra_id === obraId && x.nome === nome).id
+
+// Quem costuma estar na obra quando cada responsável trabalha: [função, pessoas].
+const EQUIPE_TIPICA = {
+  'r-pedra': [['Pedreiro', 3], ['Servente', 3]],
+  'r-ponto': [['Eletricista', 2]],
+  'r-vn-prop': [['Pedreiro', 2], ['Servente', 4], ['Encarregado', 1]],
+  'r-silva': [['Pedreiro', 3], ['Servente', 2]],
+  'r-ba-prop': [['Armador', 3], ['Servente', 2], ['Encarregado', 1]],
+}
+
 export const servicos = []
 export const diarios = []
+export const efetivo = []
 export const lancamentos = []
 export const fotos = []
 export const medicoes = []
@@ -129,10 +145,18 @@ function montarObra(obraId, specs) {
       id: diarioId, obra_id: obraId, data, clima_manha: clima, clima_tarde: clima,
       ocorrencias: '', criado_por: AUTOR[obraId], enviado_em: `${data}T17:10:00`,
     })
+    const responsaveisDoDia = [...new Set(brutos.filter((b) => b.data === data).map((b) => b.servico.resp))]
+    responsaveisDoDia.forEach((resp) => (EQUIPE_TIPICA[resp] ?? []).forEach(([nome, pessoas], k) => {
+      efetivo.push({
+        id: `ef-${diarioId}-${resp}-${k}`, obra_id: obraId, diario_id: diarioId,
+        responsavel_id: resp, funcao_id: funcao(obraId, nome), quantidade: pessoas + ((i + k) % 2),
+      })
+    }))
     brutos.filter((b) => b.data === data).forEach((b, j) => {
       lancamentos.push({
         id: `lan-${obraId}-${data}-${j}`, obra_id: obraId, diario_id: diarioId, servico_id: b.servico.id,
         responsavel_id: b.servico.resp, quantidade: b.quantidade, concluido: b.concluido,
+        memoria_calculo: `Medido no local: ${b.quantidade.toLocaleString('pt-BR')} ${b.servico.unidade}`,
         lancado_por: AUTOR[obraId], corrigido_por: null, corrigido_em: null,
       })
       for (let k = 0; k <= (i + j) % 2; k++) {

@@ -3,12 +3,12 @@ import { useState } from 'react'
 import { buscarMedicaoAtual, juntar, listarItensMedicao, listarLancamentos, listarResponsaveis, listarServicos, salvarResponsavel } from '../lib/dados.js'
 import { analisarServico } from '../lib/painel.js'
 import { podeEditar, podeVerValores } from '../lib/perfis.js'
+import { TIPOS_RESPONSAVEL as TIPOS } from '../lib/obras.js'
 import { brl, brlCentavos, pct, qtd } from '../lib/formato.js'
 import { dm, hojeISO } from '../lib/datas.js'
 import { Barra, Carregando, Critico, ErroCarga, Faixa, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
 import ServicoDetalhe from './servicoDetalhe.jsx'
 
-const TIPOS = ['Empreiteiro', 'Empresa especializada', 'Mão de obra própria']
 
 async function carregar() {
   const r = await juntar({ servicos: listarServicos(), lancamentos: listarLancamentos(), responsaveis: listarResponsaveis(), medicao: buscarMedicaoAtual() })

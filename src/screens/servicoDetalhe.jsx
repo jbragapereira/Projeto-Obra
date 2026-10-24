@@ -6,6 +6,7 @@ import { brl, qtd } from '../lib/formato.js'
 import { diasEntre, dm, dmy, hojeISO } from '../lib/datas.js'
 import { COR_SITUACAO } from '../lib/painel.js'
 import { marcarCritico } from '../lib/dados.js'
+import { saldoDoItem } from '../lib/diario.js'
 
 function Fato({ rotulo, valor, vermelho }) {
   return <div className="fact"><div className="lbl">{rotulo}</div><div className={`v ${vermelho ? 'red' : ''}`}>{valor}</div></div>
@@ -77,6 +78,7 @@ export default function ServicoDetalhe({ a, medicao, responsavel, comValores, po
           <Fato rotulo="Dias sem avanço" valor={a.situacao === 'Concluído' ? '—' : (a.diasSem ?? 'não iniciou')} vermelho={a.situacao === 'Parado'} />
           <Fato rotulo="Data limite" valor={dmy(a.limite)} vermelho={passouLimite} />
           <Fato rotulo="Término previsto" valor={a.termino ? dmy(a.termino) : (a.situacao === 'Concluído' ? 'concluído' : 'sem previsão')} vermelho={a.termino && a.termino > s.data_fim_planejada} />
+          <Fato rotulo="Saldo do item" valor={qtd(saldoDoItem({ contratado: s.qtd_contratada, acumulado: a.acumulado }), s.unidade)} />
           <Fato rotulo="Fim planejado" valor={dmy(s.data_fim_planejada)} />
           <Fato rotulo="Responsável" valor={responsavel ?? '—'} />
         </div>
@@ -101,7 +103,7 @@ export default function ServicoDetalhe({ a, medicao, responsavel, comValores, po
               <li key={l.id}><div className="row" style={{ minHeight: 52 }}>
                 <div className="main-c">
                   <div className="t" style={{ fontSize: 16 }}>{dm(l.data)}: {qtd(l.quantidade, s.unidade)}</div>
-                  <div className="m">{l.concluido ? 'Marcado concluído' : 'Produção do dia'}{l.corrigido_em ? ', corrigido depois' : ''}</div>
+                  <div className="m">{l.concluido ? 'Concluído' : 'Produção do dia'}{l.corrigido_em ? ', corrigido depois' : ''}</div>
                 </div>
               </div></li>
             ))}

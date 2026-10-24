@@ -464,7 +464,7 @@ Já guardado desde o primeiro dia, por precaução: **quem executou cada lançam
 ## Melhorias para a v2
 
 - Publicar na Play Store / App Store — cortado porque instalar pelo navegador resolve sem custo.
-- Efetivo diário por responsável (quantas pessoas de cada empreiteiro no dia) — cortado para manter a v1 em 10 tabelas; volta se a fiscalização ou a diretoria pedirem.
+- ~~Efetivo diário por responsável~~ — **voltou para a v1 em 24/10/2026**, a pedido do engenheiro: efetivo por função e por responsável, com cadastro de função e de responsável pelo próprio diário (tabelas `funcoes` e `efetivo`, ver PRD-BACKEND). Junto entraram: memória de cálculo em texto livre dentro de cada cartão de serviço (fica no lançamento; não vai para o resumo) (as atividades do resumo são os nomes dos serviços com produção), Concluído automático pelo saldo do item, números com ponto de milhar e vírgula decimal em todo o app, lançar dia que já passou (equipe: hoje ou ontem; engenheiro: qualquer dia desde o início da obra) e histórico em cartões com miniaturas.
 - Ler WhatsApp e e-mail automaticamente — cortado porque é caro e frágil; na Fase 2 entra o registro manual em Recados.
 - Diário sem sinal, acionar o encarregado, Fiscalização, fechar e exportar a medição, Recados — Fase 2 (ver Prazo).
 

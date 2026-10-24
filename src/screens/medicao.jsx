@@ -6,24 +6,29 @@ import { resumoMetas } from '../lib/medicao.js'
 import { podeEditar, podeVerValores } from '../lib/perfis.js'
 import { brl, brlCentavos, qtd } from '../lib/formato.js'
 import { dm, dmy } from '../lib/datas.js'
-import { Carregando, ErroCarga, Faixa, Vazio, avisar, useDados } from '../components/index.jsx'
+import { CampoNumero, Carregando, ErroCarga, Faixa, Vazio, avisar, useDados } from '../components/index.jsx'
 
 const COR = { Planejando: 'soft', 'Em andamento': 'amber', Fechada: 'done' }
 
 function Detalhe({ medicao, servicos, edita, onVoltar, onMudou }) {
   const { data: itens, erro, carregando, recarregar } = useDados(() => listarItensMedicao(medicao.id))
   const [salvando, setSalvando] = useState(false)
+  // O que está sendo digitado: o R$ da linha e a meta do mês mudam em tempo real.
+  const [rascunho, setRascunho] = useState({})
   if (carregando) return <Carregando />
   if (erro) return <ErroCarga erro={erro} onTentar={recarregar} />
   const servicoDe = Object.fromEntries(servicos.map((s) => [s.id, s]))
   const editavel = edita && medicao.status !== 'Fechada'
-  const total = itens.reduce((s, i) => s + i.qtd_planejada * (i.preco_unitario ?? 0), 0)
+  const qtdDe = (i) => rascunho[i.id] ?? i.qtd_planejada
+  const total = itens.reduce((s, i) => s + qtdDe(i) * (i.preco_unitario ?? 0), 0)
   const ordenados = [...itens].sort((a, b) => (servicoDe[a.servico_id]?.codigo ?? '').localeCompare(servicoDe[b.servico_id]?.codigo ?? '', 'pt-BR', { numeric: true }))
 
   async function mudarQtd(item, valor) {
     const r = await salvarQtdPlanejada(item.id, valor)
-    if (r.erro) avisar(r.erro)
-    else recarregar()
+    if (r.erro) {
+      avisar(r.erro)
+      setRascunho((x) => { const { [item.id]: _volta, ...resto } = x; return resto })
+    } else recarregar()
   }
   async function iniciar() {
     setSalvando(true)
@@ -69,13 +74,14 @@ function Detalhe({ medicao, servicos, edita, onVoltar, onMudou }) {
                     <td><div className="desc">{s?.descricao ?? '—'}</div><div className="cod">{s?.codigo}</div></td>
                     <td className="num">
                       {editavel ? (
-                        <input className="ipt" style={{ width: 120, textAlign: 'right' }} inputMode="decimal" defaultValue={i.qtd_planejada || ''} placeholder="0"
+                        <CampoNumero className="ipt" style={{ width: 130, textAlign: 'right' }} valor={qtdDe(i)} placeholder="0"
                           aria-label={`Quantidade planejada de ${s?.descricao}`}
-                          onBlur={(e) => { const v = parseFloat(e.target.value.replace(',', '.')) || 0; if (v !== i.qtd_planejada) mudarQtd(i, v) }} />
+                          onMudar={(n) => setRascunho((x) => ({ ...x, [i.id]: n ?? 0 }))}
+                          onConfirmar={(n) => { const v = n ?? 0; if (v !== i.qtd_planejada) mudarQtd(i, v) }} />
                       ) : qtd(i.qtd_planejada, s?.unidade)}
                     </td>
                     <td className="num">{brlCentavos(i.preco_unitario)}</td>
-                    <td className="num big">{brl(i.qtd_planejada * (i.preco_unitario ?? 0))}</td>
+                    <td className="num big">{brl(qtdDe(i) * (i.preco_unitario ?? 0))}</td>
                     {medicao.status === 'Fechada' && <td className="num">{qtd(i.qtd_medida, s?.unidade)}</td>}
                   </tr>
                 )

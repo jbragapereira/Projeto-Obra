@@ -16,7 +16,7 @@ import { addDias, hojeISO } from './datas.js'
 import { podeEditar, podeLancar, podeVerValores, veTodasAsObras } from './perfis.js'
 import { congelarMeta, podeIniciar } from './medicao.js'
 import { aceitaLancamento, validarObra } from './obras.js'
-import { podeCorrigir } from './diario.js'
+import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
 
 let sessao = null
@@ -105,6 +105,7 @@ export function salvarObra(obra) {
   }
   const nova = { id: novoId('obra'), ...campos }
   mock.obras.push(nova)
+  FUNCOES_PADRAO.forEach((nome) => mock.funcoes.push({ id: novoId('fn'), obra_id: nova.id, nome, ativo: true }))
   // Quem cria a obra passa a ter acesso a ela.
   mock.membros.push({ id: novoId('m'), obra_id: nova.id, profile_id: sessao.id, ativo: true })
   return ok(copia(nova))
@@ -139,12 +140,37 @@ export function salvarResponsavel({ nome, tipo, contato }) {
   const e = checar(); if (e) return falha(e)
   if (!podeEditar(sessao.role)) return falha('Só o engenheiro cadastra responsáveis.')
   if (!nome?.trim()) return falha('Informe o nome do responsável.')
+  if (daObra(mock.responsaveis).some((r) => r.nome.toLowerCase() === nome.trim().toLowerCase())) return falha(`${nome.trim()} já está cadastrado nesta obra.`)
   const novo = { id: novoId('r'), obra_id: obraAtual, nome: nome.trim(), tipo, contato: contato?.trim() ?? '', ativo: true }
   mock.responsaveis.push(novo)
   return ok(copia(novo))
 }
 
+/* ── Funções (para o efetivo do diário) ── */
+
+export function listarFuncoes() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.funcoes).filter((x) => x.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))))
+}
+
+export function salvarFuncao({ nome }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cadastra funções.')
+  const limpo = nome?.trim()
+  if (!limpo) return falha('Informe o nome da função.')
+  if (daObra(mock.funcoes).some((x) => x.nome.toLowerCase() === limpo.toLowerCase())) return falha(`A função ${limpo} já existe nesta obra.`)
+  const nova = { id: novoId('fn'), obra_id: obraAtual, nome: limpo, ativo: true }
+  mock.funcoes.push(nova)
+  return ok(copia(nova))
+}
+
 /* ── Lançamentos e diário ── */
+
+// Fotos da obra (para as miniaturas do histórico do diário).
+export function listarFotos() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.fotos).map((f) => ({ id: f.id, diario_id: f.diario_id, servico_id: f.servico_id, url_previa: f.url_previa ?? null, tirada_em: f.tirada_em ?? null }))))
+}
 
 // Lançamentos da obra já com a data do diário (como um select com o diário embutido).
 export function listarLancamentos() {
@@ -156,26 +182,51 @@ export function listarLancamentos() {
 export function listarDiarios() {
   const e = checar(); if (e) return falha(e)
   const nomes = Object.fromEntries(mock.profiles.map((p) => [p.id, p.nome]))
+  const nomeResp = Object.fromEntries(daObra(mock.responsaveis).map((r) => [r.id, r.nome]))
+  const nomeFuncao = Object.fromEntries(daObra(mock.funcoes).map((x) => [x.id, x.nome]))
+  const servicoDe = Object.fromEntries(daObra(mock.servicos).map((s) => [s.id, s]))
   const lista = daObra(mock.diarios)
-    .map((x) => ({
-      ...x,
-      autor: nomes[x.criado_por] ?? '—',
-      servicos_com_producao: daObra(mock.lancamentos).filter((l) => l.diario_id === x.id && l.quantidade > 0).length,
-      qtd_fotos: daObra(mock.fotos).filter((f) => f.diario_id === x.id).length,
-    }))
+    .map((x) => {
+      // As atividades do dia são os serviços com produção ou concluídos (o nome de cada cartão).
+      const doDia = daObra(mock.lancamentos).filter((l) => l.diario_id === x.id && (l.quantidade > 0 || l.concluido))
+      return {
+        ...x,
+        atividades: doDia.map((l) => ({
+          servico_id: l.servico_id, descricao: servicoDe[l.servico_id]?.descricao ?? '—',
+          quantidade: l.quantidade, unidade: servicoDe[l.servico_id]?.unidade ?? '', concluido: l.concluido,
+        })),
+        autor: nomes[x.criado_por] ?? '—',
+        efetivo: daObra(mock.efetivo).filter((l) => l.diario_id === x.id).map((l) => ({
+          responsavel_id: l.responsavel_id, funcao_id: l.funcao_id, quantidade: l.quantidade,
+          responsavel: nomeResp[l.responsavel_id] ?? '—', funcao: nomeFuncao[l.funcao_id] ?? '—',
+        })),
+        servicos_com_producao: doDia.filter((l) => l.quantidade > 0).length,
+        qtd_fotos: daObra(mock.fotos).filter((f) => f.diario_id === x.id).length,
+      }
+    })
     .sort((a, b) => b.data.localeCompare(a.data))
   return ok(copia(lista))
 }
 
-// itens: [{ servico_id, quantidade, responsavel_id, concluido, fotos: [{ tamanho_bytes, largura, altura, url_previa }] }]
+// itens: [{ servico_id, quantidade, responsavel_id, concluido, memoria_calculo, fotos: [{ tamanho_bytes, largura, altura, url_previa }] }]
+// A memória de cálculo é de cada serviço (fica no lançamento) e não entra no resumo do dia.
+// efetivo: [{ responsavel_id, funcao_id, quantidade }]
 // As fotos chegam já comprimidas pela tela; aqui o limite de tamanho é conferido de novo.
-export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, itens }) {
+export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efetivo: efetivoDigitado = [], itens }) {
   const e = checar(); if (e) return falha(e)
+  const efetivo = linhasPreenchidas(efetivoDigitado) // linha deixada em branco não conta
   if (!podeLancar(sessao.role)) return falha('Seu perfil não lança diário.')
   const obra = mock.obras.find((o) => o.id === obraAtual)
   if (!aceitaLancamento(obra)) return falha('Esta obra está concluída e não aceita lançamentos.')
-  const comProducao = itens.filter((i) => i.quantidade > 0 || i.concluido)
-  if (!comProducao.length) return falha('Lance a quantidade de pelo menos um serviço.')
+  if (!diarioTemConteudo({ itens, efetivo, ocorrencias })) return falha('Registre alguma coisa do dia: produção, efetivo, memória de cálculo ou ocorrências.')
+  if (Object.keys(validarEfetivo(efetivo)).length) return falha('Confira as linhas do efetivo.')
+  const responsaveisDaObra = new Set(daObra(mock.responsaveis).map((r) => r.id))
+  const funcoesDaObra = new Set(daObra(mock.funcoes).map((x) => x.id))
+  if (efetivo.some((l) => !responsaveisDaObra.has(l.responsavel_id) || !funcoesDaObra.has(l.funcao_id))) return falha('Há responsável ou função de outra obra no efetivo.')
+  const diarioExistente = daObra(mock.diarios).find((x) => x.data === data)
+  const jaLancados = new Set(diarioExistente ? daObra(mock.lancamentos).filter((l) => l.diario_id === diarioExistente.id).map((l) => l.servico_id) : [])
+  // Na correção, um serviço que voltou para zero também é gravado (zera o lançamento).
+  const comProducao = itens.filter((i) => itemTemConteudo(i) || jaLancados.has(i.servico_id))
   const servicosDaObra = new Set(daObra(mock.servicos).map((s) => s.id))
   const comFoto = itens.filter((i) => i.fotos?.length)
   if ([...comProducao, ...comFoto].some((i) => !servicosDaObra.has(i.servico_id))) return falha('Há serviço de outra obra no lançamento.')
@@ -188,23 +239,35 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, iten
     return falha('Há foto com data ou localização inválida.')
   }
 
-  let diario = daObra(mock.diarios).find((x) => x.data === data)
+  let diario = diarioExistente
   if (diario) {
     const autorDoDia = diario.criado_por
     if (!podeCorrigir({ role: sessao.role, profileId: sessao.id, lancadoPor: autorDoDia, dataDiario: data, hoje: hojeISO() })) {
       return falha('O prazo para corrigir este diário acabou. Peça ao engenheiro.')
     }
   } else {
+    if (!podeLancarData({ role: sessao.role, data, hoje: hojeISO(), inicioObra: obra.data_inicio })) {
+      return falha(porQueNaoLanca({ role: sessao.role, lancaDiario: true, obraAceita: true }))
+    }
     diario = { id: novoId('dia'), obra_id: obraAtual, data, criado_por: sessao.id }
     mock.diarios.push(diario)
   }
   Object.assign(diario, { clima_manha, clima_tarde, ocorrencias: ocorrencias ?? '', enviado_em: new Date().toISOString() })
 
+  // O efetivo do dia é substituído pelo que veio agora.
+  for (let k = mock.efetivo.length - 1; k >= 0; k--) {
+    if (mock.efetivo[k].obra_id === obraAtual && mock.efetivo[k].diario_id === diario.id) mock.efetivo.splice(k, 1)
+  }
+  efetivo.forEach((l) => mock.efetivo.push({
+    id: novoId('ef'), obra_id: obraAtual, diario_id: diario.id,
+    responsavel_id: l.responsavel_id, funcao_id: l.funcao_id, quantidade: l.quantidade,
+  }))
+
   for (const i of comProducao) {
     const existente = daObra(mock.lancamentos).find((l) => l.diario_id === diario.id && l.servico_id === i.servico_id)
     const campos = {
       quantidade: Math.max(0, Number(i.quantidade) || 0), concluido: !!i.concluido,
-      responsavel_id: i.responsavel_id ?? null,
+      responsavel_id: i.responsavel_id ?? null, memoria_calculo: (i.memoria_calculo ?? '').trim(),
     }
     if (existente) {
       Object.assign(existente, campos, { corrigido_por: sessao.id, corrigido_em: new Date().toISOString() })

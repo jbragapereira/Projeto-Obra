@@ -19,6 +19,7 @@ Um sistema de acompanhamento de obras públicas que mostra toda manhã, por obra
 - **Multi-obra:** o seletor de obra fica sempre visível no topo, dizendo em qual obra a pessoa está. Trocar de obra recarrega a tela inteira com os dados daquela obra. A obra escolhida fica guardada no aparelho: fechou e abriu, volta na mesma. Nenhuma tela mostra dado de duas obras juntas, a não ser um comparativo explícito entre obras.
 - Celular: barra inferior fixa com até 5 itens (o quinto é "Mais", quando o perfil tem mais de 5). Computador: menu lateral à esquerda.
 - Instalável pelo navegador, com ícone na tela inicial do celular. Não vai para a Play Store nem para a App Store.
+- **Números digitados do jeito brasileiro em todo o app:** ponto de milhar e vírgula decimal ("1.234,56", "12,5", "1.234"); ponto sozinho que não é milhar vale como decimal ("12.5"). O campo guarda o que a pessoa digita e mostra de volta no padrão brasileiro. Regra em `src/lib/numero.js`; campo `CampoNumero`.
 - Dinheiro sempre em `R$ 1.234,56`; datas em `dd/mm/aaaa`; quantidades com até 3 casas decimais e a unidade do serviço (m², m³, un…).
 
 ## Perfis
@@ -194,9 +195,11 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 
 | Campo | Tipo | Obrigatório | Observação |
 |---|---|---|---|
-| Data | data | sim | um diário por obra por dia |
+| Dia do diário | data | sim | já vem com hoje; não aceita futuro; a Equipe escolhe hoje ou ontem, o Engenheiro qualquer dia desde o início da obra. Se o dia já tem diário, abre o resumo (com "Corrigir" quando permitido) |
 | Clima manhã | escolha | não | `Bom`, `Nublado`, `Chuva`, `Chuva forte` |
 | Clima tarde | escolha | não | mesma lista |
+| Efetivo do dia | linhas | não | cada linha: **responsável + função + pessoas** (só número inteiro, teclado numérico). Total do dia no alto. Linha incompleta ou repetida fica marcada em vermelho na hora. O Engenheiro tem **"+ Nova função"** e **"+ Novo responsável"** (empreiteiro, empresa especializada ou mão de obra própria) dentro do próprio diário; o cadastrado já entra na linha que estava vazia |
+| Memória de cálculo (por serviço) | texto longo | não | **dentro de cada cartão de serviço**, logo abaixo da quantidade: as contas daquela quantidade (ex.: "12,40 m × 2,80 m = 34,72 m²"). Fica só no formulário: **não vai para o resumo do dia nem para o histórico**. Um serviço só com memória de cálculo também é gravado |
 | Ocorrências | texto longo | não | |
 | Quantidade executada (por serviço) | número | não | maior ou igual a zero; com a unidade do serviço |
 | Quem executou (por serviço) | escolha | sim, se houver quantidade | lista de responsáveis da obra |
@@ -207,6 +210,13 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 - **Lançar o dia:** abre o diário de hoje vazio.
 - **Tirar foto:** abre a câmera; a foto aparece em miniatura no serviço.
 - **Enviar:** salva o diário, os lançamentos e as fotos. Mostra "Diário de 23/10 enviado" e volta para a lista.
+- **Histórico:** os dias anteriores aparecem em cartões, do mais novo para o mais antigo: data por extenso, etiqueta do clima, total do efetivo, quantos serviços e fotos, as **atividades do dia — o nome de cada serviço que teve produção (os cartões), com a quantidade**, ocorrências em vermelho e miniaturas das fotos (até 4, com "+N"). Tocar no cartão abre aquele dia.
+- **Quantidade do serviço:** cada cartão mostra o **feito no mês** e o **saldo do item** (contratado − acumulado), os dois **em tempo real** enquanto a quantidade é digitada, com o valor de antes entre parênteses ("Feito 42,5 m de 120 m no mês (era 30 m)"). A quantidade de um dia fora do período da medição não entra no feito do mês. No planejamento da Medição, o R$ de cada linha e a meta em montagem também mudam enquanto se digita. O botão **"Concluído"** (antes "Marcar concluído") fica marcado sozinho quando a quantidade do dia cobre o saldo, e pode ser desmarcado. Quantidade acima do saldo mostra o aviso "Acima do saldo do item", sem bloquear.
+- **Efetivo de um dia novo** já começa com o efetivo do último diário anterior, para só ajustar. Linha deixada em branco é ignorada no envio.
+- **Concluído à mão vale:** se a pessoa marcar ou desmarcar o Concluído, mudar a quantidade depois não muda a escolha dela.
+- **Trocar de dia** com um lançamento ainda não enviado pede confirmação antes de descartar; durante o preparo de uma foto, o dia não pode ser trocado.
+- **Efetivo compacto:** no celular, responsável numa linha e função, pessoas e ✕ na de baixo; em tela larga, tudo numa linha. Nada passa da largura da tela.
+- **Enviar:** precisa de alguma coisa do dia: produção, efetivo, memória de cálculo ou ocorrências (dia de chuva sem produção também é diário).
 - **Corrigir:** quem lançou corrige até as 23h59 do dia seguinte; depois disso, só o Engenheiro corrige, e a correção fica marcada "corrigido por [nome] em [data]".
 - **Diário sem sinal (F2):** sem internet, o diário fica guardado no celular e aparece o aviso "3 lançamentos aguardando envio". O envio acontece sozinho quando a internet volta.
 

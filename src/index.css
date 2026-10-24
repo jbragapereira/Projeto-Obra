@@ -219,6 +219,13 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .btn { min-height: 48px; padding: 0 var(--s4); border-radius: var(--r-btn); font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); border: 1.5px solid var(--ink); background: #fff; text-align: center }
 .btn:hover { background: #F2F4F5 }
 .btn.on { background: var(--ok); border-color: var(--ok); color: #fff }
+.btn .caixa { width: 18px; height: 18px; border: 2px solid currentColor; border-radius: 3px; flex: none }
+.svc .memoria { margin-top: 10px }
+.svc .memoria textarea { min-height: 64px; font-size: 15px }
+.saldo b { font-weight: 700 }
+.saldo.mudou b { color: var(--brand-d) }
+.atividades { list-style: none; display: grid; gap: 2px; margin-top: 6px; font-size: 14px }
+.atividades li { overflow-wrap: anywhere }
 .btn.primary { background: var(--brand-d); border-color: var(--brand-d); color: #fff }
 .btn.primary:hover { background: #006B76 }
 .btn.dark { background: var(--ink); border-color: var(--ink); color: #fff }
@@ -237,6 +244,7 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .qty button { width: 52px; height: 52px; border-radius: var(--r-btn); border: 1.5px solid var(--ink); font-size: 26px; font-weight: 600; background: #fff; flex: none }
 .qty button:active { background: #E9EEF0 }
 .qty input { width: 100%; min-width: 0; height: 52px; border: 1.5px solid var(--ink); border-radius: var(--r-btn); text-align: center; font-family: var(--display); font-stretch: 85%; font-size: 26px; font-weight: 700; background: #fff }
+.qty input[aria-invalid] { border-color: var(--red-d) }
 .qty .un { font-weight: 600; font-size: 15px; min-width: 28px }
 .svc-row { display: flex; gap: var(--s2); margin-top: 10px; flex-wrap: wrap }
 .thumbs { display: flex; gap: var(--s2); margin-top: 10px; flex-wrap: wrap }
@@ -251,6 +259,38 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .foto-dados dd { overflow-wrap: anywhere }
 .foto-dados a { color: var(--brand-d); font-weight: 600 }
 .obs { color: var(--slate) }
+
+/* ── Diário: dia, efetivo, histórico ── */
+.dia-card { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: flex-end }
+.dia-card .field { flex: 1 1 200px; max-width: 280px }
+.dia-card .obs { flex-basis: 100% }
+.efetivo { display: grid; gap: var(--s3) }
+.efetivo-h { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2) }
+.efetivo-total { font-family: var(--display); font-stretch: 80%; font-weight: 700; font-size: 22px }
+/* Linha do efetivo: compacta e sem sobrar para fora da tela.
+   Celular: responsável em cima; função, pessoas e ✕ embaixo. Tela larga: tudo numa linha. */
+.efetivo-linha { display: grid; grid-template-columns: minmax(0, 1fr) 76px 44px; grid-template-areas: 'resp resp resp' 'func pess rem' 'erro erro erro'; gap: 6px var(--s2); padding-top: 10px; border-top: 1px solid var(--line); align-items: end }
+.efetivo-linha .field { gap: 2px; min-width: 0 }
+.efetivo-linha .field > span { font-size: 12px; font-weight: 600; color: var(--slate) }
+.efetivo-linha .ipt { min-height: 44px; font-size: 15px; padding: 0 10px; text-overflow: ellipsis }
+.efetivo-linha .f-resp { grid-area: resp } .efetivo-linha .f-func { grid-area: func } .efetivo-linha .f-pess { grid-area: pess } .efetivo-linha .f-rem { grid-area: rem }
+.efetivo-linha .f-pess .ipt { text-align: center; font-weight: 700; font-size: 17px; padding: 0 4px }
+.efetivo-linha .remover { width: 44px; height: 44px; border-radius: var(--r-btn); border: 1.5px solid #C3CDD2; background: #fff; font-size: 15px }
+.efetivo-linha .erro { grid-area: erro; font-size: 13px; color: var(--red-d); font-weight: 600 }
+.efetivo-linha.com-erro { box-shadow: inset 3px 0 0 var(--red); padding-left: 10px }
+.efetivo .btns > .btn { flex: 1 1 140px; min-height: 44px; font-size: 14px; padding: 0 var(--s3) }
+.cadastro-rapido { padding: var(--s3); border-radius: var(--r-btn); background: var(--brand-tint); display: grid; gap: var(--s2) }
+.resumo { margin-top: 6px; font-size: 14px; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.miniaturas { display: flex; gap: 6px; margin-top: var(--s2); flex-wrap: wrap }
+.miniaturas img, .mini-foto { width: 52px; height: 52px; border-radius: var(--r-tag); object-fit: cover; border: 1px solid var(--line) }
+.mini-foto { display: grid; place-items: center; background: repeating-linear-gradient(135deg, #E6EBEE 0 6px, #DCE3E7 6px 12px); color: var(--slate) }
+.mini-foto.mais { background: var(--ink); color: #fff; font-weight: 700; font-size: 14px }
+.resumo-dia { display: grid; gap: 4px; margin-top: 10px; font-size: 15px }
+.resumo-dia > div { display: grid; grid-template-columns: 96px 1fr; gap: var(--s2) }
+.resumo-dia dt { color: var(--slate); font-weight: 600 }
+@media (min-width: 560px) {
+  .efetivo-linha { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 76px 44px; grid-template-areas: 'resp func pess rem' 'erro erro erro erro' }
+}
 .alerta { color: var(--red-d); font-weight: 600 }
 .thumb-foto button { position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 14px; border: 2px solid #fff }
 .thumb-foto button::after { content: ''; position: absolute; inset: -6px } /* área de toque de 44px */

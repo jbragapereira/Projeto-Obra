@@ -2,6 +2,9 @@
 
 export const SITUACOES_OBRA = ['Em andamento', 'Concluída', 'Parada']
 
+// Texto idêntico ao CHECK de responsaveis.tipo.
+export const TIPOS_RESPONSAVEL = ['Empreiteiro', 'Empresa especializada', 'Mão de obra própria']
+
 export const OBRA_VAZIA = {
   nome: '', codigo: '', endereco: '', cliente: '', numero_contrato: '',
   data_inicio: '', data_entrega: '', situacao: 'Em andamento',
