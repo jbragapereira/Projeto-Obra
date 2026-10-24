@@ -84,6 +84,8 @@ Ainda não está no ar. Quando estiver: a pessoa diz "sobe pro GitHub", o agente
   Nunca `grant all`, nunca `to anon`.
 - **RLS por obra desde a primeira migration.** `to authenticated using (true)` aqui é uma obra
   lendo a outra. A política usa a função `minhas_obras()` (ver `PRD-BACKEND.md`, Permissões).
+- **Foto do diário nunca passa de 5 MB.** A tela comprime antes (`src/components/comprimirFoto.js`), `dados.js` recusa o que passar, e o banco tem CHECK em `fotos.tamanho_bytes`. O limite mora só em `src/lib/fotos.js`.
+- **Foto do diário guarda data, hora, GPS e endereço** (a fiscalização exige). A compressão por canvas apaga o EXIF: o bloco original é devolvido ao arquivo por `src/lib/exif.js`. Mudou a compressão, rode `tests/exif.mjs`. GPS do aparelho só para foto tirada agora pelo botão "Tirar foto" (e arquivo dos últimos 15 min) — nunca em foto escolhida da galeria, mesmo baixada agora. O endereço vem de `buscarEndereco` em `dados.js` (Nominatim, fila de 1 pedido/s).
 - **Datas são texto `AAAA-MM-DD` no fuso local** (`src/lib/datas.js`). Nunca `toISOString()`
   para data: vira UTC e pula um dia no Brasil.
 

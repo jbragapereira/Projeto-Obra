@@ -7,6 +7,12 @@ export const isoLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pa
 
 export const hojeISO = () => isoLocal(new Date())
 
+// Data e hora local 'AAAA-MM-DDTHH:MM:SS' (sem fuso, como o relógio da câmera).
+export const dataHoraLocal = (d) => `${isoLocal(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+
+// '24/10/2026 10:31'
+export const dataHoraCurta = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)} ${iso.slice(11, 16)}` : '—')
+
 // Meio-dia evita erro de horário de verão na conta de dias.
 const meioDia = (iso) => new Date(`${iso}T12:00:00`)
 

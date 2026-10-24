@@ -201,7 +201,7 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 | Quantidade executada (por serviço) | número | não | maior ou igual a zero; com a unidade do serviço |
 | Quem executou (por serviço) | escolha | sim, se houver quantidade | lista de responsáveis da obra |
 | Concluído (por serviço) | caixinha | não | |
-| Fotos | imagem | não | comprimidas no celular antes de subir |
+| Fotos | imagem | não | dois botões por serviço: **"Tirar foto"** (abre a câmera) e **"Da galeria"**; **sempre comprimidas no aparelho para no máximo 5 MB** antes de entrar no diário (decisão do engenheiro, 24/10/2026). A tela mostra "Comprimindo…" e depois o tamanho final; dá para tirar uma foto antes de enviar. Cada foto mostra **data e hora em que foi tirada, GPS (com link para o mapa), endereço e tamanho**; sem GPS, aparece em vermelho "Sem GPS. Ligue a localização do celular e tire a foto de novo." |
 
 **Ações**
 - **Lançar o dia:** abre o diário de hoje vazio.
@@ -359,7 +359,7 @@ Nada de planejado do mês, responsável, dias sem avanço, data limite de decis�
 Grade com as fotos da semana atual (segunda a domingo), mais novas primeiro, com data e serviço. Setas para a semana anterior e a seguinte. Ao tocar, abre a foto grande com data e serviço, e o botão Baixar.
 
 **Regras**
-Não mostra quem tirou a foto nem as ocorrências do diário.
+Cada foto mostra **data e hora em que foi tirada, GPS (com link para o mapa) e endereço**; a foto baixada mantém data, hora e GPS dentro do arquivo. Não mostra quem tirou a foto nem as ocorrências do diário.
 
 **Estado vazio**
 "Nenhuma foto nesta semana."

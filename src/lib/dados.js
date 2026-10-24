@@ -17,6 +17,7 @@ import { podeEditar, podeLancar, podeVerValores, veTodasAsObras } from './perfis
 import { congelarMeta, podeIniciar } from './medicao.js'
 import { aceitaLancamento, validarObra } from './obras.js'
 import { podeCorrigir } from './diario.js'
+import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
 
 let sessao = null
 let obraAtual = null
@@ -166,7 +167,8 @@ export function listarDiarios() {
   return ok(copia(lista))
 }
 
-// itens: [{ servico_id, quantidade, responsavel_id, concluido, novas_fotos }]
+// itens: [{ servico_id, quantidade, responsavel_id, concluido, fotos: [{ tamanho_bytes, largura, altura, url_previa }] }]
+// As fotos chegam já comprimidas pela tela; aqui o limite de tamanho é conferido de novo.
 export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, itens }) {
   const e = checar(); if (e) return falha(e)
   if (!podeLancar(sessao.role)) return falha('Seu perfil não lança diário.')
@@ -175,7 +177,16 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, iten
   const comProducao = itens.filter((i) => i.quantidade > 0 || i.concluido)
   if (!comProducao.length) return falha('Lance a quantidade de pelo menos um serviço.')
   const servicosDaObra = new Set(daObra(mock.servicos).map((s) => s.id))
-  if (comProducao.some((i) => !servicosDaObra.has(i.servico_id))) return falha('Há serviço de outra obra no lançamento.')
+  const comFoto = itens.filter((i) => i.fotos?.length)
+  if ([...comProducao, ...comFoto].some((i) => !servicosDaObra.has(i.servico_id))) return falha('Há serviço de outra obra no lançamento.')
+  const fotosEnviadas = comFoto.flatMap((i) => i.fotos)
+  if (fotosEnviadas.some((f) => !cabeNoLimite(f.tamanho_bytes))) return falha(`Há foto acima de ${LIMITE_FOTO_TEXTO}. Ela precisa ser comprimida antes de enviar.`)
+  const origemGps = Object.values(ORIGENS_GPS)
+  const origemData = Object.values(ORIGENS_DATA)
+  if (fotosEnviadas.some((f) => (f.gps_lat != null && (!coordenadaValida(f.gps_lat, f.gps_lon) || !origemGps.includes(f.gps_origem)))
+    || (f.tirada_em_origem != null && !origemData.includes(f.tirada_em_origem)))) {
+    return falha('Há foto com data ou localização inválida.')
+  }
 
   let diario = daObra(mock.diarios).find((x) => x.data === data)
   if (diario) {
@@ -203,10 +214,18 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, iten
         ...campos, lancado_por: sessao.id, corrigido_por: null, corrigido_em: null,
       })
     }
-    for (let k = 0; k < (i.novas_fotos ?? 0); k++) {
+  }
+  // Foto pode ir mesmo em serviço sem produção no dia (ex.: registrar que está parado).
+  for (const i of comFoto) {
+    for (const f of i.fotos) {
       mock.fotos.push({
         id: novoId('foto'), obra_id: obraAtual, diario_id: diario.id, servico_id: i.servico_id,
         caminho: `fotos/${obraAtual}/${diario.id}/${novoId('f')}.jpg`, tirada_por: sessao.id,
+        tamanho_bytes: f.tamanho_bytes, largura: f.largura, altura: f.altura,
+        tirada_em: f.tirada_em ?? null, tirada_em_origem: f.tirada_em_origem ?? null,
+        gps_lat: f.gps_lat ?? null, gps_lon: f.gps_lon ?? null, gps_origem: f.gps_lat != null ? f.gps_origem : null,
+        endereco: f.endereco ?? null,
+        url_previa: f.url_previa ?? null, // só nos dados de exemplo: a foto fica na memória do navegador
       })
     }
   }
@@ -311,4 +330,36 @@ export function liberarPessoa(profileId, { role, cargo, obraIds }) {
     }
   }
   return ok(copia(p))
+}
+
+/* ── Endereço das fotos (serviço externo: mapa aberto do OpenStreetMap) ── */
+
+// Só as coordenadas saem do aparelho. O serviço aceita no máximo 1 pedido por
+// segundo: os pedidos entram numa fila. Sem internet ou sem resposta: null.
+const enderecos = new Map()
+let fila = Promise.resolve()
+const espera = (ms) => new Promise((r) => setTimeout(r, ms))
+
+export function buscarEndereco(lat, lon) {
+  const chave = `${lat.toFixed(5)},${lon.toFixed(5)}`
+  if (!enderecos.has(chave)) {
+    const pedido = fila.then(async () => {
+      const controle = new AbortController()
+      const tempo = setTimeout(() => controle.abort(), 8000)
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=pt-BR&lat=${lat}&lon=${lon}`
+        const r = await fetch(url, { signal: controle.signal })
+        return r.ok ? montarEndereco((await r.json()).address) : null
+      } catch (_) {
+        return null
+      } finally {
+        clearTimeout(tempo)
+      }
+    })
+    fila = pedido.then(() => espera(1100))
+    // Falhou: não guarda, para tentar de novo no próximo pedido.
+    pedido.then((e) => { if (e === null) enderecos.delete(chave) })
+    enderecos.set(chave, pedido)
+  }
+  return enderecos.get(chave).then((endereco) => ({ data: endereco, erro: null }))
 }

@@ -242,6 +242,15 @@ Para que serve: as fotos do diário, ligadas ao dia e, quando der, ao serviço.
 | diario_id | uuid | sim | → diarios |
 | servico_id | uuid | não | → servicos |
 | caminho | text | sim | caminho do arquivo no Storage |
+| tamanho_bytes | integer | sim | CHECK: maior que 0 e no máximo 5000000 (5 MB) |
+| largura | integer | não | em pixels, depois da compressão |
+| altura | integer | não | em pixels, depois da compressão |
+| tirada_em | timestamp (sem fuso) | não | data e hora em que a foto foi tirada, no relógio da câmera |
+| tirada_em_origem | text | não | CHECK: `Data da foto`, `Data do arquivo` |
+| gps_lat | numeric(9,6) | não | entre -90 e 90; nunca 0,0 |
+| gps_lon | numeric(9,6) | não | entre -180 e 180; nunca 0,0 |
+| gps_origem | text | não | CHECK: `GPS da foto`, `GPS do aparelho`; obrigatório quando há GPS |
+| endereco | text | não | endereço pelas coordenadas (OpenStreetMap); vazio se não foi encontrado na hora |
 | tirada_por | uuid | sim | → profiles |
 | created_at | timestamptz | sim | automático |
 
@@ -364,7 +373,14 @@ Ideias para depois, se fizerem falta: e-mail às 7h com os serviços que viraram
 ## Arquivos
 
 - Guardados no Storage, no bucket `fotos`, na pasta `<obra_id>/<diario_id>/`.
-- Imagem comprimida no navegador antes de subir (máx. 1200px, qualidade 0.8, cerca de 300 KB).
+- **Toda foto do diário é comprimida no navegador para no máximo 5 MB** antes de subir (decisão do engenheiro, 24/10/2026). Ela é regravada em JPEG, tentando da melhor qualidade para a menor (maior lado de 4096 px com qualidade 0,85, descendo até 1280 px com 0,55) e usando a primeira que couber. Regras em `src/lib/fotos.js`, testadas em `tests/fotos.mjs`.
+- O limite é conferido três vezes: na tela (compressão), na camada de dados (recusa foto acima de 5 MB) e no banco (CHECK de `tamanho_bytes`, e limite de tamanho do bucket `fotos` em 5 MB).
+- **A fiscalização precisa de data, hora, GPS e endereço de cada foto** (decisão do engenheiro, 24/10/2026):
+  - **Dentro do arquivo:** a compressão apagaria os dados da câmera (EXIF); por isso o bloco EXIF original é lido e devolvido para dentro da foto comprimida, com a orientação acertada. Quem baixar a foto vê data, hora e GPS em qualquer visualizador. `src/lib/exif.js`, testado em `tests/exif.mjs`.
+  - **No banco:** os mesmos dados ficam nas colunas `tirada_em`, `gps_lat`, `gps_lon`, `gps_origem` e `endereco`, para a tela da fiscalização mostrar sem abrir o arquivo.
+  - **De onde vem o GPS:** primeiro o da própria foto. O GPS do aparelho só entra em foto **tirada agora pelo botão "Tirar foto"** (câmera do app), quando ela não trouxer o dela e o arquivo for dos últimos 15 minutos; o navegador pede permissão. Foto escolhida **"Da galeria"** fica só com o GPS que ela mesma trouxer — uma foto baixada do WhatsApp agora nunca ganha o local de onde a pessoa está. Sem GPS, a tela avisa em vermelho.
+  - **Endereço:** buscado no OpenStreetMap (Nominatim) a partir das coordenadas, pela camada de dados (`buscarEndereco`), em fila de 1 pedido por segundo (regra do serviço). Só as coordenadas saem do aparelho. O envio do diário espera o endereço que ainda estiver chegando. Sem internet, a foto fica com o GPS e sem endereço.
+  - Quando o GPS vem do aparelho, o app monta um bloco EXIF novo (data, hora e GPS) e grava dentro da foto, para a foto baixada também ter o local.
 - O banco guarda o `caminho`. O endereço para exibir é gerado na hora, com validade curta, porque o bucket não é público.
 
 ## Critérios de aceite
@@ -387,7 +403,7 @@ Ideias para depois, se fizerem falta: e-mail às 7h com os serviços que viraram
 
 ## A conta que vai chegar depois
 
-- `[PENDENTE: espaço para fotos]` — quando as fotos passarem de 1 GB (cerca de 3.000 fotos comprimidas), passar para o plano pago do Supabase, cerca de US$ 25/mês.
+- `[PENDENTE: espaço para fotos]` — com fotos de até 5 MB (na prática 1 a 3 MB cada), o 1 GB grátis do Supabase guarda umas 350 a 1.000 fotos. Passando disso, plano pago, cerca de US$ 25/mês.
 - `[PENDENTE: modelo da planilha contratual e do Excel do MS Project]` — sem um arquivo real, os nomes de coluna da importação são supostos e precisam de ajuste quando o arquivo chegar.
 
 ## Decidir depois de usar

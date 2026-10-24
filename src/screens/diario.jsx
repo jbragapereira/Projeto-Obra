@@ -1,13 +1,15 @@
 // Lançar o dia (Equipe da obra) / Diário (Engenheiro e Diretoria).
 import { useState } from 'react'
-import { buscarMedicaoAtual, juntar, listarDiarios, listarItensMedicao, listarLancamentos, listarResponsaveis, listarServicos, salvarDiario } from '../lib/dados.js'
+import { buscarEndereco, buscarMedicaoAtual, juntar, listarDiarios, listarItensMedicao, listarLancamentos, listarResponsaveis, listarServicos, salvarDiario } from '../lib/dados.js'
 import { CLIMAS, podeCorrigir, ultimoDiaDeCorrecao } from '../lib/diario.js'
 import { analisarServico, ORDEM_SITUACAO } from '../lib/painel.js'
 import { podeLancar } from '../lib/perfis.js'
 import { aceitaLancamento } from '../lib/obras.js'
-import { qtd } from '../lib/formato.js'
-import { dataLonga, dm, hojeISO } from '../lib/datas.js'
+import { qtd, tamanhoArquivo } from '../lib/formato.js'
+import { dataHoraCurta, dataLonga, dm, hojeISO } from '../lib/datas.js'
+import { ORIGENS_DATA } from '../lib/fotos.js'
 import { Carregando, Critico, ErroCarga, Faixa, Icon, Meta, Pill, Vazio, avisar, useDados } from '../components/index.jsx'
+import { prepararFoto } from '../components/prepararFoto.js'
 
 async function carregar() {
   const r = await juntar({ servicos: listarServicos(), lancamentos: listarLancamentos(), responsaveis: listarResponsaveis(), diarios: listarDiarios(), medicao: buscarMedicaoAtual() })
@@ -17,12 +19,37 @@ async function carregar() {
   return { data: { ...r.data, itens: itens.data }, erro: null }
 }
 
+// O que a fiscalização vai conferir em cada foto: data e hora, GPS e endereço.
+function DadosDaFoto({ foto }) {
+  const temGps = foto.gps_lat != null
+  return (
+    <dl className="foto-dados">
+      <div><dt>Tirada em</dt><dd>{foto.tirada_em ? dataHoraCurta(foto.tirada_em) : 'sem data'}{foto.tirada_em_origem === ORIGENS_DATA.arquivo && <span className="obs"> (data do arquivo)</span>}</dd></div>
+      <div>
+        <dt>Local</dt>
+        <dd>
+          {temGps ? (
+            <a href={`https://www.openstreetmap.org/?mlat=${foto.gps_lat}&mlon=${foto.gps_lon}#map=18/${foto.gps_lat}/${foto.gps_lon}`} target="_blank" rel="noreferrer">
+              {foto.gps_lat.toLocaleString('pt-BR', { minimumFractionDigits: 5 })}, {foto.gps_lon.toLocaleString('pt-BR', { minimumFractionDigits: 5 })}
+            </a>
+          ) : <span className="alerta">Sem GPS. Tire a foto pelo botão “Tirar foto”, com a localização do celular ligada.</span>}
+          {temGps && <span className="obs"> ({foto.gps_origem})</span>}
+        </dd>
+      </div>
+      {temGps && (
+        <div><dt>Endereço</dt><dd>{foto.buscandoEndereco ? <span className="obs">Buscando endereço…</span> : foto.endereco ?? <span className="obs">Não encontrado agora; o GPS fica guardado.</span>}</dd></div>
+      )}
+      <div><dt>Tamanho</dt><dd>{tamanhoArquivo(foto.tamanho_bytes)}</dd></div>
+    </dl>
+  )
+}
+
 function formularioDe(dados, hoje, diarioHoje) {
   const daqui = dados.lancamentos.filter((l) => diarioHoje && l.diario_id === diarioHoje.id)
   const itens = {}
   for (const s of dados.servicos) {
     const l = daqui.find((x) => x.servico_id === s.id)
-    itens[s.id] = { quantidade: l?.quantidade ?? 0, responsavel_id: l?.responsavel_id ?? s.responsavel_id, concluido: l?.concluido ?? false, novas_fotos: 0 }
+    itens[s.id] = { quantidade: l?.quantidade ?? 0, responsavel_id: l?.responsavel_id ?? s.responsavel_id, concluido: l?.concluido ?? false, fotos: [] }
   }
   return {
     data: hoje,
@@ -39,6 +66,7 @@ export default function Diario({ profile, obra }) {
   const [form, setForm] = useState(null)
   const [busca, setBusca] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [comprimindo, setComprimindo] = useState([]) // ids dos serviços com foto sendo preparada
   const hoje = hojeISO()
 
   if (carregando) return <Carregando />
@@ -121,16 +149,51 @@ export default function Diario({ profile, obra }) {
     ? analises.filter((a) => !a.concluido && !visiveis.includes(a) && `${a.servico.codigo} ${a.servico.descricao}`.toLowerCase().includes(termo)).slice(0, 6)
     : []
   const comProducao = Object.values(f.itens).filter((i) => i.quantidade > 0).length
-  const fotosNovas = Object.values(f.itens).reduce((s, i) => s + i.novas_fotos, 0)
+  const fotosNovas = Object.values(f.itens).reduce((s, i) => s + i.fotos.length, 0)
+
+  // A compressão demora um instante: as fotos entram no formulário pelo estado mais recente.
+  const mudarFotos = (id, mudar) => setForm((atual) => {
+    const base = atual ?? formularioDe(data, hoje, null)
+    return { ...base, itens: { ...base.itens, [id]: { ...base.itens[id], fotos: mudar(base.itens[id].fotos) } } }
+  })
+
+  // Cada foto: lê data, hora e GPS, comprime guardando esses dados no arquivo,
+  // e busca o endereço (em fila, sem travar a tela).
+  async function anexarFotos(id, arquivos, pelaCamera) {
+    setComprimindo((ids) => [...ids, id])
+    for (const arquivo of arquivos) {
+      try {
+        const p = await prepararFoto(arquivo, { pelaCamera })
+        const foto = { url_previa: URL.createObjectURL(p.blob), ...p.dados, endereco: null, buscandoEndereco: p.dados.gps_lat != null }
+        mudarFotos(id, (fotos) => [...fotos, foto])
+        avisar(`Foto anexada: ${tamanhoArquivo(p.tamanhoOriginal)} comprimida para ${tamanhoArquivo(p.dados.tamanho_bytes)}.`)
+        if (foto.buscandoEndereco) {
+          buscarEndereco(foto.gps_lat, foto.gps_lon).then(({ data: endereco }) =>
+            mudarFotos(id, (fotos) => fotos.map((x) => (x.url_previa === foto.url_previa ? { ...x, endereco, buscandoEndereco: false } : x))))
+        }
+      } catch (e) {
+        avisar(e.message)
+      }
+    }
+    setComprimindo((ids) => ids.filter((x) => x !== id))
+  }
+
+  function tirarFoto(id, foto) {
+    URL.revokeObjectURL(foto.url_previa)
+    mudarFotos(id, (fotos) => fotos.filter((x) => x !== foto))
+  }
 
   async function enviar() {
     setSalvando(true)
-    const r = await salvarDiario({
-      data: hoje, clima_manha: f.clima_manha, clima_tarde: f.clima_tarde, ocorrencias: f.ocorrencias,
-      itens: Object.entries(f.itens).map(([servico_id, i]) => ({ servico_id, ...i })),
-    })
+    const itens = await Promise.all(Object.entries(f.itens).map(async ([servico_id, i]) => ({
+      servico_id, ...i,
+      fotos: await Promise.all(i.fotos.map(async (foto) =>
+        (foto.buscandoEndereco ? { ...foto, endereco: (await buscarEndereco(foto.gps_lat, foto.gps_lon)).data } : foto))),
+    })))
+    const r = await salvarDiario({ data: hoje, clima_manha: f.clima_manha, clima_tarde: f.clima_tarde, ocorrencias: f.ocorrencias, itens })
     setSalvando(false)
     if (r.erro) { avisar(r.erro); return }
+    Object.values(f.itens).flatMap((i) => i.fotos).forEach((foto) => URL.revokeObjectURL(foto.url_previa))
     avisar(`Diário de ${dm(hoje)} enviado. O painel já foi atualizado.`)
     setForm(null)
     recarregar()
@@ -186,12 +249,30 @@ export default function Diario({ profile, obra }) {
                   <button className={`btn ${it.concluido ? 'on' : ''}`} style={{ flex: 1 }} aria-pressed={it.concluido} onClick={() => atualizarItem(s.id, { concluido: !it.concluido })}>
                     {it.concluido ? <><Icon nome="check" tamanho={20} /> Concluído</> : 'Marcar concluído'}
                   </button>
-                  <button className="btn" style={{ flex: 1 }} onClick={() => { atualizarItem(s.id, { novas_fotos: it.novas_fotos + 1 }); avisar('Foto anexada (de exemplo, até ligarmos o armazenamento).') }}>
-                    <Icon nome="camera" tamanho={20} /> Foto{it.novas_fotos ? ` (${it.novas_fotos})` : ''}
-                  </button>
                 </div>
-                {it.novas_fotos > 0 && (
-                  <div className="thumbs">{Array.from({ length: it.novas_fotos }, (_, i) => <div key={i} className="thumb">FOTO {i + 1}</div>)}</div>
+                <div className="svc-row">
+                  {[['camera', 'Tirar foto', true], ['galeria', 'Da galeria', false]].map(([chave, rotulo, pelaCamera]) => (
+                    <label key={chave} className="btn" style={{ flex: 1 }} aria-disabled={comprimindo.includes(s.id)}>
+                      <input className="sr-only" type="file" accept="image/*" multiple={!pelaCamera} capture={pelaCamera ? 'environment' : undefined}
+                        disabled={comprimindo.includes(s.id)}
+                        onChange={(e) => { const arquivos = [...e.target.files]; e.target.value = ''; if (arquivos.length) anexarFotos(s.id, arquivos, pelaCamera) }} />
+                      <Icon nome={pelaCamera ? 'camera' : 'fotos'} tamanho={20} />
+                      {comprimindo.includes(s.id) ? 'Preparando…' : rotulo}
+                    </label>
+                  ))}
+                </div>
+                {it.fotos.length > 0 && (
+                  <div className="fotos-lista">
+                    {it.fotos.map((foto, i) => (
+                      <figure key={foto.url_previa} className="foto-item">
+                        <div className="thumb-foto">
+                          <img src={foto.url_previa} alt={`Foto ${i + 1} de ${s.descricao}`} />
+                          <button aria-label={`Tirar a foto ${i + 1}`} onClick={() => tirarFoto(s.id, foto)}>✕</button>
+                        </div>
+                        <figcaption><DadosDaFoto foto={foto} /></figcaption>
+                      </figure>
+                    ))}
+                  </div>
                 )}
               </section>
             )
@@ -218,7 +299,7 @@ export default function Diario({ profile, obra }) {
         </section>
 
         <div className="send">
-          <button className="btn primary" onClick={enviar} disabled={salvando || comProducao === 0}>
+          <button className="btn primary" onClick={enviar} disabled={salvando || comprimindo.length > 0 || comProducao === 0}>
             {salvando ? 'Enviando…' : `${diarioHoje ? 'Salvar correção' : 'Enviar diário'} de ${dm(hoje)}`}
           </button>
           <div className="hint">{comProducao} serviço(s) com produção e {fotosNovas} foto(s) nova(s)</div>

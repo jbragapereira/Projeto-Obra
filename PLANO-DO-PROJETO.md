@@ -171,7 +171,7 @@ Para a fiscalização, o engenheiro manda o link e libera só a obra daquele ór
 | Vercel | colocar no ar | grátis |
 | GitHub | guardar o código | grátis |
 
-**Total por mês:** R$ 0 no começo. Com as fotos de várias obras, o 1 GB grátis acaba em poucos meses, mesmo com as fotos comprimidas (cerca de 3.000 fotos). Daí em diante, cerca de US$ 25/mês.
+**Total por mês:** R$ 0 no começo. Toda foto é comprimida para no máximo 5 MB (decisão de 24/10/2026); na prática fica entre 1 e 3 MB, então o 1 GB grátis guarda umas 350 a 1.000 fotos e acaba em semanas com várias obras. Daí em diante, cerca de US$ 25/mês.
 **O que custaria a alternativa pronta:** Sienge, R$ 2.600 por mês na empresa anterior, ou seja, **R$ 31.200 por ano** (confirmado). É a economia que o sistema próprio representa.
 
 ## Prazo

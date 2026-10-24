@@ -15,4 +15,10 @@ export const emMil = (v) =>
 export const qtd = (v, unidade) =>
   `${(v ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 3 })}${unidade ? ` ${unidade}` : ''}`
 
+// "2,1 MB", "840 KB" (em base 1000, como o limite de 5 MB das fotos)
+export const tamanhoArquivo = (bytes) =>
+  bytes >= 1000 * 1000
+    ? `${(bytes / (1000 * 1000)).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
+    : `${Math.max(1, Math.round(bytes / 1000)).toLocaleString('pt-BR')} KB`
+
 export const pct = (parte, total) => (total ? Math.round((parte / total) * 100) : 0)

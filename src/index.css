@@ -239,7 +239,24 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .qty input { width: 100%; min-width: 0; height: 52px; border: 1.5px solid var(--ink); border-radius: var(--r-btn); text-align: center; font-family: var(--display); font-stretch: 85%; font-size: 26px; font-weight: 700; background: #fff }
 .qty .un { font-weight: 600; font-size: 15px; min-width: 28px }
 .svc-row { display: flex; gap: var(--s2); margin-top: 10px; flex-wrap: wrap }
-.thumbs { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap }
+.thumbs { display: flex; gap: var(--s2); margin-top: 10px; flex-wrap: wrap }
+.thumb-foto { position: relative; width: 88px; flex: none }
+.thumb-foto img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: var(--r-btn); border: 1px solid var(--line) }
+.fotos-lista { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s3) }
+.foto-item { display: flex; gap: var(--s3); align-items: flex-start; padding-top: var(--s3); border-top: 1px solid var(--line) }
+.foto-item figcaption { flex: 1; min-width: 0 }
+.foto-dados { display: grid; gap: 2px; font-size: 14px }
+.foto-dados > div { display: grid; grid-template-columns: 76px 1fr; gap: var(--s2) }
+.foto-dados dt { color: var(--slate); font-weight: 600 }
+.foto-dados dd { overflow-wrap: anywhere }
+.foto-dados a { color: var(--brand-d); font-weight: 600 }
+.obs { color: var(--slate) }
+.alerta { color: var(--red-d); font-weight: 600 }
+.thumb-foto button { position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 14px; border: 2px solid #fff }
+.thumb-foto button::after { content: ''; position: absolute; inset: -6px } /* área de toque de 44px */
+label.btn { cursor: pointer }
+label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0 }
 .thumb { width: 64px; height: 64px; border-radius: var(--r-btn); background: repeating-linear-gradient(135deg, #C9D3D8 0 8px, #BCC8CE 8px 16px); display: grid; place-items: center; font-size: 11px; color: var(--ink); font-weight: 600 }
 .send { position: sticky; bottom: 76px; z-index: 5; padding: 10px 0 0; background: linear-gradient(transparent, var(--paper) 30%) }
 .send .btn { min-height: 56px; font-size: 17px; width: 100% }
