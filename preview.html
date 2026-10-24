@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto Obra — prévia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* paleta do cliente */
+  --brand:#00A3B4;      /* turquesa: destaque (barras, abas ativas, bordas, ícones) */
+  --ink:#26333A;        /* grafite escuro: texto, cabeçalho, menu */
+  --slate:#4A5A63;      /* grafite médio: textos secundários, botões do cabeçalho */
+  --paper:#F2F4F5;      /* cinza-claro: fundo */
+  --red:#E2574C;        /* vermelho: atrasado / crítico (bordas, barras) */
+  /* derivadas, para texto pequeno legível no sol */
+  --brand-d:#007C89;    /* turquesa escuro: botões com texto branco, links */
+  --red-d:#B8392F;      /* vermelho escuro: etiquetas e textos */
+  --amber:#E3A23B;      /* âmbar: atenção (sempre com texto escuro) */
+  --ok:#2A7F51;         /* verde: ok (frio, combina com o turquesa) */
+  --ok-tint:#E0F1E7;
+  --amber-tint:#FCF0DB;
+  --red-tint:#FCE6E4;
+  --brand-tint:#DDF3F5;
+  --bg:#F2F4F5;
+  --card:#FFFFFF;
+  --line:#D5DCE0;
+  --muted:#4A5A63;
+  --ink-2:#4A5A63;
+  --mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --sans:"IBM Plex Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.mono{font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+
+/* barra da prévia (não faz parte do app) */
+.preview-bar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 16px;background:#fff;border-bottom:2px dashed var(--line);font-size:13px}
+.preview-bar b{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted)}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:999px;overflow:hidden}
+.seg button{min-height:44px;padding:0 14px;font-weight:600;font-size:13px}
+@media (max-width:640px){ .preview-bar .hint{display:none} .preview-bar{padding:6px 12px} }
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+/* esqueleto */
+.app{display:flex;min-height:calc(100vh - 54px)}
+.side{display:none}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding-bottom:84px}
+.view{padding:14px 12px 24px;display:flex;flex-direction:column;gap:12px;max-width:1180px;width:100%;margin:0 auto}
+
+/* cabeçalho escuro (estilo Painel) */
+.top{background:var(--ink);color:var(--paper);padding:14px 16px 0}
+.top-row{display:flex;align-items:center;gap:12px}
+.obra-badge{width:40px;height:40px;border-radius:8px;background:var(--brand);color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:18px;flex:none}
+.obra-name{font-weight:700;font-size:18px;line-height:1.2}
+.obra-sub{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:#B7C3C9;margin-top:2px}
+.trocar{margin-left:auto;min-height:44px;padding:0 14px;border-radius:6px;background:#4A5A63;color:var(--paper);font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;display:flex;align-items:center;gap:6px;flex:none}
+.trocar[disabled]{opacity:.65;cursor:default}
+.tabs{display:flex;gap:4px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{min-height:44px;padding:0 10px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;color:#A9B6BD;border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:#fff;border-bottom-color:var(--brand)}
+.tab .n{display:inline-block;min-width:20px;margin-left:4px;padding:1px 5px;border-radius:4px;background:#4A5A63;color:#fff;text-align:center}
+.tab.red .n{background:var(--red-d)}
+.top-date{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--brand);padding:12px 0 14px}
+
+/* cartões */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.card-h .mono{font-size:12px;font-weight:600;color:var(--ink-2)}
+.link{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--brand-d);min-height:44px;padding:0 4px;display:inline-flex;align-items:center;gap:4px}
+
+/* sinal da entrega */
+.sinal{display:flex;align-items:stretch;overflow:hidden}
+.sinal .bar{width:8px;flex:none}
+.sinal .body{padding:12px 14px;flex:1}
+.sinal .lbl{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--ink-2)}
+.sinal .big{font-size:26px;font-weight:700;line-height:1.1;margin-top:2px}
+.sinal .why{font-size:15px;color:var(--ink-2);margin-top:4px}
+.sinal.ok .bar{background:var(--ok)} .sinal.ok .big{color:var(--ok)}
+.sinal.amber .bar{background:var(--amber)} .sinal.amber{background:var(--amber-tint);border-color:#EDCB8F} .sinal.amber .big{color:#8A5A0E}
+.sinal.red .bar{background:var(--red)} .sinal.red{background:var(--red-tint);border-color:#F1B3AD} .sinal.red .big{color:var(--red-d)}
+
+/* números grandes */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{padding:10px 12px 12px;border-top:4px solid var(--ink);text-align:left;min-height:96px}
+.kpi.red{border-top-color:var(--red)} .kpi.amber{border-top-color:var(--amber)} .kpi.ok{border-top-color:var(--ok)}
+.kpi .lbl{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink-2)}
+.kpi .num{font-size:34px;font-weight:700;line-height:1.05;margin-top:4px;letter-spacing:-.01em}
+.kpi .num small{font-size:16px;font-weight:600}
+.kpi.red .num{color:var(--red-d)}
+.kpi .sub{font-size:13px;color:var(--muted);margin-top:4px}
+button.kpi{background:var(--card);cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start}
+.kpi .num .cur{font-size:15px;font-weight:600;margin-right:3px;vertical-align:.55em}
+.kpi .num .suf{font-size:15px;font-weight:600;margin-left:3px}
+
+/* barra de avanço da medição */
+.prog{padding:12px 14px 14px}
+.prog-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.prog-h .mono{font-size:12px;font-weight:600;color:var(--ink-2)}
+.prog-h .pct{font-family:var(--mono);font-size:12px;font-weight:600}
+.track{position:relative;height:12px;background:#DCE3E7;border-radius:6px;margin:12px 0 8px}
+.fill{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--brand)}
+.marker{position:absolute;top:-6px;bottom:-6px;width:3px;background:var(--ink);border-radius:2px}
+.marker span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;font-weight:600;white-space:nowrap;letter-spacing:.06em}
+.scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+/* lista de serviços (celular) */
+.rows{list-style:none}
+.row{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--line);width:100%;text-align:left;min-height:64px}
+.row:last-child{border-bottom:0}
+.row.hl-red{background:var(--red-tint)}
+.row.hl-amber{background:#FCF3E2}
+.row .main-c{flex:1;min-width:0}
+.row .t{font-weight:600;font-size:17px;line-height:1.25}
+.row .m{font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--ink-2);margin-top:4px;text-transform:uppercase}
+.row .money{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;align-items:baseline}
+.row .money .f{font-size:20px;font-weight:700}
+.row .money .f.red{color:var(--red-d)}
+.row .money .o{font-size:13px;color:var(--muted)}
+.minibar{height:6px;border-radius:3px;background:#DCE3E7;margin-top:8px;overflow:hidden}
+.minibar i{display:block;height:100%;background:var(--brand)}
+.pill{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;padding:5px 8px;border-radius:4px;white-space:nowrap;flex:none;text-transform:uppercase}
+.pill.red{background:var(--red-d);color:#fff}
+.pill.amber{background:var(--amber);color:var(--ink)}
+.pill.ok{background:var(--ok);color:#fff}
+.pill.done{background:transparent;color:var(--ink-2);border:1.5px solid var(--line)}
+.pill.crit{background:var(--ink);color:var(--paper)}
+.pill.soft{background:var(--brand-tint);color:var(--brand-d)}
+
+/* tabela (tela larga) */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:10px 12px;border-bottom:1.5px solid var(--ink);background:var(--card);position:sticky;top:0;white-space:nowrap}
+td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.click{cursor:pointer} tr.click:hover td{background:#EAF6F7}
+tr.hl-red td{background:var(--red-tint)}
+td .desc,td.desc{font-weight:600;min-width:220px}
+td.resp{white-space:nowrap}
+td .cod{font-family:var(--mono);font-size:11px;color:var(--muted)}
+td.big{font-weight:700;font-size:16px}
+td.red{color:var(--red-d);font-weight:700}
+.only-wide{display:none}
+
+/* mini cartões do rodapé */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini{padding:10px 12px;text-align:left;min-height:64px}
+.mini .lbl{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink-2)}
+.mini .v{font-size:16px;font-weight:600;margin-top:4px}
+.mini .v.red{color:var(--red-d)} .mini .v.ok{color:var(--ok)}
+
+/* formulário do diário */
+.sec-t{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--ink-2);padding:4px 2px 0}
+.clima{padding:12px 14px;display:grid;gap:12px}
+.clima .lbl{font-weight:600;margin-bottom:6px}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.chip{min-height:48px;border:1.5px solid var(--line);border-radius:6px;background:#fff;font-weight:600;font-size:14px;line-height:1.1;padding:4px}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.svc{padding:14px}
+.svc .t{font-weight:700;font-size:17px;line-height:1.25}
+.svc .m{font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--ink-2);margin-top:4px;text-transform:uppercase}
+.svc.has{border-color:var(--brand);box-shadow:inset 4px 0 0 var(--brand)}
+.qty{display:flex;align-items:center;gap:8px;margin-top:12px}
+.qty button{width:52px;height:52px;border-radius:6px;border:1.5px solid var(--ink);font-size:26px;font-weight:600;background:#fff;flex:none}
+.qty input{width:100%;min-width:0;height:52px;border:1.5px solid var(--ink);border-radius:6px;text-align:center;font-size:24px;font-weight:700;background:#fff}
+.qty .un{font-family:var(--mono);font-weight:600;font-size:14px;min-width:28px}
+.qty .lbl{font-size:13px;color:var(--muted);white-space:nowrap}
+.svc-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:4px;flex:1 1 180px}
+.field span{font-size:13px;color:var(--muted)}
+select,textarea,.search{min-height:48px;border:1.5px solid var(--line);border-radius:6px;background:#fff;padding:0 12px;font-size:16px;width:100%}
+textarea{padding:12px;min-height:96px;resize:vertical}
+.btn{min-height:48px;padding:0 16px;border-radius:6px;font-weight:600;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--ink);background:#fff}
+.btn.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.primary{background:var(--brand-d);border-color:var(--brand-d);color:#fff}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.btn.block{width:100%}
+.thumbs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.thumb{width:64px;height:64px;border-radius:6px;background:repeating-linear-gradient(135deg,#C9D3D8 0 8px,#BCC8CE 8px 16px);display:grid;place-items:center;font-family:var(--mono);font-size:10px;color:var(--ink);font-weight:600}
+.send{position:sticky;bottom:76px;z-index:5;padding:10px 0 0;background:linear-gradient(transparent,var(--bg) 30%)}
+.send .btn{min-height:56px;font-size:17px;width:100%}
+.send .hint{text-align:center;font-size:13px;color:var(--muted);margin-top:6px}
+.done-card{padding:16px;display:flex;gap:12px;align-items:flex-start;border-left:6px solid var(--ok)}
+.done-card .big{font-size:20px;font-weight:700}
+.past .row{min-height:56px}
+
+/* serviços */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.search{flex:1 1 220px}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{min-height:44px;padding:0 14px;border:1.5px solid var(--line);border-radius:999px;background:#fff;font-weight:600;font-size:14px}
+.filters button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.pct-big{font-size:22px;font-weight:700;text-align:right;line-height:1}
+.pct-big small{display:block;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.06em;margin-top:3px}
+
+/* estado vazio */
+.empty{padding:36px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
+.empty .ico{width:84px;height:84px;border-radius:50%;background:var(--brand-tint);display:grid;place-items:center;color:var(--brand-d)}
+.empty h2{font-size:22px;line-height:1.2}
+.empty p{max-width:420px;color:var(--ink-2);font-size:16px}
+.empty .btn{margin-top:6px;min-height:52px;font-size:16px}
+
+/* gaveta / folhas */
+.scrim{position:fixed;inset:0;background:rgba(38,51,58,.6);z-index:80;display:none}
+.scrim.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:90vh;overflow:auto;background:var(--paper);border-radius:14px 14px 0 0;z-index:90;transform:translateY(105%);transition:transform .22s ease;padding-bottom:16px}
+.sheet.open{transform:none}
+.sheet-h{position:sticky;top:0;background:var(--ink);color:var(--paper);padding:14px 16px;display:flex;gap:10px;align-items:flex-start;z-index:2}
+.sheet-h .t{font-weight:700;font-size:19px;line-height:1.2}
+.sheet-h .m{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:#B7C3C9;margin-top:3px}
+.close{margin-left:auto;min-height:44px;min-width:44px;padding:0 12px;border-radius:6px;background:#4A5A63;color:var(--paper);font-weight:600;font-size:14px;flex:none}
+.sheet-b{padding:14px 12px;display:flex;flex-direction:column;gap:12px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.fact{background:var(--card);padding:10px 12px}
+.fact .lbl{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--ink-2)}
+.fact .v{font-size:19px;font-weight:700;margin-top:2px}
+.fact .v.red{color:var(--red-d)}
+.chart{padding:12px 14px}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--ink-2);margin-top:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.obra-opt{display:flex;gap:12px;align-items:center;width:100%;padding:14px 16px;border-bottom:1px solid var(--line);text-align:left;min-height:64px;background:var(--card)}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+.dot.ok{background:var(--ok)} .dot.amber{background:var(--amber)} .dot.red{background:var(--red)} .dot.none{background:#A9B6BD}
+
+/* navegação inferior (celular) */
+.bottom{position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.bottom button{flex:1;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--ink-2);border-top:3px solid transparent;text-transform:uppercase}
+.bottom button[aria-current="page"]{color:var(--brand-d);border-top-color:var(--brand);background:var(--brand-tint)}
+.bottom svg,.side svg{width:24px;height:24px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,20px);opacity:0;background:var(--ink);color:var(--paper);padding:14px 18px;border-radius:8px;font-weight:600;z-index:100;transition:.2s;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* placeholder de tela fora da prévia */
+.off{padding:28px 20px;text-align:center;color:var(--ink-2)}
+.off h2{color:var(--ink);font-size:20px;margin-bottom:6px}
+
+/* ===== tela larga: menu lateral ===== */
+@media (min-width:900px){
+  .bottom{display:none}
+  .main{padding-bottom:0}
+  .side{display:flex;flex-direction:column;width:232px;flex:none;background:var(--ink);color:var(--paper);position:sticky;top:54px;height:calc(100vh - 54px)}
+  .brandmark{padding:20px 18px 18px;border-bottom:1px solid #34444C}
+  .brandmark .b1{font-weight:700;font-size:20px;letter-spacing:.02em}
+  .brandmark .b2{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:#A9B6BD;margin-top:2px}
+  .side nav{display:flex;flex-direction:column;gap:2px;padding:12px 10px}
+  .side nav button{min-height:48px;display:flex;align-items:center;gap:12px;padding:0 12px;border-radius:6px;color:#DCE4E8;font-weight:600;font-size:15px;text-align:left}
+  .side nav button:hover{background:#33434B}
+  .side nav button[aria-current="page"]{background:var(--brand-d);color:#fff}
+  .side .who{margin-top:auto;padding:14px 18px;border-top:1px solid #34444C;font-size:14px}
+  .side .who .mono{font-size:10.5px;color:#A9B6BD}
+  .top{padding:18px 24px 0}
+  .view{padding:18px 24px 32px;gap:14px}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .kpi .num{font-size:40px}
+  .only-wide{display:block}
+  .only-narrow{display:none}
+  .sheet{left:auto;top:0;bottom:0;width:460px;max-height:none;border-radius:0;transform:translateX(105%)}
+  .sheet.open{transform:none}
+  .send{bottom:0}
+  .toast{bottom:28px}
+  .lanc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+}
+@media (min-width:1200px){ .view{padding:20px 32px 40px} }
+@media (max-width:899px){ .kpis .kpi.w4{display:none} }
+@media (max-width:380px){
+  .kpi .num{font-size:28px}
+  .chips{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="preview-bar" role="region" aria-label="Controles da prévia">
+  <b>PRÉVIA · NÃO FAZ PARTE DO APP</b>
+  <span>Ver como:</span>
+  <div class="seg" id="perfilSeg">
+    <button data-perfil="eng" aria-pressed="true">Engenheiro</button>
+    <button data-perfil="equipe" aria-pressed="false">Equipe da obra</button>
+  </div>
+  <span class="hint" style="color:var(--muted)">Troque de obra no botão TROCAR · a Obra C mostra o estado vazio</span>
+</div>
+
+<div class="app">
+  <aside class="side" aria-label="Menu">
+    <div class="brandmark">
+      <div class="b1">Projeto Obra</div>
+      <div class="b2">ACOMPANHAMENTO DE OBRAS</div>
+    </div>
+    <nav id="sideNav"></nav>
+    <div class="who" id="who"></div>
+  </aside>
+
+  <div class="main">
+    <header class="top" id="top"></header>
+    <main class="view" id="view"></main>
+  </div>
+</div>
+
+<nav class="bottom" id="bottomNav" aria-label="Navegação"></nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ---------- utilidades ---------- */
+const HOJE = '2026-10-23';
+const DIAS = ['DOMINGO','SEGUNDA','TERÇA','QUARTA','QUINTA','SEXTA','SÁBADO'];
+const MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+const brl = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const brlK = v => v >= 1000 ? 'R$ ' + (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' mil' : brl(v);
+// número grande dos cartões: "R$" e "mil" pequenos, o valor grande
+const bigK = v => v >= 1000
+  ? `<span class="cur">R$</span>${(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})}<span class="suf">mil</span>`
+  : `<span class="cur">R$</span>${Math.round(v).toLocaleString('pt-BR')}`;
+const q = (v,u) => v.toLocaleString('pt-BR',{maximumFractionDigits:3}) + (u ? ' ' + u : '');
+const dm = s => s ? s.slice(8,10) + '/' + s.slice(5,7) : '—';
+const dmy = s => s ? dm(s) + '/' + s.slice(0,4) : '—';
+const between = (a,b) => Math.round((new Date(b+'T12:00') - new Date(a+'T12:00')) / 864e5);
+const pct = (a,b) => b ? Math.round(a / b * 100) : 0;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dataLonga = s => { const d = new Date(s+'T12:00'); return DIAS[d.getDay()] + ' · ' + s.slice(8,10) + ' ' + MESES[d.getMonth()]; };
+
+/* ---------- dados de exemplo (fictícios) ---------- */
+// s(cod, desc, un, preço, contratada, acumulado, planejado no mês, executado no período, responsável, fim, crítico, origem, situação-base, limite, término, histórico)
+function s(cod,desc,un,preco,contr,acum,plan,exec,resp,fim,crit,origem,base,limite,termino,hist,concluido){
+  return {cod,desc,un,preco,contr,acum,plan,exec,resp,fim,crit,origem,base,limite,termino,hist:hist||[],concluido:!!concluido};
+}
+const OBRAS = [
+  { id:'A', nome:'Reforma do Centro Comunitário Vila Nova', curto:'C. Comunitário Vila Nova', orgao:'Prefeitura (exemplo)', contrato:'045/2026',
+    entrega:'2027-03-15', medicao:{n:3, ini:'2026-10-01', fim:'2026-10-31'},
+    resps:['Construtora Pedra Firme','Elétrica Ponto Certo','Mão de obra própria'],
+    servicos:[
+      s('1.2.1','Tapume com telha metálica','m',145,180,90,120,30,'Construtora Pedra Firme','2026-11-05',true,'MS Project','Atenção','2026-10-21',null,
+        [['2026-10-06',12],['2026-10-09',10],['2026-10-15',8]]),
+      s('5.1.1','Contrapiso e = 5 cm','m²',41,980,0,300,0,'Construtora Pedra Firme','2026-11-30',false,'MS Project','Em dia','2026-11-17',null,[]),
+      s('6.1.3','Eletroduto PVC 25 mm embutido','m',18.9,1500,160,400,160,'Elétrica Ponto Certo','2026-11-10',true,'À mão','Atrasado','2026-10-24','2026-11-18',
+        [['2026-10-08',60],['2026-10-14',55],['2026-10-20',45]]),
+      s('3.1.4','Alvenaria de vedação com bloco cerâmico','m²',68.5,1850,1060,600,410,'Construtora Pedra Firme','2026-11-20',true,'MS Project','Atenção','2026-10-22','2026-11-19',
+        [['2026-10-02',60],['2026-10-06',70],['2026-10-09',80],['2026-10-14',60],['2026-10-17',50],['2026-10-20',50],['2026-10-22',40]]),
+      s('4.2.1','Chapisco e reboco interno','m²',32,3200,1300,900,700,'Mão de obra própria','2026-11-30',false,'MS Project','Em dia','2026-11-08','2026-11-27',
+        [['2026-10-03',90],['2026-10-07',100],['2026-10-10',110],['2026-10-15',120],['2026-10-20',140],['2026-10-23',140]]),
+      s('3.2.2','Verga e contraverga de concreto','m',38,260,240,140,120,'Mão de obra própria','2026-11-03',false,'MS Project','Em dia','2026-10-30','2026-10-28',
+        [['2026-10-13',40],['2026-10-16',45],['2026-10-21',35]]),
+      s('2.3.2','Demolição de piso cerâmico','m²',22,350,350,350,350,'Mão de obra própria','2026-10-25',false,'MS Project','Em dia',null,null,
+        [['2026-10-01',120],['2026-10-03',130],['2026-10-06',100]],true),
+      s('1.1.1','Placa da obra em chapa galvanizada','m²',250,6,6,null,0,'Construtora Pedra Firme','2026-08-20',false,'MS Project','Em dia',null,null,[],true),
+      s('8.1.1','Instalação de louças sanitárias','un',380,24,0,null,0,'Mão de obra própria','2027-01-30',false,'MS Project','Em dia',null,null,[]),
+      s('9.1.2','Limpeza final de obra','m²',6.5,1450,0,null,0,'Mão de obra própria','2027-03-10',true,'MS Project','Em dia',null,null,[]),
+    ],
+    diarios:[
+      {data:'2026-10-22', clima:'Nublado', servicos:3, fotos:5, por:'Lucas (estagiário)'},
+      {data:'2026-10-21', clima:'Bom', servicos:2, fotos:3, por:'Lucas (estagiário)'},
+      {data:'2026-10-20', clima:'Chuva forte', servicos:3, fotos:6, por:'Marcos (encarregado)', ocorr:'Paralisação parcial por chuva às 14h'},
+      {data:'2026-10-17', clima:'Bom', servicos:1, fotos:2, por:'Lucas (estagiário)'},
+    ],
+    hoje:null },
+  { id:'B', nome:'Construção da Creche Bairro Alto', curto:'Creche Bairro Alto', orgao:'Secretaria de Educação (exemplo)', contrato:'112/2026',
+    entrega:'2027-06-30', medicao:{n:2, ini:'2026-10-01', fim:'2026-10-31'},
+    resps:['Empreiteira Silva & Filhos','Mão de obra própria'],
+    servicos:[
+      s('2.3.1','Impermeabilização de viga baldrame','m²',36,420,40,180,40,'Empreiteira Silva & Filhos','2026-11-25',false,'MS Project','Em dia','2026-11-05','2026-11-20',
+        [['2026-10-17',40]]),
+      s('2.1.1','Concreto fck 25 MPa em fundações','m³',620,95,22,40,22,'Empreiteira Silva & Filhos','2026-11-15',true,'MS Project','Em dia','2026-11-06','2026-11-12',
+        [['2026-10-15',8],['2026-10-19',7],['2026-10-22',7]]),
+      s('2.2.4','Armação em aço CA-50','kg',9.8,7800,1900,2500,1900,'Mão de obra própria','2026-11-10',false,'MS Project','Em dia','2026-11-02','2026-11-08',
+        [['2026-10-05',300],['2026-10-09',350],['2026-10-14',400],['2026-10-19',450],['2026-10-23',400]]),
+      s('1.1.2','Escavação manual de sapatas','m³',85,60,48,60,48,'Empreiteira Silva & Filhos','2026-10-31',true,'MS Project','Em dia','2026-10-29','2026-10-26',
+        [['2026-10-13',16],['2026-10-16',14],['2026-10-20',10],['2026-10-23',8]]),
+      s('1.3.1','Locação da obra','m²',4.2,850,850,850,850,'Mão de obra própria','2026-10-05',false,'MS Project','Em dia',null,null,[['2026-10-02',850]],true),
+    ],
+    diarios:[
+      {data:'2026-10-23', clima:'Bom', servicos:2, fotos:4, por:'Marcos (encarregado)'},
+      {data:'2026-10-22', clima:'Bom', servicos:1, fotos:2, por:'Marcos (encarregado)'},
+    ],
+    hoje:{por:'Marcos (encarregado)', servicos:2, fotos:4, hora:'16:40'} },
+  { id:'C', nome:'Reforma da Quadra Poliesportiva Jardim Sol', curto:'Quadra Jardim Sol', orgao:'Prefeitura (exemplo)', contrato:'131/2026',
+    entrega:'2027-08-20', medicao:null, resps:[], servicos:[], diarios:[], hoje:null },
+];
+
+/* ---------- regras (as mesmas do PRD-FRONTEND) ---------- */
+const ORDEM = ['Parado','Atrasado','Atenção','Em dia','Concluído'];
+const CLS = {'Parado':'red','Atrasado':'red','Atenção':'amber','Em dia':'ok','Concluído':'done'};
+function ultimo(sv){ const h = sv.hist.filter(x => x[1] > 0); return h.length ? h[h.length-1][0] : null; }
+function diasSem(sv){ const u = ultimo(sv); return u ? between(u, HOJE) : null; }
+function situacao(sv){
+  if (sv.concluido) return 'Concluído';
+  const d = diasSem(sv);
+  if (d === null || d >= 5) return 'Parado';
+  return sv.base;
+}
+function planejados(o){ return o.servicos.filter(x => x.plan != null); }
+function sinal(o){
+  const crit = planejados(o).filter(x => x.crit);
+  const vermelho = crit.find(x => situacao(x) === 'Atrasado' && x.termino && x.termino > o.entrega);
+  if (vermelho) return {cls:'red', txt:'comprometida', why: vermelho.desc + ' termina depois da entrega no ritmo atual.'};
+  const amarelo = crit.find(x => ['Parado','Atenção','Atrasado'].includes(situacao(x)));
+  if (amarelo){
+    const st = situacao(amarelo), d = diasSem(amarelo);
+    const motivo = st === 'Parado' ? (d === null ? 'ainda não começou' : 'parado há ' + d + ' dias')
+                 : st === 'Atrasado' ? 'atrasado' : 'passou da data limite de decisão';
+    return {cls:'amber', txt:'em risco', why: amarelo.desc + ' (crítico) ' + motivo + '.'};
+  }
+  return {cls:'ok', txt:'de pé', why:'Todos os serviços críticos estão andando dentro do prazo.'};
+}
+const valPlan = x => x.plan * x.preco, valExec = x => x.exec * x.preco, falta = x => Math.max(0, valPlan(x) - valExec(x));
+
+/* ---------- estado ---------- */
+const st = { perfil:'eng', obra:'A', tela:'painel', filtro:'todos', filtroSv:'todos', busca:'', form:null };
+const obra = () => OBRAS.find(o => o.id === st.obra);
+const isEng = () => st.perfil === 'eng';
+
+/* ---------- ícones ---------- */
+const I = {
+  painel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+  diario:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 3v18M12 8h4M12 12h4"/></svg>',
+  servicos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  medicao:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>',
+  mais:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
+  perfil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  recados:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>',
+  ajustes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  check:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
+  planilha:'<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 11h7M9 14h7M9 17h4"/></svg>',
+};
+
+function navItems(){
+  return isEng()
+    ? [['painel','Painel','painel'],['diario','Diário','diario'],['servicos','Serviços','servicos'],['medicao','Medição','medicao'],['mais','Mais','mais']]
+    : [['diario','Lançar o dia','diario'],['painel','Painel','painel'],['servicos','Serviços','servicos'],['perfil','Meu perfil','perfil']];
+}
+function sideItems(){
+  return isEng()
+    ? [['painel','Painel do mês','painel'],['diario','Diário','diario'],['servicos','Serviços','servicos'],['medicao','Medição','medicao'],['recados','Recados','recados'],['ajustes','Ajustes','ajustes']]
+    : [['diario','Lançar o dia','diario'],['painel','Painel do mês','painel'],['servicos','Serviços','servicos'],['perfil','Meu perfil','perfil']];
+}
+
+/* ---------- render ---------- */
+function render(){
+  const o = obra();
+  document.getElementById('sideNav').innerHTML = sideItems().map(([id,l,ic]) =>
+    `<button data-go="${id}" ${st.tela===id?'aria-current="page"':''}>${I[ic]}<span>${l}</span></button>`).join('');
+  document.getElementById('bottomNav').innerHTML = navItems().map(([id,l,ic]) =>
+    `<button data-go="${id}" ${st.tela===id || (id==='mais' && ['recados','ajustes'].includes(st.tela))?'aria-current="page"':''}>${I[ic]}<span>${l}</span></button>`).join('');
+  document.getElementById('who').innerHTML = isEng()
+    ? `<div class="mono">Engenheiro</div><div>Engenheiro responsável</div>`
+    : `<div class="mono">Equipe da obra · Estagiário</div><div>Lucas Andrade</div>`;
+  renderTop(o);
+  const v = document.getElementById('view');
+  const telas = {painel:viewPainel, diario:viewDiario, servicos:viewServicos};
+  v.innerHTML = (telas[st.tela] || viewFora)(o);
+}
+
+function renderTop(o){
+  const sn = o.servicos.length && o.medicao ? sinal(o) : null;
+  let row2 = '';
+  if (st.tela === 'painel' && o.servicos.length){
+    const pl = planejados(o);
+    const c = { todos: pl.length,
+      parados: pl.filter(x => situacao(x)==='Parado').length,
+      atrasados: pl.filter(x => situacao(x)==='Atrasado').length,
+      atencao: pl.filter(x => situacao(x)==='Atenção').length,
+      criticos: pl.filter(x => x.crit).length };
+    const t = (id,l,n,red) => `<button class="tab ${red&&n?'red':''}" role="tab" aria-selected="${st.filtro===id}" data-filtro="${id}">${l}<span class="n">${n}</span></button>`;
+    row2 = `<div class="tabs" role="tablist" aria-label="Filtrar serviços">${t('todos','Todos',c.todos)}${t('parados','Parados',c.parados,1)}${t('atrasados','Atrasados',c.atrasados,1)}${t('atencao','Atenção',c.atencao)}${t('criticos','Críticos',c.criticos)}</div>`;
+  } else {
+    const titulo = {diario: isEng() ? 'DIÁRIO DE OBRA' : 'LANÇAR O DIA', servicos:'SERVIÇOS CONTRATADOS', painel:'PAINEL DO MÊS'}[st.tela] || '';
+    row2 = `<div class="top-date">${titulo}${titulo ? ' · ' : ''}${dataLonga(HOJE)}</div>`;
+  }
+  document.getElementById('top').innerHTML = `
+    <div class="top-row">
+      <div class="obra-badge" aria-hidden="true">${o.id}</div>
+      <div style="min-width:0">
+        <div class="obra-name">${esc(o.curto)}</div>
+        <div class="obra-sub">CT ${o.contrato} · ENTREGA ${dmy(o.entrega)}${sn ? ' · <span style="color:'+({ok:'#8FD6A8',amber:'var(--amber)',red:'#F5A39B'})[sn.cls]+'">'+sn.txt.toUpperCase()+'</span>' : ''}</div>
+      </div>
+      <button class="trocar" data-act="trocar" ${isEng() ? '' : 'disabled aria-disabled="true" title="A equipe fica em uma obra só"'}>TROCAR ${isEng() ? '▾' : ''}</button>
+    </div>${row2}`;
+}
+
+function vazio(titulo, texto, botao){
+  return `<section class="card empty">
+    <div class="ico">${I.planilha}</div>
+    <h2>${titulo}</h2>
+    <p>${texto}</p>
+    ${botao ? `<button class="btn primary" data-act="fake" data-msg="Na prévia, a importação é só visual.">＋ ${botao}</button>` : ''}
+  </section>`;
+}
+
+/* ---- Painel do mês ---- */
+function viewPainel(o){
+  if (!o.servicos.length) return vazio('Esta obra ainda não tem serviços',
+    'Importe a planilha contratual e, a partir de amanhã, este painel mostra toda manhã o que está andando e o que parou.',
+    isEng() ? 'Importar a planilha contratual' : null) + (isEng() ? '' : '<p style="text-align:center;color:var(--ink-2)">O engenheiro ainda vai importar os serviços desta obra.</p>');
+  const sn = sinal(o), pl = planejados(o);
+  const totP = pl.reduce((a,x) => a + valPlan(x), 0), totE = pl.reduce((a,x) => a + valExec(x), 0);
+  const m = o.medicao, decorrido = pct(between(m.ini, HOJE) + 1, between(m.ini, m.fim) + 1);
+  const verm = pl.filter(x => ['Parado','Atrasado'].includes(situacao(x)));
+  const aten = pl.filter(x => situacao(x) === 'Atenção');
+  const concl = pl.filter(x => situacao(x) === 'Concluído');
+  const filtros = {todos:() => true, parados:x => situacao(x)==='Parado', atrasados:x => situacao(x)==='Atrasado', atencao:x => situacao(x)==='Atenção', criticos:x => x.crit};
+  const lista = pl.filter(filtros[st.filtro]).sort((a,b) =>
+    ORDEM.indexOf(situacao(a)) - ORDEM.indexOf(situacao(b)) ||
+    (isEng() ? falta(b) - falta(a) : (diasSem(b) ?? 99) - (diasSem(a) ?? 99)));
+
+  const kpis = isEng() ? `
+    <div class="kpis">
+      <div class="card kpi"><div class="lbl mono">Executado no mês</div><div class="num">${bigK(totE)}</div><div class="sub">${pct(totE,totP)}% da meta de ${brlK(totP)}</div></div>
+      <button class="card kpi red" data-filtro="parados"><div class="lbl mono">Em vermelho</div><div class="num">${verm.length}</div><div class="sub">${brlK(verm.reduce((a,x)=>a+falta(x),0))} parados</div></button>
+      <button class="card kpi amber" data-filtro="atencao"><div class="lbl mono">Atenção</div><div class="num">${aten.length}</div><div class="sub">passaram da data limite</div></button>
+      <div class="card kpi ok w4"><div class="lbl mono">Falta executar</div><div class="num">${bigK(Math.max(0,totP-totE))}</div><div class="sub">até ${dm(m.fim)}</div></div>
+    </div>` : `
+    <div class="kpis">
+      <button class="card kpi red" data-filtro="parados"><div class="lbl mono">Em vermelho</div><div class="num">${verm.length}</div><div class="sub">parados ou atrasados</div></button>
+      <button class="card kpi amber" data-filtro="atencao"><div class="lbl mono">Atenção</div><div class="num">${aten.length}</div><div class="sub">precisam de reforço</div></button>
+      <div class="card kpi ok"><div class="lbl mono">Concluídos</div><div class="num">${concl.length}<small> de ${pl.length}</small></div><div class="sub">serviços do mês</div></div>
+    </div>`;
+
+  const prog = isEng() ? `
+    <section class="card prog" aria-label="Avanço da medição">
+      <div class="prog-h"><span class="mono">Medição ${m.n} · ${dm(m.ini)} a ${dm(m.fim)}</span><span class="pct">${pct(totE,totP)}% FEITO · ${decorrido}% DO MÊS</span></div>
+      <div class="track"><div class="fill" style="width:${Math.min(100,pct(totE,totP))}%"></div><div class="marker" style="left:${decorrido}%"><span>HOJE</span></div></div>
+      <div class="scale"><span>${dm(m.ini)}</span><span>${pct(totE,totP) < decorrido ? 'abaixo do ritmo do mês' : 'no ritmo do mês'}</span><span>${dm(m.fim)}</span></div>
+    </section>` : '';
+
+  const rowsMobile = lista.map(x => {
+    const sit = situacao(x), d = diasSem(x), cls = CLS[sit];
+    const meta = [x.resp.replace('Construtora ','').replace('Empreiteira ',''),
+      sit==='Parado' ? (d===null ? 'não iniciado' : d + ' dias parado') : (d===0 ? 'andou hoje' : d===null ? '' : d + (d===1?' dia':' dias') + ' sem avanço'),
+      x.limite && sit!=='Concluído' ? 'limite ' + dm(x.limite) : ''].filter(Boolean).join(' · ');
+    const money = isEng()
+      ? `<div class="money"><span class="f ${cls==='red'?'red':''}">Falta ${brl(falta(x))}</span><span class="o">${brl(valExec(x))} de ${brl(valPlan(x))}</span></div>`
+      : `<div class="money"><span class="f">${q(x.exec,x.un)}</span><span class="o">de ${q(x.plan,x.un)} no mês</span></div>`;
+    return `<li><button class="row ${cls==='red'?'hl-red':''}" data-sv="${x.cod}">
+      <div class="main-c">
+        <div class="t">${esc(x.desc)}</div>
+        <div class="m">${x.crit ? '◆ crítico · ' : ''}${esc(meta)}</div>
+        ${money}
+        <div class="minibar"><i style="width:${Math.min(100,pct(x.exec,x.plan))}%"></i></div>
+      </div>
+      <span class="pill ${cls}">${sit}</span>
+    </button></li>`;
+  }).join('');
+
+  const tabela = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Serviço</th>${isEng() ? '<th class="num">Planejado mês</th><th class="num">Executado</th><th class="num">Falta executar</th>' : '<th class="num">Planejado mês</th><th class="num">Executado</th>'}<th class="num">%</th><th>Situação</th><th class="num">Dias s/ avanço</th><th>Responsável</th><th class="num">Data limite</th></tr></thead>
+    <tbody>${lista.map(x => { const sit = situacao(x), d = diasSem(x), passou = x.limite && x.limite < HOJE && sit !== 'Concluído';
+      return `<tr class="click ${CLS[sit]==='red'?'hl-red':''}" data-sv="${x.cod}">
+        <td><div class="desc">${esc(x.desc)}</div><div class="cod">${x.cod}${x.crit?' · ◆ CRÍTICO':''}</div></td>
+        ${isEng() ? `<td class="num">${brl(valPlan(x))}</td><td class="num">${brl(valExec(x))}</td><td class="num big ${CLS[sit]==='red'?'red':''}">${brl(falta(x))}</td>`
+                  : `<td class="num">${q(x.plan,x.un)}</td><td class="num">${q(x.exec,x.un)}</td>`}
+        <td class="num">${pct(x.exec,x.plan)}%</td>
+        <td><span class="pill ${CLS[sit]}">${sit}</span></td>
+        <td class="num ${d===null||d>=5?'red':''}">${sit==='Concluído'?'—':(d===null?'não iniciou':d)}</td>
+        <td class="resp">${esc(x.resp)}</td>
+        <td class="num ${passou?'red':''}">${dm(x.limite)}</td></tr>`; }).join('')}</tbody></table></div>`;
+
+  const dia = o.hoje
+    ? `<button class="card mini" data-go="diario"><div class="lbl mono">Diário de hoje</div><div class="v ok">Enviado ${o.hoje.hora ? 'às ' + o.hoje.hora : ''}</div></button>`
+    : `<button class="card mini" data-go="diario"><div class="lbl mono">Diário de hoje</div><div class="v red">Pendente · lançar</div></button>`;
+
+  return `
+    <section class="card sinal ${sn.cls}" aria-label="Situação da entrega">
+      <div class="bar"></div>
+      <div class="body"><div class="lbl">ENTREGA EM ${dmy(o.entrega)}</div><div class="big">${sn.txt.toUpperCase()}</div><div class="why">${esc(sn.why)}</div></div>
+    </section>
+    ${kpis}
+    ${prog}
+    <section class="card">
+      <div class="card-h"><span class="mono">Serviços do mês · ${lista.length}</span>${isEng() ? '<button class="link" data-act="fake" data-msg="Na prévia, exportar é só visual.">EXPORTAR ↓</button>' : ''}</div>
+      ${lista.length ? `<ul class="rows only-narrow">${rowsMobile}</ul><div class="only-wide">${tabela}</div>`
+                     : `<div class="empty" style="padding:24px"><p>Nenhum serviço nesta situação. Bom sinal.</p></div>`}
+    </section>
+    <div class="duo">
+      ${dia}
+      <div class="card mini"><div class="lbl mono">Último lançamento</div><div class="v">${o.diarios[0] ? dm(o.diarios[0].data) + ' · ' + o.diarios[0].por.split(' ')[0] : '—'}</div></div>
+    </div>`;
+}
+
+/* ---- Diário / Lançar o dia ---- */
+function novoForm(o){
+  return { obra:o.id, manha:null, tarde:null, ocorr:'', itens: Object.fromEntries(
+    planejados(o).filter(x => !x.concluido).map(x => [x.cod, {qtd:0, quem:x.resp, concl:false, fotos:0}])) };
+}
+function viewDiario(o){
+  if (!o.servicos.length) return vazio('Ainda não há o que lançar',
+    'Assim que o engenheiro importar os serviços desta obra, eles aparecem aqui para você lançar a produção do dia.',
+    isEng() ? 'Importar a planilha contratual' : null);
+  const anteriores = `<section class="card past">
+      <div class="card-h"><span class="mono">Dias anteriores</span></div>
+      <ul class="rows">${o.diarios.map(d => `<li><div class="row">
+        <div class="main-c"><div class="t" style="font-size:16px">${dataLonga(d.data).replace(' · ',', ')}</div>
+        <div class="m">${d.clima} · ${d.servicos} serviços · ${d.fotos} fotos · ${esc(d.por)}</div>
+        ${d.ocorr ? `<div style="margin-top:6px;font-size:14px;color:var(--red-d);font-weight:600">${esc(d.ocorr)}</div>` : ''}</div>
+        ${d.clima==='Chuva forte' ? '<span class="pill amber">Chuva</span>' : ''}</div></li>`).join('') || '<li class="row">Nenhum diário anterior.</li>'}</ul>
+    </section>`;
+
+  if (o.hoje){
+    return `<section class="card done-card">
+        <span style="color:var(--ok)">${I.check}</span>
+        <div><div class="big">Diário de hoje enviado</div>
+        <div style="color:var(--ink-2);margin-top:4px">${o.hoje.servicos} serviço(s) com produção · ${o.hoje.fotos} foto(s) · por ${esc(o.hoje.por)}${o.hoje.hora ? ' às ' + o.hoje.hora : ''}</div>
+        <div style="color:var(--muted);font-size:14px;margin-top:4px">Dá para corrigir até 24/10, 23h59.</div>
+        <button class="btn" style="margin-top:10px" data-act="corrigir">Corrigir lançamento</button></div>
+      </section>${anteriores}`;
+  }
+  if (!st.form || st.form.obra !== o.id) st.form = novoForm(o);
+  const f = st.form;
+  const chips = (campo) => ['Bom','Nublado','Chuva','Chuva forte'].map(c =>
+    `<button class="chip" aria-pressed="${f[campo]===c}" data-clima="${campo}" data-v="${c}">${c}</button>`).join('');
+  const itens = planejados(o).filter(x => !x.concluido).sort((a,b) => ORDEM.indexOf(situacao(a)) - ORDEM.indexOf(situacao(b)));
+  const cards = itens.map(x => { const it = f.itens[x.cod];
+    return `<section class="card svc ${it.qtd>0?'has':''}" data-item="${x.cod}">
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:flex-start">
+        <div><div class="t">${esc(x.desc)}</div>
+        <div class="m">${x.cod} · feito ${q(x.exec,x.un)} de ${q(x.plan,x.un)} no mês</div></div>
+        <span class="pill ${CLS[situacao(x)]}">${situacao(x)}</span>
+      </div>
+      <div class="qty">
+        <button data-step="-1" aria-label="Diminuir">−</button>
+        <input inputmode="decimal" aria-label="Quantidade executada hoje em ${x.un}" value="${it.qtd || ''}" placeholder="0" data-qtd="${x.cod}">
+        <span class="un">${x.un}</span>
+        <button data-step="1" aria-label="Aumentar">＋</button>
+      </div>
+      <div class="svc-row">
+        <label class="field"><span>Quem executou</span>
+          <select data-quem="${x.cod}">${o.resps.map(r => `<option ${r===it.quem?'selected':''}>${esc(r)}</option>`).join('')}</select></label>
+      </div>
+      <div class="svc-row">
+        <button class="btn ${it.concl?'on':''}" style="flex:1" data-concl="${x.cod}" aria-pressed="${it.concl}">${it.concl ? I.check + ' Concluído' : '☐ Marcar concluído'}</button>
+        <button class="btn" style="flex:1" data-foto="${x.cod}">${I.camera} Foto${it.fotos ? ' (' + it.fotos + ')' : ''}</button>
+      </div>
+      ${it.fotos ? `<div class="thumbs">${Array.from({length:it.fotos},(_,i)=>`<div class="thumb">FOTO ${i+1}</div>`).join('')}</div>` : ''}
+    </section>`; }).join('');
+  const nServ = Object.values(f.itens).filter(i => i.qtd > 0).length;
+  const nFoto = Object.values(f.itens).reduce((a,i) => a + i.fotos, 0);
+  return `
+    <section class="card clima">
+      <div><div class="lbl">Clima de manhã</div><div class="chips">${chips('manha')}</div></div>
+      <div><div class="lbl">Clima à tarde</div><div class="chips">${chips('tarde')}</div></div>
+    </section>
+    <div class="sec-t">PRODUÇÃO DE HOJE · ${itens.length} SERVIÇOS DO MÊS</div>
+    <div class="lanc-grid" style="display:grid;gap:12px">${cards}</div>
+    <section class="card" style="padding:14px">
+      <label class="field"><span style="font-weight:600;color:var(--ink);font-size:15px">Ocorrências do dia</span>
+      <textarea data-ocorr placeholder="Ex.: falta de bloco cerâmico, chuva às 14h, visita da fiscalização…">${esc(f.ocorr)}</textarea></label>
+    </section>
+    <div class="send">
+      <button class="btn primary" data-act="enviar" ${nServ ? '' : 'aria-disabled="true"'}>Enviar diário de ${dm(HOJE)}</button>
+      <div class="hint">${nServ} serviço(s) com produção · ${nFoto} foto(s)</div>
+    </div>
+    ${anteriores}`;
+}
+
+/* ---- Serviços ---- */
+function viewServicos(o){
+  if (!o.servicos.length) return vazio('Nenhum serviço nesta obra ainda',
+    'Comece importando a planilha contratual. Depois, o Excel do MS Project traz as datas e marca os serviços críticos.',
+    isEng() ? 'Importar a planilha contratual' : null);
+  const fs = {todos:() => true, criticos:x => x.crit, mes:x => x.plan != null};
+  const b = st.busca.toLowerCase();
+  const lista = o.servicos.filter(fs[st.filtroSv]).filter(x => !b || (x.cod + ' ' + x.desc).toLowerCase().includes(b))
+    .sort((a,c) => a.cod.localeCompare(c.cod, 'pt-BR', {numeric:true}));
+  const f = (id,l) => `<button aria-pressed="${st.filtroSv===id}" data-fsv="${id}">${l}</button>`;
+  const rows = lista.map(x => `<li><button class="row" data-sv="${x.cod}">
+      <div class="main-c">
+        <div class="m" style="margin:0 0 3px">${x.cod}${x.crit ? ' · ◆ crítico (' + (x.origem==='À mão'?'à mão':'MS Project') + ')' : ''}</div>
+        <div class="t">${esc(x.desc)}</div>
+        <div class="m">${esc(x.resp)}${isEng() ? ' · ' + brl(x.contr*x.preco) : ''}</div>
+        <div class="minibar"><i style="width:${pct(x.acum,x.contr)}%"></i></div>
+      </div>
+      <div class="pct-big">${pct(x.acum,x.contr)}%<small>${q(x.acum)} / ${q(x.contr,x.un)}</small></div>
+    </button></li>`).join('');
+  const tabela = `<div class="tbl-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Un</th><th class="num">Contratado</th>${isEng()?'<th class="num">Preço un.</th><th class="num">Valor total</th>':''}<th class="num">Acumulado</th><th class="num">%</th><th>Responsável</th><th class="num">Fim</th><th>Crítico</th></tr></thead><tbody>
+    ${lista.map(x => `<tr class="click" data-sv="${x.cod}"><td class="cod" style="font-size:13px">${x.cod}</td><td class="desc">${esc(x.desc)}</td><td>${x.un}</td><td class="num">${q(x.contr)}</td>
+      ${isEng()?`<td class="num">${x.preco.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td class="num big">${brl(x.contr*x.preco)}</td>`:''}
+      <td class="num">${q(x.acum)}</td><td class="num big">${pct(x.acum,x.contr)}%</td><td>${esc(x.resp)}</td><td class="num">${dm(x.fim)}</td>
+      <td>${x.crit ? `<span class="pill crit">${x.origem==='À mão'?'À mão':'MS Project'}</span>` : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+  return `
+    ${isEng() ? `<div class="toolbar">
+      <button class="btn dark" data-act="fake" data-msg="Na prévia, a importação é só visual.">↑ Importar planilha</button>
+      <button class="btn" data-act="fake" data-msg="Na prévia, a importação é só visual.">↑ Importar MS Project</button></div>` : ''}
+    <div class="toolbar">
+      <input class="search" type="search" placeholder="Buscar por código ou descrição" aria-label="Buscar serviço" value="${esc(st.busca)}" data-busca>
+      <div class="filters">${f('todos','Todos')}${f('mes','No mês')}${f('criticos','Críticos')}</div>
+    </div>
+    <section class="card">
+      <div class="card-h"><span class="mono">${lista.length} de ${o.servicos.length} serviços</span></div>
+      ${lista.length ? `<ul class="rows only-narrow">${rows}</ul><div class="only-wide">${tabela}</div>`
+                     : '<div class="empty" style="padding:24px"><p>Nenhum serviço encontrado com essa busca.</p></div>'}
+    </section>`;
+}
+
+function viewFora(){
+  const nomes = {medicao:'Medição', mais:'Mais', recados:'Recados e pendências', ajustes:'Ajustes', perfil:'Meu perfil'};
+  return `<section class="card off"><h2>${nomes[st.tela]}</h2>
+    <p>Esta tela não faz parte da prévia. Aqui estão só as três principais: Painel do mês, ${isEng() ? 'Diário' : 'Lançar o dia'} e Serviços.</p></section>`;
+}
+
+/* ---------- gaveta do serviço ---------- */
+function abrirServico(cod){
+  const o = obra(), x = o.servicos.find(s => s.cod === cod); if (!x) return;
+  const sit = situacao(x), d = diasSem(x), m = o.medicao;
+  const fact = (l,v,red) => `<div class="fact"><div class="lbl mono">${l}</div><div class="v ${red?'red':''}">${v}</div></div>`;
+  const facts = (x.plan != null ? (isEng()
+      ? fact('Planejado no mês', brl(valPlan(x))) + fact('Executado', brl(valExec(x))) + fact('Falta executar', brl(falta(x)), CLS[sit]==='red')
+      : fact('Planejado no mês', q(x.plan,x.un)) + fact('Executado', q(x.exec,x.un)) + fact('Falta', q(Math.max(0,x.plan-x.exec),x.un), CLS[sit]==='red'))
+      : fact('Contratado', q(x.contr,x.un)) + fact('Acumulado', q(x.acum,x.un)) + fact('No mês', 'não planejado'))
+    + fact('Dias sem avanço', sit==='Concluído' ? '—' : (d===null ? 'não iniciou' : d), d===null || d>=5)
+    + fact('Data limite', dmy(x.limite), x.limite && x.limite < HOJE && sit!=='Concluído')
+    + fact('Término previsto', x.termino ? dmy(x.termino) : (sit==='Concluído' ? 'concluído' : 'sem previsão'), x.termino && x.termino > x.fim)
+    + fact('Fim planejado', dmy(x.fim))
+    + fact('Responsável', esc(x.resp.replace('Construtora ','').replace('Empreiteira ','')));
+  let grafico = '';
+  if (x.plan != null && m){
+    const W = 320, H = 130, P = 8, tot = between(m.ini, m.fim);
+    const X = dt => P + (between(m.ini, dt) / tot) * (W - 2*P);
+    const Y = v => H - P - (v / Math.max(x.plan, x.exec)) * (H - 2*P);
+    let acc = 0, pts = [[X(m.ini), Y(0)]];
+    x.hist.filter(h => h[0] >= m.ini).forEach(h => { pts.push([X(h[0]), Y(acc)]); acc += h[1]; pts.push([X(h[0]), Y(acc)]); });
+    pts.push([X(HOJE), Y(acc)]);
+    grafico = `<section class="card chart"><div class="lbl mono" style="font-size:12px;font-weight:600;color:var(--ink-2)">Vai bater a meta do mês?</div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Planejado versus executado acumulado no mês">
+        <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="#D5DCE0"/>
+        <line x1="${X(m.ini)}" y1="${Y(0)}" x2="${X(m.fim)}" y2="${Y(x.plan)}" stroke="#26333A" stroke-width="2" stroke-dasharray="5 4"/>
+        <polyline fill="none" stroke="${CLS[sit]==='red'?'#E2574C':'#00A3B4'}" stroke-width="3" stroke-linejoin="round" points="${pts.map(p=>p.join(',')).join(' ')}"/>
+        <line x1="${X(HOJE)}" y1="${P}" x2="${X(HOJE)}" y2="${H-P}" stroke="#4A5A63" stroke-width="1" stroke-dasharray="2 3"/>
+        <text x="${X(HOJE)+4}" y="${P+10}" font-family="IBM Plex Mono, monospace" font-size="10" fill="#4A5A63">HOJE</text>
+      </svg>
+      <div class="legend"><span><i style="background:#26333A"></i>Planejado (ritmo para a meta)</span><span><i style="background:${CLS[sit]==='red'?'#E2574C':'#00A3B4'}"></i>Executado acumulado</span></div></section>`;
+  }
+  const hist = x.hist.slice().reverse().map(h => `<li><div class="row" style="min-height:52px">
+      <div class="main-c"><div class="t" style="font-size:16px">${dm(h[0])} · ${q(h[1],x.un)}</div>
+      <div class="m">${esc(h[2] || x.resp)} · lançado por ${h[0]===HOJE ? 'você' : (h[0] > '2026-10-15' ? 'Lucas' : 'Marcos')}</div></div>
+      <span class="pill soft">${(h[1] % 3) + 1} foto(s)</span></div></li>`).join('');
+  const sh = document.getElementById('sheet');
+  sh.innerHTML = `<div class="sheet-h"><div><div class="m">${x.cod}${x.crit ? ' · ◆ CRÍTICO · ' + x.origem.toUpperCase() : ''}</div><div class="t">${esc(x.desc)}</div>
+      <div style="margin-top:8px"><span class="pill ${CLS[sit]}">${sit}</span></div></div>
+      <button class="close" data-act="fechar">Fechar ✕</button></div>
+    <div class="sheet-b">
+      <div class="facts">${facts}</div>
+      ${grafico}
+      ${isEng() && sit!=='Concluído' ? `<button class="btn primary block" data-act="fake" data-msg="Acionar o encarregado entra na Fase 2.">Acionar o encarregado <span class="pill" style="background:#fff3;color:#fff">FASE 2</span></button>` : ''}
+      <section class="card"><div class="card-h"><span class="mono">Histórico de lançamentos</span></div>
+        <ul class="rows">${hist || '<li class="row">Nenhum lançamento ainda.</li>'}</ul></section>
+    </div>`;
+  abrir();
+}
+
+function abrirObras(){
+  const sh = document.getElementById('sheet');
+  sh.innerHTML = `<div class="sheet-h"><div><div class="m">SUAS OBRAS</div><div class="t">Trocar de obra</div></div><button class="close" data-act="fechar">Fechar ✕</button></div>
+    <div>${OBRAS.map(o => { const sn = o.servicos.length && o.medicao ? sinal(o) : null;
+      return `<button class="obra-opt" data-obra="${o.id}">
+        <span class="dot ${sn ? sn.cls : 'none'}"></span>
+        <span style="flex:1;min-width:0"><span style="display:block;font-weight:700;font-size:17px">${esc(o.nome)}</span>
+        <span class="mono" style="font-size:11px;color:var(--ink-2)">${esc(o.orgao)} · entrega ${dmy(o.entrega)} · ${sn ? sn.txt : 'sem serviços'}</span></span>
+        ${o.id===st.obra ? '<span style="color:var(--brand-d)">'+I.check+'</span>' : ''}</button>`; }).join('')}</div>`;
+  abrir();
+}
+function abrir(){ document.getElementById('sheet').classList.add('open'); document.getElementById('scrim').classList.add('open'); document.querySelector('#sheet .close')?.focus(); }
+function fechar(){ document.getElementById('sheet').classList.remove('open'); document.getElementById('scrim').classList.remove('open'); }
+
+let tt;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ---------- eventos ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, [data-sv]');
+  if (!el) { if (e.target.id === 'scrim') fechar(); return; }
+  const ds = el.dataset;
+  if (ds.perfil){
+    st.perfil = ds.perfil;
+    document.querySelectorAll('#perfilSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.perfil === st.perfil));
+    if (!isEng()) st.obra = 'A';
+    st.tela = isEng() ? 'painel' : 'diario'; st.filtro = 'todos'; fechar(); render(); window.scrollTo(0,0); return;
+  }
+  if (ds.go){ st.tela = ds.go; fechar(); render(); window.scrollTo(0,0); return; }
+  if (ds.filtro){ st.filtro = st.filtro === ds.filtro && el.classList.contains('kpi') ? 'todos' : ds.filtro; render(); return; }
+  if (ds.fsv){ st.filtroSv = ds.fsv; render(); return; }
+  if (ds.sv){ abrirServico(ds.sv); return; }
+  if (ds.obra){ st.obra = ds.obra; st.filtro = 'todos'; st.form = null; fechar(); render(); toast('Agora em: ' + obra().curto); return; }
+  if (ds.clima){ st.form[ds.clima] = ds.v; render(); return; }
+  if (ds.step){ const cod = el.closest('[data-item]').dataset.item, it = st.form.itens[cod];
+    it.qtd = Math.max(0, Math.round((it.qtd + Number(ds.step)) * 1000) / 1000); render(); return; }
+  if (ds.concl){ const it = st.form.itens[ds.concl]; it.concl = !it.concl; render(); return; }
+  if (ds.foto){ st.form.itens[ds.foto].fotos++; render(); toast('Foto anexada (simulada).'); return; }
+  const act = ds.act;
+  if (act === 'trocar'){ if (isEng()) abrirObras(); return; }
+  if (act === 'fechar'){ fechar(); return; }
+  if (act === 'fake'){ toast(ds.msg); return; }
+  if (act === 'corrigir'){ const o = obra(); o.hoje = null; st.form = null; render(); toast('Diário reaberto para correção.'); return; }
+  if (act === 'enviar'){
+    const o = obra(), f = st.form, itens = Object.entries(f.itens).filter(([,i]) => i.qtd > 0 || i.concl);
+    if (!itens.some(([,i]) => i.qtd > 0)){ toast('Lance a quantidade de pelo menos um serviço.'); return; }
+    let fotos = 0;
+    itens.forEach(([cod,i]) => { const x = o.servicos.find(s => s.cod === cod);
+      if (i.qtd > 0){ x.exec += i.qtd; x.acum += i.qtd; x.hist.push([HOJE, i.qtd, i.quem]); }
+      if (i.concl) x.concluido = true; fotos += i.fotos; });
+    const por = isEng() ? 'você (engenheiro)' : 'Lucas (estagiário)';
+    o.hoje = {por, servicos: itens.filter(([,i]) => i.qtd > 0).length, fotos, hora:'17:05'};
+    o.diarios.unshift({data:HOJE, clima:f.tarde || f.manha || 'Bom', servicos:o.hoje.servicos, fotos, por, ocorr:f.ocorr || undefined});
+    st.form = null; render(); window.scrollTo(0,0); toast('Diário de ' + dm(HOJE) + ' enviado. O painel já foi atualizado.'); return;
+  }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.qtd !== undefined){ const v = parseFloat(t.value.replace(',', '.')); st.form.itens[t.dataset.qtd].qtd = isNaN(v) ? 0 : Math.max(0, v);
+    const card = t.closest('.svc'); card.classList.toggle('has', st.form.itens[t.dataset.qtd].qtd > 0);
+    const n = Object.values(st.form.itens).filter(i => i.qtd > 0).length, nf = Object.values(st.form.itens).reduce((a,i) => a + i.fotos, 0);
+    document.querySelector('.send .hint').textContent = n + ' serviço(s) com produção · ' + nf + ' foto(s)'; }
+  if (t.dataset.quem !== undefined) st.form.itens[t.dataset.quem].quem = t.value;
+  if (t.dataset.ocorr !== undefined) st.form.ocorr = t.value;
+  if (t.dataset.busca !== undefined){ st.busca = t.value; const pos = t.selectionStart; render();
+    const nb = document.querySelector('[data-busca]'); nb.focus(); nb.setSelectionRange(pos, pos); }
+});
+document.getElementById('scrim').addEventListener('click', fechar);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+
+render();
+</script>
+</body>
+</html>
