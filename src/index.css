@@ -273,23 +273,23 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .rest-card.resolvida .rest-desc { text-decoration: line-through }
 .rest-tipo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--tipo) }
 .rest-desc { margin: 4px 0 2px; font-weight: 600; font-size: 14.5px; line-height: 1.3 }
-.rest-item { font-size: 12.5px; color: var(--slate); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .rest-card .meta { font-size: 12.5px; margin-top: 4px }
 .rest-ok { margin: 4px 0 0; font-size: 12.5px; color: var(--ok); font-weight: 600 }
 .rest-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
 .rest-acoes .btn { min-height: 38px; padding: 0 10px; font-size: 13.5px; gap: 4px; flex: 0 0 auto }
-.rest-ativ { margin-top: 4px; font-size: 13.5px }
-.rest-ativ summary { min-height: 40px; display: flex; align-items: center; font-weight: 600; cursor: pointer; padding: 0 4px; color: var(--brand-d) }
-.rest-ativ ul { list-style: none; margin: 0; padding: 0 }
-.rest-ativ li { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-top: 1px solid var(--line) }
-.rest-ativ-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px }
-.rest-ativ .btn { min-height: 34px; width: 34px; padding: 0; flex: none }
+.med-ativ { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: var(--r-btn); padding: 10px; display: grid; gap: 6px }
+.med-ativ.travada { border-left-color: var(--amber) }
+.med-ativ-t { font-weight: 600; font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.med-ativ-m { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 12.5px; color: var(--slate) }
+.med-ativ .minibar { margin-top: 0; height: 5px }
+.med-ativ .rest-card { padding: 8px 8px 6px; background: #FAFBFB }
+.med-mais { min-height: 36px; font-size: 13.5px; justify-self: start; padding: 0 10px }
 .rest-tipos { display: flex; flex-wrap: wrap; gap: 6px }
 .rest-tipo-op { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1.5px solid #C3CDD2; background: #fff; font-weight: 600; font-size: 13.5px; color: var(--tipo); cursor: pointer }
 .rest-tipo-op[aria-checked="true"] { background: var(--tipo); border-color: var(--tipo); color: #fff }
 @media (min-width: 900px) {
   .rest-abas { display: none }
-  .rest-quadro { grid-template-columns: repeat(var(--semanas), minmax(240px, 1fr)); overflow-x: auto; padding-bottom: 4px }
+  .rest-quadro { grid-template-columns: repeat(var(--semanas), minmax(200px, 1fr)); overflow-x: auto; padding-bottom: 4px }
   .rest-col { display: block }
 }
 /* Curto prazo: semana, PPC, histórico, causas e o kanban (celular: uma coluna por vez) */

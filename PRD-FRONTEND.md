@@ -338,10 +338,11 @@ real são médias dos itens com datas, ponderadas pelo valor (simples para quem 
 e excluir é só do Engenheiro**; a Diretoria só vê.
 
 **O que mostra:** um quadro com **uma coluna por semana** (segunda a domingo), começando na semana de
-hoje; **3, 4 (padrão), 5 ou 6 semanas**. Cada coluna: datas, "N atividades" e "N restrições abertas";
-os cartões de **restrição** daquela semana e, recolhida, a lista **"Atividades previstas"** (itens da
-EAP cujo período cruza a semana e que não terminaram), cada uma **Liberada** (sem restrição aberta) ou
-**Com restrição**, com "＋" para registrar restrição nela.
+hoje; **3, 4 (padrão), 5 ou 6 semanas**. Cada coluna: datas, "N atividades", "N liberadas" e "N restrições
+abertas". **Toda atividade prevista na semana é um cartão** (desde 25/10/2026), como num Kanban, em ordem de
+código: código e nome, **Liberada** (borda verde, sem restrição aberta) ou **Com restrição** (borda âmbar),
+o período na EAP, a barra do real no Diário, **as restrições dela dentro do cartão** e "＋ Restrição".
+Atividade com restrição na semana mas fora do período na EAP também aparece, marcada "Fora do período na EAP".
 - **Cartão da restrição:** tipo com cor e ícone (**Material, Mão de obra, Método, Equipamento,
   Projeto, Segurança, Logística**), descrição, atividade (código e nome), responsável e prazo (vermelho
   e "vencido" quando passou sem resolver). Botões: **Resolver** / Reabrir (guarda quem e quando),

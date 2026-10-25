@@ -1,7 +1,7 @@
 // Médio prazo (lookahead): as semanas à frente e as RESTRIÇÕES que travam as atividades.
 // Regra pura, com teste em tests/restricoes.mjs. Datas 'AAAA-MM-DD'; a semana começa na segunda.
 import { addDias, segundaDaSemana } from './datas.js'
-import { colunasDoCronograma } from './planejamento.js'
+import { colunasDoCronograma, compararCodigos } from './planejamento.js'
 
 // Tipos de restrição: texto idêntico ao CHECK de restricoes.tipo. Cor (classe) e ícone de cada um.
 export const TIPOS_RESTRICAO = ['Material', 'Mão de obra', 'Método', 'Equipamento', 'Projeto', 'Segurança', 'Logística']
@@ -37,6 +37,25 @@ export const restricaoVencida = (r, hoje) => !r.resolvida && !!r.prazo && r.praz
 
 // Atividade liberada = sem nenhuma restrição aberta.
 export const atividadeLiberada = (servicoId, restricoes) => !restricoes.some((r) => r.servico_id === servicoId && !r.resolvida)
+
+// Os cartões de uma coluna do quadro: um por atividade — as previstas na semana pela EAP e as que
+// têm restrição nesta semana (mesmo fora do período, marcadas "prevista: false") —, cada um com as
+// suas restrições, em ordem de código. atividades: folhas da EAP (atividadesDaSemana);
+// restricoesDaSemana: as que caem nesta coluna; servicoDe: { id: serviço }; todas: todas as da obra.
+export function cartoesDaSemana({ atividades, restricoesDaSemana, servicoDe, todas }) {
+  const cartoes = new Map(atividades.map((no) => [no.servico.id, { servico: no.servico, no, prevista: true, restricoes: [] }]))
+  for (const r of restricoesDaSemana) {
+    if (!cartoes.has(r.servico_id)) {
+      const servico = servicoDe[r.servico_id]
+      if (!servico) continue
+      cartoes.set(r.servico_id, { servico, no: null, prevista: false, restricoes: [] })
+    }
+    cartoes.get(r.servico_id).restricoes.push(r)
+  }
+  return [...cartoes.values()]
+    .map((c) => ({ ...c, liberada: atividadeLiberada(c.servico.id, todas) }))
+    .sort((a, b) => compararCodigos(a.servico.codigo, b.servico.codigo))
+}
 
 // Mover de semana pelas setas: uma semana para trás (-1) ou para a frente (+1).
 export const moverSemana = (semana, passo) => addDias(semana, 7 * passo)

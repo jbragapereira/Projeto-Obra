@@ -1,6 +1,6 @@
 // Médio prazo: semanas do quadro e restrições (src/lib/restricoes.js).
 import {
-  atividadeLiberada, atividadesDaSemana, moverSemana, restricaoVencida, semanaNoQuadro, semanasDoQuadro, validarRestricao, veioDeSemanaPassada,
+  atividadeLiberada, atividadesDaSemana, moverSemana, restricaoVencida, semanaNoQuadro, semanasDoQuadro, validarRestricao, veioDeSemanaPassada, cartoesDaSemana,
 } from '../src/lib/restricoes.js'
 import { segundaDaSemana } from '../src/lib/datas.js'
 
@@ -37,6 +37,17 @@ conferir('veio de semana passada: aberta, e resolvida nesta semana; não a resol
 conferir('vencida: prazo passou sem resolver', [restricaoVencida(aberta, '2026-10-24'), restricaoVencida({ ...aberta, resolvida: true }, '2026-10-24'), restricaoVencida(aberta, '2026-10-20')], [true, false, false])
 conferir('liberada = sem restrição aberta', [atividadeLiberada('s1', [aberta]), atividadeLiberada('s1', [{ ...aberta, resolvida: true }]), atividadeLiberada('s2', [aberta])], [false, true, true])
 conferir('mover de semana', [moverSemana('2026-10-19', 1), moverSemana('2026-10-19', -1)], ['2026-10-26', '2026-10-12'])
+
+// Cartões de uma coluna: as atividades previstas e as que têm restrição na semana, em ordem de código.
+const sv = (id, codigo) => ({ id, codigo })
+const col = cartoesDaSemana({
+  atividades: [{ servico: sv('s2', '3.4.1') }, { servico: sv('s1', '2.1.1') }],
+  restricoesDaSemana: [{ servico_id: 's1', resolvida: false }, { servico_id: 's9', resolvida: false }],
+  servicoDe: { s9: sv('s9', '1.1.1') },
+  todas: [{ servico_id: 's1', resolvida: false }, { servico_id: 's9', resolvida: false }],
+})
+conferir('cartões da coluna em ordem, com a restrição dentro, e a de fora do período marcada',
+  col.map((c) => [c.servico.codigo, c.prevista, c.restricoes.length, c.liberada]), [['1.1.1', false, 1, false], ['2.1.1', true, 1, false], ['3.4.1', true, 0, true]])
 
 const r = { servico_id: 's1', tipo: 'Material', descricao: 'Bloco cerâmico em falta', semana: '2026-10-26', prazo: '2026-10-28', responsavel: 'Compras' }
 conferir('restrição completa passa', validarRestricao(r), {})

@@ -1,16 +1,16 @@
 // Aba Médio prazo (lookahead) do Planejamento: um quadro com uma coluna por semana (3 a 6 à
-// frente) e as RESTRIÇÕES que travam as atividades. Engenheiro e equipe criam e resolvem;
+// frente). Cada atividade prevista na semana é um cartão, e as RESTRIÇÕES que a travam ficam dentro dele. Engenheiro e equipe criam e resolvem;
 // editar, mover de semana e excluir é do engenheiro. No celular, uma semana por vez.
 import { useState } from 'react'
 import { excluirRestricao, moverRestricao, resolverRestricao, salvarRestricao } from '../lib/dados.js'
 import { achatarEap, acumuladoPorServico, aplicarPrazo, ehItem, montarEap } from '../lib/planejamento.js'
 import {
-  SEMANAS_PADRAO, SEMANAS_POSSIVEIS, TIPOS_RESTRICAO, VISUAL_DO_TIPO, atividadeLiberada, atividadesDaSemana,
-  restricaoVencida, semanaNoQuadro, semanasDoQuadro, veioDeSemanaPassada,
+  SEMANAS_PADRAO, SEMANAS_POSSIVEIS, TIPOS_RESTRICAO, VISUAL_DO_TIPO, atividadesDaSemana,
+  cartoesDaSemana, restricaoVencida, semanaNoQuadro, semanasDoQuadro, veioDeSemanaPassada,
 } from '../lib/restricoes.js'
 import { podeEditar, podeRegistrarRestricao } from '../lib/perfis.js'
 import { dataHoraCurta, dm, hojeISO } from '../lib/datas.js'
-import { Icon, Meta, Sheet, avisar } from '../components/index.jsx'
+import { Barra, Icon, Meta, Sheet, avisar } from '../components/index.jsx'
 import EscolherItem from '../components/EscolherItem.jsx'
 
 function Campo({ rotulo, erro, children, largo }) {
@@ -88,7 +88,8 @@ function FormRestricao({ inicial, itens, nomeDoGrupo, semanas, sugestoes, podeEx
   )
 }
 
-function CartaoRestricao({ r, item, hoje, primeiraSemana, registra, edita, onEditar, onMudou }) {
+// A restrição, dentro do cartão da atividade que ela trava.
+function CartaoRestricao({ r, hoje, primeiraSemana, registra, edita, onEditar, onMudou }) {
   const visual = VISUAL_DO_TIPO[r.tipo]
   const vencida = restricaoVencida(r, hoje)
   const veioDe = veioDeSemanaPassada(r, primeiraSemana)
@@ -102,7 +103,6 @@ function CartaoRestricao({ r, item, hoje, primeiraSemana, registra, edita, onEdi
     <article className={`rest-card ${visual.cor}${vencida ? ' vencida' : ''}${r.resolvida ? ' resolvida' : ''}`}>
       <div className="rest-tipo"><Icon nome={visual.icone} tamanho={15} />{r.tipo}</div>
       <p className="rest-desc">{r.descricao}</p>
-      <div className="rest-item" title={item?.descricao}><span className="cod">{item?.codigo ?? '—'}</span> {item?.descricao ?? 'Atividade removida'}</div>
       <Meta>
         <span>Resp.: {r.responsavel}</span>
         <span className={vencida ? 'alerta' : undefined}>Prazo {dm(r.prazo)}{vencida ? ', vencido' : ''}</span>
@@ -185,36 +185,33 @@ export default function AbaMedio({ profile, dados, onMudou }) {
       <div className="rest-quadro" style={{ '--semanas': n }}>
         {semanas.map((s, i) => {
           const rs = naSemana(s)
-          const atividades = atividadesDaSemana(itens, s)
-          const liberadas = atividades.filter((a) => atividadeLiberada(a.servico.id, dados.restricoes)).length
+          const todosOsCartoes = cartoesDaSemana({ atividades: atividadesDaSemana(itens, s), restricoesDaSemana: rs, servicoDe, todas: dados.restricoes })
+          // Com filtro de responsável, ficam só as atividades com restrição dele.
+          const cartoes = responsavel ? todosOsCartoes.filter((c) => c.restricoes.length) : todosOsCartoes
+          const liberadas = cartoes.filter((c) => c.liberada).length
           return (
             <section key={s.inicio} className={`rest-col${ativaReal === i ? ' ativa' : ''}`} aria-label={`Semana de ${dm(s.inicio)} a ${dm(s.fim)}`}>
               <header className="rest-col-h">
                 <div className="rest-col-t">{i === 0 ? 'Esta semana' : `Semana ${i + 1}`}<span>{dm(s.inicio)} a {dm(s.fim)}</span></div>
-                <Meta><span>{atividades.length} atividade(s)</span><span>{rs.filter((r) => !r.resolvida).length} restrição(ões) aberta(s)</span></Meta>
+                <Meta><span>{cartoes.length} atividade(s)</span><span>{liberadas} liberada(s)</span><span>{rs.filter((r) => !r.resolvida).length} restrição(ões) aberta(s)</span></Meta>
               </header>
               <div className="rest-col-b">
-                {rs.map((r) => (
-                  <CartaoRestricao key={r.id} r={r} item={servicoDe[r.servico_id]} hoje={hoje} primeiraSemana={primeira}
-                    registra={registra} edita={edita} onEditar={() => setForm({ ...r })} onMudou={onMudou} />
+                {cartoes.map((c) => (
+                  <article key={c.servico.id} className={`med-ativ${c.liberada ? ' livre' : ' travada'}`}>
+                    <div className="med-ativ-t" title={c.servico.descricao}><span className="cod">{c.servico.codigo}</span> {c.servico.descricao}</div>
+                    <div className="med-ativ-m">
+                      <span className={`pill ${c.liberada ? 'ok' : 'amber'}`}>{c.liberada ? 'Liberada' : 'Com restrição'}</span>
+                      {c.no ? <span>{dm(c.no.inicio)} a {dm(c.no.fim)}</span> : <span className="obs">Fora do período na EAP</span>}
+                    </div>
+                    {c.no && <Barra feito={Math.round((c.no.real ?? 0) * 100)} />}
+                    {c.restricoes.map((r) => (
+                      <CartaoRestricao key={r.id} r={r} hoje={hoje} primeiraSemana={primeira}
+                        registra={registra} edita={edita} onEditar={() => setForm({ ...r })} onMudou={onMudou} />
+                    ))}
+                    {registra && <button className="btn ghost med-mais" onClick={() => setForm({ servico_id: c.servico.id, semana: s.inicio })}>＋ Restrição</button>}
+                  </article>
                 ))}
-                {!rs.length && <p className="obs rest-vazio">Nenhuma restrição nesta semana.</p>}
-                <details className="rest-ativ">
-                  <summary>Atividades previstas ({atividades.length}): {liberadas} liberada(s)</summary>
-                  <ul>
-                    {atividades.map((a) => {
-                      const livre = atividadeLiberada(a.servico.id, dados.restricoes)
-                      return (
-                        <li key={a.codigo}>
-                          <span className="rest-ativ-n"><span className="cod">{a.codigo}</span> {a.nome}</span>
-                          <span className={`pill ${livre ? 'ok' : 'amber'}`}>{livre ? 'Liberada' : 'Com restrição'}</span>
-                          {registra && <button className="btn ghost" aria-label={`Nova restrição em ${a.codigo}`} onClick={() => setForm({ servico_id: a.servico.id, semana: s.inicio })}>＋</button>}
-                        </li>
-                      )
-                    })}
-                    {!atividades.length && <li className="obs">Nenhuma atividade da EAP cai nesta semana.</li>}
-                  </ul>
-                </details>
+                {!cartoes.length && <p className="obs rest-vazio">{responsavel ? 'Nenhuma restrição desse responsável nesta semana.' : 'Nenhuma atividade da EAP prevista nesta semana.'}</p>}
               </div>
             </section>
           )
