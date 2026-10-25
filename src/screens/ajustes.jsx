@@ -1,4 +1,4 @@
-// Ajustes (só engenheiro): cadastrar e editar OBRAS, e liberar pessoas.
+// Ajustes (só engenheiro): cadastrar e editar OBRAS, o calendário de trabalho da obra escolhida, e liberar pessoas.
 // Abrir obra nova é tela, não comando no banco: o engenheiro faz sozinho.
 import { useState } from 'react'
 import { juntar, listarMinhasObras, listarPessoas, liberarPessoa, salvarObra } from '../lib/dados.js'
@@ -7,6 +7,7 @@ import { OBRA_VAZIA, SITUACOES_OBRA } from '../lib/obras.js'
 import { ROLES, podeEditar } from '../lib/perfis.js'
 import { dmy } from '../lib/datas.js'
 import { Carregando, ErroCarga, Faixa, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
+import CalendarioDaObra from './ajustesCalendario.jsx'
 
 const COR_OBRA = { 'Em andamento': 'ok', 'Parada': 'red', 'Concluída': 'done' }
 
@@ -97,7 +98,7 @@ function Liberar({ pessoa, obras, onCancelar, onSalvo }) {
   )
 }
 
-export default function Ajustes({ profile }) {
+export default function Ajustes({ profile, obra }) {
   const { recarregarObras } = useObra()
   const { data, erro, carregando, recarregar } = useDados(() => juntar({ obras: listarMinhasObras(), pessoas: listarPessoas() }))
   const [editando, setEditando] = useState(null) // obra em edição (ou OBRA_VAZIA)
@@ -143,6 +144,8 @@ export default function Ajustes({ profile }) {
             )}
           </section>
         )}
+
+        {obra && !editando && !liberando && <CalendarioDaObra obra={obra} />}
 
         {liberando ? (
           <Liberar pessoa={liberando} obras={obras} onCancelar={() => setLiberando(null)} onSalvo={() => { setLiberando(null); recarregar() }} />

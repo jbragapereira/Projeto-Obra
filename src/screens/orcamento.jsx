@@ -10,7 +10,7 @@ import {
   FILTROS_ORCAMENTO, FONTES, ORIGENS_ITEM, TIPOS_ADITIVO, arredondarQtd, gruposDosItens, podeExcluirItemNovo, minimoDoItemNovo, pesoNoOrcamento, precoTotal, precoUnitario, subtotaisPorGrupo,
   totaisDoOrcamento, valoresDoItem, validarAditivo, validarItemNovo,
 } from '../lib/orcamento.js'
-import { achatarEap, montarEap, nivelDoCodigo, paiDoCodigo, proximoCodigo } from '../lib/planejamento.js'
+import { achatarEap, acumuladoPorServico, montarEap, nivelDoCodigo, paiDoCodigo, proximoCodigo } from '../lib/planejamento.js'
 import { podeEditar, podeVerValores } from '../lib/perfis.js'
 import { brlCentavos, percentual, qtd } from '../lib/formato.js'
 import { dataHoraCurta, dmy, hojeISO } from '../lib/datas.js'
@@ -388,8 +388,7 @@ export default function Orcamento({ profile }) {
   if (erro) return <ErroCarga erro={erro} onTentar={recarregar} />
 
   const { servicos, lancamentos, grupos, aditivos, dados, responsaveis } = data
-  const acumulado = {}
-  for (const l of lancamentos) acumulado[l.servico_id] = (acumulado[l.servico_id] ?? 0) + l.quantidade
+  const acumulado = acumuladoPorServico(lancamentos)
   const ativos = servicos.filter(FILTROS_ORCAMENTO.todos)
   const totais = comValores ? totaisDoOrcamento(servicos) : null
   const subtotais = comValores ? subtotaisPorGrupo(ativos) : {}

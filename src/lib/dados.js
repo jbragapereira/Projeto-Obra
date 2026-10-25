@@ -12,12 +12,15 @@
 // Toda função devolve { data, erro }.
 // ============================================================
 import * as mock from './mockData.js'
-import { addDias, dataHoraLocal, hojeISO } from './datas.js'
-import { podeEditar, podeLancar, podePlanejar, podeVerValores, veTodasAsObras } from './perfis.js'
+import { addDias, dataHoraLocal, hojeISO, segundaDaSemana } from './datas.js'
+import { podeAtualizarSemana, podeEditar, podeLancar, podePlanejar, podeRegistrarRestricao, podeVerValores, veTodasAsObras } from './perfis.js'
 import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
 import { congelarMeta, podeIniciar } from './medicao.js'
 import { aceitaLancamento, validarObra } from './obras.js'
+import { CALENDARIO_PADRAO, validarCalendario } from './calendario.js'
+import { moverSemana, validarRestricao } from './restricoes.js'
+import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, planejadaNaSemana, statusAposLancamento, validarCausa } from './curtoPrazo.js'
 import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
 
@@ -110,6 +113,7 @@ export function salvarObra(obra) {
   const nova = { id: novoId('obra'), ...campos }
   mock.obras.push(nova)
   FUNCOES_PADRAO.forEach((nome) => mock.funcoes.push({ id: novoId('fn'), obra_id: nova.id, nome, ativo: true }))
+  mock.calendarios.push({ id: novoId('cal'), obra_id: nova.id, ...structuredClone(CALENDARIO_PADRAO) })
   // Quem cria a obra passa a ter acesso a ela.
   mock.membros.push({ id: novoId('m'), obra_id: nova.id, profile_id: sessao.id, ativo: true })
   return ok(copia(nova))
@@ -120,6 +124,11 @@ export function salvarObra(obra) {
 // qtd_orcada = como veio na planilha; qtd_contratada = a vigente (com aditivos), a que o app inteiro usa.
 const aditivosDo = (servicoId) => daObra(mock.aditivos).filter((a) => a.servico_id === servicoId)
 const comVigente = (s) => ({ ...s, qtd_contratada: qtdVigente(s.qtd_orcada, aditivosDo(s.id)) })
+// Executado de um item antes de uma data (pela data do diário de cada lançamento).
+const acumuladoAntesDe = (servicoId, data) => {
+  const dataDoDiario = Object.fromEntries(daObra(mock.diarios).map((x) => [x.id, x.data]))
+  return daObra(mock.lancamentos).filter((l) => l.servico_id === servicoId && dataDoDiario[l.diario_id] < data).reduce((soma, l) => soma + l.quantidade, 0)
+}
 const acumuladoDo = (servicoId) => daObra(mock.lancamentos).filter((l) => l.servico_id === servicoId).reduce((soma, l) => soma + l.quantidade, 0)
 const codigosOcupados = (excetoId) => [...daObra(mock.servicos).filter((x) => x.id !== excetoId).map((x) => x.codigo), ...daObra(mock.grupos).map((g) => g.codigo)]
 
@@ -307,6 +316,169 @@ export function salvarResponsavel({ nome, tipo, contato }) {
   return ok(copia(novo))
 }
 
+/* ── Restrições do médio prazo (lookahead) ── */
+
+export function listarRestricoes() {
+  const e = checar(); if (e) return falha(e)
+  const nomes = Object.fromEntries(mock.profiles.map((p) => [p.id, p.nome]))
+  return ok(copia(daObra(mock.restricoes).map((r) => ({ ...r, autor: nomes[r.criado_por] ?? '—', quem_resolveu: r.resolvida_por ? nomes[r.resolvida_por] ?? '—' : null }))))
+}
+
+// Cria (sem id; engenheiro e equipe) ou edita (com id; só o engenheiro).
+// r: { id?, servico_id, tipo, descricao, semana (segunda), prazo, responsavel }
+export function salvarRestricao(r) {
+  const e = checar(); if (e) return falha(e)
+  if (r.id ? !podeEditar(sessao.role) : !podeRegistrarRestricao(sessao.role)) return falha(r.id ? 'Só o engenheiro edita restrição.' : 'Seu perfil não registra restrição.')
+  const atual = r.id ? daObra(mock.restricoes).find((x) => x.id === r.id) : null
+  if (r.id && !atual) return falha('Restrição não encontrada nesta obra.')
+  const erros = validarRestricao(r)
+  if (r.servico_id && !daObra(mock.servicos).some((s) => s.id === r.servico_id)) erros.servico_id = 'Atividade de outra obra.'
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const campos = { servico_id: r.servico_id, tipo: r.tipo, descricao: r.descricao.trim(), semana: r.semana, prazo: r.prazo, responsavel: r.responsavel.trim() }
+  if (atual) { Object.assign(atual, campos); return ok(copia(atual)) }
+  const nova = { id: novoId('rs'), obra_id: obraAtual, ...campos, resolvida: false, resolvida_em: null, resolvida_por: null, criado_por: sessao.id }
+  mock.restricoes.push(nova)
+  return ok(copia(nova))
+}
+
+// Resolver (ou reabrir): engenheiro e equipe. Guarda quem resolveu e quando.
+export function resolverRestricao(id, resolvida) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarRestricao(sessao.role)) return falha('Seu perfil não resolve restrição.')
+  const r = daObra(mock.restricoes).find((x) => x.id === id)
+  if (!r) return falha('Restrição não encontrada nesta obra.')
+  Object.assign(r, resolvida
+    ? { resolvida: true, resolvida_em: dataHoraLocal(new Date()), resolvida_por: sessao.id }
+    : { resolvida: false, resolvida_em: null, resolvida_por: null })
+  return ok(copia(r))
+}
+
+// Setas ◀ ▶: uma semana para trás ou para a frente (só o engenheiro).
+export function moverRestricao(id, passo) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro move restrição de semana.')
+  const r = daObra(mock.restricoes).find((x) => x.id === id)
+  if (!r) return falha('Restrição não encontrada nesta obra.')
+  r.semana = moverSemana(r.semana, passo)
+  return ok(copia(r))
+}
+
+export function excluirRestricao(id) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro exclui restrição.')
+  const r = daObra(mock.restricoes).find((x) => x.id === id)
+  if (!r) return falha('Restrição não encontrada nesta obra.')
+  mock.restricoes.splice(mock.restricoes.indexOf(r), 1)
+  return ok(copia(r))
+}
+
+/* ── Curto prazo: atividades da semana (kanban) e subtarefas ── */
+
+export function listarSemanaAtividades() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.semanaAtividades)))
+}
+
+export function listarSubtarefas() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.subtarefas)))
+}
+
+// Uma linha por atividade e semana (criada na primeira vez que ela é mexida).
+function registroDaSemana(semana, servicoId) {
+  let r = daObra(mock.semanaAtividades).find((x) => x.semana === semana && x.servico_id === servicoId)
+  if (!r) {
+    r = { id: novoId('sa'), obra_id: obraAtual, semana, servico_id: servicoId, status: STATUS_SEMANA.aFazer, causa: null, causa_texto: '', fora: false }
+    mock.semanaAtividades.push(r)
+  }
+  return r
+}
+
+// Mover no kanban (engenheiro e equipe). "Não realizado" exige a causa raiz.
+export function mudarStatusAtividade({ semana, servico_id, status, causa, causa_texto }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeAtualizarSemana(sessao.role)) return falha('Seu perfil não atualiza a semana.')
+  if (!Object.values(STATUS_SEMANA).includes(status)) return falha('Situação inválida.')
+  if (!daObra(mock.servicos).some((s) => s.id === servico_id)) return falha('Atividade não encontrada nesta obra.')
+  const naoRealizado = status === STATUS_SEMANA.naoRealizado
+  const erroCausa = naoRealizado ? validarCausa({ causa, causa_texto }) : null
+  if (erroCausa) return falha(erroCausa)
+  const r = registroDaSemana(semana, servico_id)
+  Object.assign(r, {
+    status, ...causaParaGravar({ naoRealizado, causa, causa_texto }),
+    atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()),
+  })
+  return ok(copia(r))
+}
+
+// Tirar (ou devolver) uma atividade da semana: só o engenheiro. Tirada não conta no PPC.
+export function tirarDaSemana({ semana, servico_id, fora }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro tira atividade da semana.')
+  if (!daObra(mock.servicos).some((s) => s.id === servico_id)) return falha('Atividade não encontrada nesta obra.')
+  const r = registroDaSemana(semana, servico_id)
+  Object.assign(r, { fora: !!fora, atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
+  return ok(copia(r))
+}
+
+// Subtarefa nova (engenheiro e equipe).
+export function salvarSubtarefa({ semana, servico_id, texto }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeAtualizarSemana(sessao.role)) return falha('Seu perfil não cria subtarefa.')
+  if (!texto?.trim()) return falha('Escreva a subtarefa.')
+  if (!daObra(mock.servicos).some((s) => s.id === servico_id)) return falha('Atividade não encontrada nesta obra.')
+  const nova = { id: novoId('st'), obra_id: obraAtual, semana, servico_id, texto: texto.trim(), situacao: SITUACAO_SUBTAREFA.pendente, causa: null, causa_texto: '', criado_por: sessao.id }
+  mock.subtarefas.push(nova)
+  return ok(copia(nova))
+}
+
+// Feita, pendente ou não realizada (com causa raiz).
+export function mudarSubtarefa(id, { situacao, causa, causa_texto }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeAtualizarSemana(sessao.role)) return falha('Seu perfil não atualiza subtarefa.')
+  const s = daObra(mock.subtarefas).find((x) => x.id === id)
+  if (!s) return falha('Subtarefa não encontrada nesta obra.')
+  if (!Object.values(SITUACAO_SUBTAREFA).includes(situacao)) return falha('Situação inválida.')
+  const naoRealizada = situacao === SITUACAO_SUBTAREFA.naoRealizada
+  const erroCausa = naoRealizada ? validarCausa({ causa, causa_texto }) : null
+  if (erroCausa) return falha(erroCausa)
+  Object.assign(s, { situacao, ...causaParaGravar({ naoRealizado: naoRealizada, causa, causa_texto }) })
+  return ok(copia(s))
+}
+
+export function excluirSubtarefa(id) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeAtualizarSemana(sessao.role)) return falha('Seu perfil não exclui subtarefa.')
+  const s = daObra(mock.subtarefas).find((x) => x.id === id)
+  if (!s) return falha('Subtarefa não encontrada nesta obra.')
+  mock.subtarefas.splice(mock.subtarefas.indexOf(s), 1)
+  return ok(copia(s))
+}
+
+/* ── Calendário de trabalho da obra (dias úteis e feriados) ── */
+
+export function buscarCalendario() {
+  const e = checar(); if (e) return falha(e)
+  const cal = daObra(mock.calendarios)[0]
+  return ok(copia(cal ?? { obra_id: obraAtual, ...CALENDARIO_PADRAO }))
+}
+
+// cal: { dias_semana: [0..6], feriados: [{ data, nome }] }
+export function salvarCalendario({ dias_semana, feriados }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro muda o calendário da obra.')
+  const limpo = {
+    dias_semana: [...new Set(dias_semana)].filter((d) => d >= 0 && d <= 6).sort(),
+    feriados: feriados.map((f) => ({ data: f.data, nome: f.nome?.trim() ?? '' })).sort((a, b) => a.data.localeCompare(b.data)),
+  }
+  const erros = validarCalendario(limpo)
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: Object.values(erros)[0], erros })
+  const atual = daObra(mock.calendarios)[0]
+  if (atual) Object.assign(atual, limpo)
+  else mock.calendarios.push({ id: novoId('cal'), obra_id: obraAtual, ...limpo })
+  return ok(copia(daObra(mock.calendarios)[0]))
+}
+
 /* ── Funções (para o efetivo do diário) ── */
 
 export function listarFuncoes() {
@@ -438,6 +610,15 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
         ...campos, lancado_por: sessao.id, corrigido_por: null, corrigido_em: null,
       })
     }
+    // A produção do dia faz o Kanban da semana andar (A fazer → Em andamento; concluído → Concluído),
+    // só para o que já está no Kanban da semana: planejado pela EAP (progresso no começo da semana) ou já mexido.
+    const semana = segundaDaSemana(data)
+    const reg = daObra(mock.semanaAtividades).find((x) => x.semana === semana && x.servico_id === i.servico_id)
+    const servico = comVigente(daObra(mock.servicos).find((s) => s.id === i.servico_id))
+    const antes = acumuladoAntesDe(i.servico_id, semana)
+    const noKanban = !!reg || planejadaNaSemana({ servico, real: servico.qtd_contratada > 0 ? antes / servico.qtd_contratada : 0, semana })
+    const novo = noKanban && statusAposLancamento({ atual: reg?.status ?? STATUS_SEMANA.aFazer, fora: !!reg?.fora, quantidade: campos.quantidade, concluido: campos.concluido })
+    if (novo) Object.assign(registroDaSemana(semana, i.servico_id), { status: novo, causa: null, causa_texto: '', atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
   }
   // Foto pode ir mesmo em serviço sem produção no dia (ex.: registrar que está parado).
   for (const i of comFoto) {

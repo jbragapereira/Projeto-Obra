@@ -40,7 +40,9 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
 1. `if` de negócio dentro de tela vai para `lib`, mesmo com três linhas.
 2. Constante compartilhada tem um dono só: papéis e menus em `perfis.js`; situações de obra em
    `obras.js`; de medição em `medicao.js`; clima em `diario.js`; situação de serviço em `painel.js`;
-   fontes e origem do item do orçamento em `orcamento.js`.
+   fontes e origem do item do orçamento em `orcamento.js`; dias úteis e feriados em `calendario.js`;
+   situação no prazo do cronograma em `planejamento.js`; tipos de restrição em `restricoes.js`;
+   status do kanban, situação de subtarefa e causas em `curtoPrazo.js`.
    O texto é idêntico ao CHECK do banco — se divergir, o salvamento falha calado.
 3. Quem não vê valores (Equipe da obra, Fiscalização) **não recebe** valores: `dados.js` tira
    `preco_unitario` e os totais em R$ antes de devolver. Não esconda R$ só na tela.

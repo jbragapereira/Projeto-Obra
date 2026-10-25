@@ -10,10 +10,12 @@
 //
 // As datas são relativas a hoje, para o exemplo nunca envelhecer.
 // ============================================================
-import { addDias, hojeISO } from './datas.js'
+import { addDias, hojeISO, segundaDaSemana } from './datas.js'
 import { congelarMeta } from './medicao.js'
 import { FUNCOES_PADRAO } from './diario.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, precoUnitario } from './orcamento.js'
+import { CALENDARIO_PADRAO } from './calendario.js'
+import { CAUSAS, STATUS_SEMANA, SITUACAO_SUBTAREFA } from './curtoPrazo.js'
 import { GRUPOS_ARRECIFES, ITENS_ARRECIFES, ORCAMENTO_ARRECIFES } from './mockOrcamentoArrecifes.js'
 
 // Vire para false quando o banco estiver ligado.
@@ -131,7 +133,13 @@ export const orcamentos = [
   { id: 'orc-ba', obra_id: 'obra-ba', ...ORCAMENTO_ARRECIFES },
 ]
 
+// Calendário de trabalho de cada obra (seg a sex e os feriados nacionais; o engenheiro ajusta em Ajustes).
+export const calendarios = ['obra-vn', 'obra-ba'].map((obraId) => ({ id: `cal-${obraId}`, obra_id: obraId, ...structuredClone(CALENDARIO_PADRAO) }))
+
 export const servicos = []
+export const restricoes = []
+export const semanaAtividades = []
+export const subtarefas = []
 export const aditivos = []
 export const diarios = []
 export const efetivo = []
@@ -244,3 +252,55 @@ servicos.push({
   ...itemDoOrcamento('obra-vn', ['1.2.2', 'COTAÇÃO', 'COT-11', 'Proteção de fachada com tela de nylon', 'M2', 320, 14.5, 0.242]),
   origem: ORIGENS_ITEM.novo, aditivo_numero: '1º aditivo', responsavel_id: 'r-pedra', data_inicio_planejada: d(5), data_fim_planejada: d(25),
 })
+
+// Restrições de exemplo (médio prazo): abertas, uma vencida de semana passada e uma já resolvida.
+const semana = (n) => addDias(segundaDaSemana(H), 7 * n)
+const restricao = (id, obraId, servico, tipo, descricao, sem, prazo, responsavel, extra = {}) => ({
+  id, obra_id: obraId, servico_id: servico, tipo, descricao, semana: semana(sem), prazo: d(prazo), responsavel,
+  resolvida: false, resolvida_em: null, resolvida_por: null, criado_por: 'p-eng', ...extra,
+})
+restricoes.push(
+  restricao('rs-vn-1', 'obra-vn', 's-vn-1.2.1', 'Material', 'Telha metálica do tapume em falta no fornecedor', -1, -2, 'Compras (escritório)'),
+  restricao('rs-vn-2', 'obra-vn', 's-vn-5.1.1', 'Mão de obra', 'Equipe de contrapiso só chega depois da alvenaria', 1, 6, 'Construtora Pedra Firme'),
+  restricao('rs-vn-3', 'obra-vn', 's-vn-6.1.3', 'Projeto', 'Revisão do projeto elétrico do 2º pavimento', 2, 10, 'Elétrica Ponto Certo'),
+  restricao('rs-vn-4', 'obra-vn', 's-vn-3.1.4', 'Equipamento', 'Andaime para a fachada norte', 0, -1, 'Construtora Pedra Firme',
+    { resolvida: true, resolvida_em: `${d(-1)}T16:20:00`, resolvida_por: 'p-lucas' }),
+  restricao('rs-ba-1', 'obra-ba', 's-ba-3.4.1', 'Equipamento', 'Trator de esteiras em manutenção', 0, 2, 'Empreiteira Silva & Filhos'),
+  restricao('rs-ba-2', 'obra-ba', 's-ba-3.5.3', 'Projeto', 'Paginação do piso intertravado não aprovada pela fiscalização', 1, 5, 'Engenheiro'),
+)
+
+// Curto prazo de exemplo: 7 semanas passadas (para o gráfico do PPC) e a semana atual com movimento.
+// Nas semanas passadas, de cada 5 atividades 1 não foi realizada (causas variando) e as outras concluídas.
+const CAUSAS_EXEMPLO = ['Material', 'Clima', 'Mão de obra', 'Projeto', 'Material', 'Equipamento']
+let causaDaVez = 0
+for (const obraId of ['obra-vn', 'obra-ba']) {
+  const comDatas = servicos.filter((s) => s.obra_id === obraId && s.data_inicio_planejada && s.data_fim_planejada)
+  for (let k = 7; k >= 1; k--) {
+    const ini = semana(-k)
+    const fim = addDias(ini, 6)
+    comDatas.filter((s) => s.data_inicio_planejada <= fim && s.data_fim_planejada >= ini).forEach((s, i) => {
+      const naoFez = (i + k) % 5 === 0 || (k === 2 && i === 1)
+      semanaAtividades.push({
+        id: `sa-${s.id}-${ini}`, obra_id: obraId, semana: ini, servico_id: s.id,
+        status: naoFez ? STATUS_SEMANA.naoRealizado : STATUS_SEMANA.concluido,
+        causa: naoFez ? CAUSAS_EXEMPLO[causaDaVez++ % CAUSAS_EXEMPLO.length] : null, causa_texto: '', fora: false,
+        atualizado_por: AUTOR[obraId], atualizado_em: `${addDias(ini, 5)}T17:00:00`,
+      })
+    })
+  }
+}
+semanaAtividades.push(
+  { id: 'sa-vn-agora-1', obra_id: 'obra-vn', semana: semana(0), servico_id: 's-vn-4.2.1', status: STATUS_SEMANA.andamento, causa: null, causa_texto: '', fora: false, atualizado_por: 'p-lucas', atualizado_em: `${d(-1)}T09:00:00` },
+  { id: 'sa-vn-agora-2', obra_id: 'obra-vn', semana: semana(0), servico_id: 's-vn-3.2.2', status: STATUS_SEMANA.concluido, causa: null, causa_texto: '', fora: false, atualizado_por: 'p-lucas', atualizado_em: `${d(-1)}T16:30:00` },
+  { id: 'sa-ba-agora-1', obra_id: 'obra-ba', semana: semana(0), servico_id: 's-ba-3.4.1', status: STATUS_SEMANA.andamento, causa: null, causa_texto: '', fora: false, atualizado_por: 'p-marcos', atualizado_em: `${d(-1)}T10:00:00` },
+)
+const subtarefa = (id, obraId, servico, texto, situacao, causa = null) => ({
+  id, obra_id: obraId, semana: semana(0), servico_id: servico, texto, situacao, causa, causa_texto: '', criado_por: 'p-eng',
+})
+subtarefas.push(
+  subtarefa('st-vn-1', 'obra-vn', 's-vn-4.2.1', 'Chapisco das paredes do 2º pavimento', SITUACAO_SUBTAREFA.feita),
+  subtarefa('st-vn-2', 'obra-vn', 's-vn-4.2.1', 'Reboco da circulação', SITUACAO_SUBTAREFA.pendente),
+  subtarefa('st-vn-3', 'obra-vn', 's-vn-4.2.1', 'Reboco das salas 201 a 204', SITUACAO_SUBTAREFA.pendente),
+  subtarefa('st-ba-1', 'obra-ba', 's-ba-3.4.1', 'Corte do platô da quadra', SITUACAO_SUBTAREFA.naoRealizada, CAUSAS[4]),
+)
+

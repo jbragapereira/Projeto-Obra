@@ -4,7 +4,8 @@
 // calcula pelos itens de dentro (início mais cedo, fim mais tarde) e atualiza enquanto se digita.
 import { useState } from 'react'
 import { salvarDatasEap } from '../lib/dados.js'
-import { achatarEap, diasCorridos, montarEap, paiDoCodigo, validarDatas } from '../lib/planejamento.js'
+import { achatarEap, acumuladoPorServico, ehItem, montarEap, paiDoCodigo, validarDatas } from '../lib/planejamento.js'
+import { diasUteisEntre } from '../lib/calendario.js'
 import { precoTotal } from '../lib/orcamento.js'
 import { podePlanejar, podeVerValores } from '../lib/perfis.js'
 import { dm, dmy } from '../lib/datas.js'
@@ -12,15 +13,13 @@ import { brl, pct, qtd } from '../lib/formato.js'
 import { Barra, Critico, Meta, Sheet, Vazio, avisar } from '../components/index.jsx'
 
 const periodo = (inicio, fim) => (inicio || fim ? `${dm(inicio)} a ${dm(fim)}` : 'Sem datas')
-// Só o item (a folha da árvore) tem data lançada.
-const ehItem = (n) => n.tipo === 'servico' && !n.filhos.length
 
 function Fato({ rotulo, valor }) {
   return <div className="fact"><div className="lbl">{rotulo}</div><div className="v">{valor}</div></div>
 }
 
 // Detalhe de uma linha (só leitura): datas, avanço e números do item.
-function Detalhe({ n, responsavel, comValores, onFechar }) {
+function Detalhe({ n, responsavel, comValores, cal, onFechar }) {
   const s = n.servico
   return (
     <Sheet titulo={n.nome} subtitulo={`${n.codigo}${n.tipo === 'grupo' ? ', grupo' : ''}`} onFechar={onFechar}>
@@ -28,7 +27,7 @@ function Detalhe({ n, responsavel, comValores, onFechar }) {
         <div className="facts">
           <Fato rotulo="Início" valor={n.inicio ? dmy(n.inicio) : '—'} />
           <Fato rotulo="Fim" valor={n.fim ? dmy(n.fim) : '—'} />
-          <Fato rotulo="Dias corridos" valor={diasCorridos(n.inicio, n.fim) ?? '—'} />
+          <Fato rotulo="Dias úteis" valor={diasUteisEntre(n.inicio, n.fim, cal) ?? '—'} />
           <Fato rotulo="Avanço real" valor={`${pct(n.progresso, 1)}%`} />
           {s ? <Fato rotulo="Quantidade vigente" valor={qtd(s.qtd_contratada, s.unidade)} /> : <Fato rotulo="Itens" valor={n.qtdServicos} />}
           {s && comValores && <Fato rotulo="Valor vigente" valor={brl(precoTotal(s.qtd_contratada, s.preco_unitario))} />}
@@ -68,8 +67,7 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
     const r = rascunho[s.id]
     return r ? { ...s, data_inicio_planejada: r.inicio || null, data_fim_planejada: r.fim || null } : s
   })
-  const acumulado = {}
-  for (const l of dados.lancamentos) acumulado[l.servico_id] = (acumulado[l.servico_id] ?? 0) + l.quantidade
+  const acumulado = acumuladoPorServico(dados.lancamentos)
   const raizes = montarEap({ servicos, grupos: dados.grupos, acumulado, mostrarArquivados })
   const todos = achatarEap(raizes)
   const codigosDeGrupo = todos.filter((n) => !ehItem(n)).map((n) => n.codigo)
@@ -164,7 +162,7 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
               const aberto = filtrando || !fechados.has(n.codigo)
               const v = item ? valorDe(n.servico.id) : null
               const erro = editando && item ? erroDe(n.servico.id) : null
-              const dias = diasCorridos(n.inicio, n.fim)
+              const dias = diasUteisEntre(n.inicio, n.fim, dados.calendario)
               const Corpo = editando ? 'div' : 'button'
               return (
                 <li key={n.codigo} className={`eap-no ${item ? '' : 'eap-grupo'} ${n.arquivado ? 'arquivado' : ''} ${erro ? 'com-erro' : ''}`} style={{ '--nivel': n.nivel - 1 }}>
@@ -197,7 +195,7 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
                     ) : (
                       <span className={`eap-periodo${item ? '' : ' calculado'}${!n.inicio && !n.fim ? ' vazio' : ''}`}>
                         {periodo(n.inicio, n.fim)}
-                        {dias && <small>{dias} dias{!item && editando ? ', pelos itens' : ''}</small>}
+                        {dias != null && <small>{dias} {dias === 1 ? 'dia útil' : 'dias úteis'}{!item && editando ? ', pelos itens' : ''}</small>}
                       </span>
                     )}
                   </div>
@@ -210,7 +208,7 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
         )}
       </section>
 
-      {detalhe && <Detalhe n={detalhe} responsavel={nomeResp[detalhe.servico?.responsavel_id]} comValores={comValores} onFechar={() => setDetalhe(null)} />}
+      {detalhe && <Detalhe n={detalhe} responsavel={nomeResp[detalhe.servico?.responsavel_id]} comValores={comValores} cal={dados.calendario} onFechar={() => setDetalhe(null)} />}
     </div>
   )
 }

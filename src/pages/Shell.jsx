@@ -5,21 +5,22 @@
 //
 // Trocar de obra remonta a tela inteira (key={obraId}): nada da obra
 // anterior sobra na tela — lista, filtro, gaveta ou formulário pela metade.
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useObra } from '../lib/ObraContext.jsx'
 import { MENUS, dividirMenu, telaInicial } from '../lib/perfis.js'
 import { dmy } from '../lib/datas.js'
 import { Carregando, ErroCarga, Icon, Meta, Sheet, Vazio, VoltarAoTopo } from '../components/index.jsx'
 import Painel from '../screens/painel.jsx'
 import Diario from '../screens/diario.jsx'
-import Orcamento from '../screens/orcamento.jsx'
 import Medicao from '../screens/medicao.jsx'
 import Recados from '../screens/recados.jsx'
 import Ajustes from '../screens/ajustes.jsx'
 import Perfil from '../screens/perfil.jsx'
 import Avanco from '../screens/avanco.jsx'
 import Fotos from '../screens/fotos.jsx'
-import Planejamento from '../screens/planejamento.jsx'
+// As telas maiores carregam só quando são abertas (o app abre mais rápido no celular).
+const Orcamento = lazy(() => import('../screens/orcamento.jsx'))
+const Planejamento = lazy(() => import('../screens/planejamento.jsx'))
 
 const TELAS = { painel: Painel, diario: Diario, orcamento: Orcamento, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos, planejamento: Planejamento }
 
@@ -94,7 +95,9 @@ export default function Shell({ profile, onSair }) {
               texto="Peça ao engenheiro responsável para incluir você numa obra. Assim que ele fizer isso, ela aparece aqui." />
           </div>
         ) : (
-          <Tela key={obraId ?? 'sem-obra'} profile={profile} obra={obra} goto={goto} params={rota.params} onSair={onSair} />
+          <Suspense fallback={<Carregando />}>
+            <Tela key={obraId ?? 'sem-obra'} profile={profile} obra={obra} goto={goto} params={rota.params} onSair={onSair} />
+          </Suspense>
         )}
       </div>
 

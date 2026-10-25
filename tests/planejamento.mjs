@@ -1,5 +1,6 @@
 // Planejamento: EAP montada pelos códigos dos serviços (src/lib/planejamento.js).
-import { compararCodigos, proximoCodigo, montarEap, achatarEap, progressoDoGrupo, codigoValido, validarDatas, diasCorridos } from '../src/lib/planejamento.js'
+import { compararCodigos, proximoCodigo, montarEap, achatarEap, progressoDoGrupo, codigoValido, validarDatas, aplicarPrazo, situacaoNoPrazo, colunasDoCronograma, ehItem, folhasDe } from '../src/lib/planejamento.js'
+import { CALENDARIO_PADRAO } from '../src/lib/calendario.js'
 
 let ok = 0
 let tot = 0
@@ -64,7 +65,31 @@ conferir('datas vazias podem (ainda sem data)', validarDatas({ inicio: '', fim: 
 conferir('só uma das datas é recusada', validarDatas({ inicio: '2026-11-01', fim: '' }) !== null, true)
 conferir('fim antes do início é recusado', validarDatas({ inicio: '2026-11-10', fim: '2026-11-01' }) !== null, true)
 conferir('mesmo dia passa', validarDatas({ inicio: '2026-11-10', fim: '2026-11-10' }), null)
-conferir('dias corridos contam o primeiro e o último', [diasCorridos('2026-11-01', '2026-11-01'), diasCorridos('2026-11-01', '2026-11-30'), diasCorridos(null, '2026-11-30')], [1, 30, null])
 
-console.log(`${ok}/${tot} — planejamento (EAP)`)
+// Cronograma: situação no prazo (previsto × real)
+const P = (previsto, real, hoje = '2026-11-15') => situacaoNoPrazo({ previsto, real, inicio: '2026-11-01', fim: '2026-11-30', hoje })
+conferir('situação no prazo', [P(0.5, 0.49), P(0.5, 0.42), P(0.5, 0.3), P(0.5, 1), P(1, 0.9, '2026-12-02'), P(0, 0, '2026-10-20')],
+  ['Em dia', 'Atenção', 'Atrasado', 'Concluído', 'Atrasado', 'A iniciar'])
+
+// Previsto e real do grupo: só os itens com datas, ponderados pelo valor.
+const crono = aplicarPrazo(montarEap({
+  servicos: [
+    S('p1', '4.1.1', { data_inicio_planejada: '2026-11-09', data_fim_planejada: '2026-11-20', preco_unitario: 10 }), // R$ 1.000
+    S('p2', '4.1.2', { data_inicio_planejada: '2026-11-16', data_fim_planejada: '2026-11-27', preco_unitario: 30 }), // R$ 3.000
+    S('p3', '4.1.3', { data_inicio_planejada: null, data_fim_planejada: null }),
+  ],
+  grupos: [{ codigo: '4', nome: 'Elétrica' }], acumulado: { p1: 60, p2: 0, p3: 100 },
+}), { hoje: '2026-11-13', cal: CALENDARIO_PADRAO })
+const g4 = crono[0]
+// p1: 5 de 9 dias úteis = 0,556 previsto, real 0,60; p2 ainda não começou: 0 e 0. Grupo: (0,556×1000)/4000 e (0,6×1000)/4000.
+conferir('previsto do grupo ponderado pelo valor, só itens com datas', Math.round(g4.previsto * 1000) / 1000, Math.round((5 / 9) * 1000 / 4000 * 1000) / 1000)
+conferir('real do grupo ponderado, sem o item sem datas', g4.real, 0.15)
+conferir('item sem datas fica sem situação', folhasDe(g4).find((n) => n.codigo === '4.1.3').situacaoPrazo, null)
+conferir('ehItem só para a folha', [ehItem(g4), ehItem(folhasDe(g4)[0])], [false, true])
+
+// Colunas
+conferir('semanas começam na segunda', colunasDoCronograma({ inicio: '2026-10-28', fim: '2026-11-20', escala: 'semana' }).map((c) => c.inicio), ['2026-10-26', '2026-11-02', '2026-11-09', '2026-11-16'])
+conferir('meses do dia 1 ao último dia', colunasDoCronograma({ inicio: '2026-11-15', fim: '2027-01-03', escala: 'mes' }).map((c) => [c.rotulo, c.fim]), [['nov/26', '2026-11-30'], ['dez/26', '2026-12-31'], ['jan/27', '2027-01-31']])
+
+console.log(`${ok}/${tot} — planejamento (EAP e cronograma)`)
 process.exit(ok === tot ? 0 : 1)

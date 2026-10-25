@@ -3,10 +3,13 @@
 // do Painel e do Diário. Os dados são carregados aqui, uma vez, e
 // qualquer mudança recarrega para todas as abas.
 import { useState } from 'react'
-import { juntar, listarGrupos, listarLancamentos, listarResponsaveis, listarServicos } from '../lib/dados.js'
+import { buscarCalendario, juntar, listarGrupos, listarLancamentos, listarResponsaveis, listarRestricoes, listarSemanaAtividades, listarServicos, listarSubtarefas } from '../lib/dados.js'
 import { vePlanejamento } from '../lib/perfis.js'
-import { Carregando, ErroCarga, Faixa, Fase2, Vazio, useDados } from '../components/index.jsx'
+import { Carregando, ErroCarga, Faixa, Vazio, useDados } from '../components/index.jsx'
 import AbaEap from './planejamentoEap.jsx'
+import AbaLongo from './planejamentoLongo.jsx'
+import AbaMedio from './planejamentoMedio.jsx'
+import AbaCurto from './planejamentoCurto.jsx'
 
 const ABAS = [
   ['eap', 'EAP'],
@@ -16,7 +19,8 @@ const ABAS = [
 ]
 
 const carregar = () => juntar({
-  servicos: listarServicos(), lancamentos: listarLancamentos(), grupos: listarGrupos(), responsaveis: listarResponsaveis(),
+  servicos: listarServicos(), lancamentos: listarLancamentos(), grupos: listarGrupos(), responsaveis: listarResponsaveis(), calendario: buscarCalendario(), restricoes: listarRestricoes(),
+  semanaAtividades: listarSemanaAtividades(), subtarefas: listarSubtarefas(),
 })
 
 export default function Planejamento({ profile, goto }) {
@@ -39,11 +43,9 @@ export default function Planejamento({ profile, goto }) {
       {carregando ? <Carregando />
         : erro ? <ErroCarga erro={erro} onTentar={recarregar} />
           : aba === 'eap' ? <AbaEap profile={profile} dados={data} onMudou={recarregar} goto={goto} />
-            : (
-              <div className="view">
-                <Fase2 titulo={ABAS.find(([id]) => id === aba)[1]} texto="Esta aba chega na próxima etapa do Planejamento, a partir das datas da EAP." />
-              </div>
-            )}
+            : aba === 'longo' ? <AbaLongo dados={data} onIrParaEap={() => setAba('eap')} />
+            : aba === 'medio' ? <AbaMedio profile={profile} dados={data} onMudou={recarregar} />
+            : <AbaCurto profile={profile} dados={data} onMudou={recarregar} />}
     </>
   )
 }

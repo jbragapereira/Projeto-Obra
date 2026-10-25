@@ -11,6 +11,11 @@ export const veTodasAsObras = (role) => role === 'Diretoria'
 // Planejamento: o engenheiro lança as datas; a diretoria e a equipe só veem; a fiscalização não vê.
 export const podePlanejar = (role) => role === 'Engenheiro'
 export const vePlanejamento = (role) => role !== 'Fiscalização'
+// Curto prazo: engenheiro e equipe movem as atividades da semana e cuidam das subtarefas;
+// tirar atividade da semana é do engenheiro (podeEditar).
+export const podeAtualizarSemana = (role) => podeLancar(role)
+// Médio prazo: engenheiro e equipe criam e resolvem restrições; editar, mover e excluir é do engenheiro.
+export const podeRegistrarRestricao = (role) => podeLancar(role)
 
 // Diário: a equipe vê a primeira aba como "Lançar o dia"; o cadastro de responsáveis e funções
 // (com o contato de cada um) é do engenheiro e da diretoria.

@@ -212,6 +212,150 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px }
 .chip { min-height: 48px; border: 1.5px solid #C3CDD2; border-radius: var(--r-btn); background: #fff; font-weight: 600; font-size: 14px; line-height: 1.1; padding: var(--s1) }
 .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff }
+/* Cronograma (Planejamento › Longo prazo): coluna fixa à esquerda e a linha do tempo rolando */
+.crono { padding: 0; overflow: hidden }
+.crono-rolagem { overflow-x: auto }
+.crono-tabela { --crono-esq: 340px; position: relative }
+.crono-linha { display: flex; min-height: 36px; border-bottom: 1px solid var(--line) }
+.crono-esq { position: sticky; left: 0; z-index: 2; width: var(--crono-esq); flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px calc(6px + var(--recuo, 0px)); background: var(--card); border-right: 1px solid var(--line) }
+.crono-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px }
+.crono-nums { flex: none; font-size: 12px; color: var(--slate); font-variant-numeric: tabular-nums }
+.crono-nums b { color: var(--ink) }
+.crono-seta { width: 24px; min-height: 28px; flex: none; background: none; border: 0; color: var(--slate); font-size: 14px; cursor: pointer; padding: 0 }
+.crono-seta:disabled { cursor: default }
+.crono-trilha { position: relative; flex: none }
+.crono-cab { position: sticky; top: 0; z-index: 3; background: var(--card); border-bottom: 1.5px solid var(--ink) }
+.crono-cab .crono-esq { justify-content: space-between }
+.crono-col { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--slate); padding: 10px 4px 0; white-space: nowrap; overflow: hidden }
+.crono-corpo { position: relative }
+.crono-grade { position: absolute; top: 0; bottom: 0; left: var(--crono-esq); pointer-events: none }
+.crono-grade span { position: absolute; top: 0; bottom: 0; width: 1px; background: #EEF1F3 }
+.crono-grade .crono-hoje { width: 2px; background: var(--ink); opacity: .5; z-index: 1 }
+.crono-grupo .crono-esq { background: #F6F8F9; font-weight: 700 }
+.crono-grupo.n1 .crono-esq { background: #E9EEF0 }
+.crono-grupo.n2 .crono-esq { --recuo: 12px }
+.crono-linha:not(.crono-grupo):not(.crono-cab) .crono-esq { --recuo: 24px }
+.crono-barra { position: absolute; top: 9px; height: 18px; border-radius: 4px; background: #fff; border: 1.5px solid var(--cor, var(--brand)) }
+.crono-grupo .crono-barra { top: 12px; height: 12px }
+.crono-real { position: absolute; left: 0; top: 0; bottom: 0; max-width: 100%; background: var(--cor, var(--brand)); border-radius: 2px }
+.crono-prev { position: absolute; top: -5px; bottom: -5px; width: 2px; margin-left: -1px; background: var(--ink) }
+.s-ok { --cor: var(--ok) } .s-amber { --cor: var(--amber) } .s-red { --cor: var(--red) } .s-done { --cor: var(--slate) } .s-soft { --cor: var(--brand) }
+.crono-legenda { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; align-items: center }
+.crono-legenda span { display: inline-flex; align-items: center; gap: 6px }
+.crono-legenda i { display: inline-block }
+.crono-legenda .l-real { width: 22px; height: 10px; border-radius: 2px; background: var(--ok) }
+.crono-legenda .l-prev { width: 2px; height: 16px; background: var(--ink) }
+.crono-legenda .l-hoje { width: 2px; height: 16px; background: var(--ink); opacity: .5 }
+.crono-aviso { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; justify-content: space-between; padding: var(--s2) var(--s3); background: var(--amber-tint); border-radius: var(--r-card); font-size: 14px }
+.crono-aviso .btn { min-height: 40px }
+.crono-lista li.crono-grupo .row { background: #F6F8F9 }
+.crono-lista li.crono-grupo.n1 .row { background: #E9EEF0 }
+.crono-lista-t { display: flex; align-items: center; gap: 4px; font-weight: 600 }
+.crono-lista-t .crono-nome { white-space: normal; overflow: visible }
+.crono-lista-m { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; color: var(--slate); margin-top: 4px }
+.crono-barra.lista { position: relative; top: auto; height: 10px; margin-top: 8px }
+/* Médio prazo: quadro de restrições, uma coluna por semana (celular: uma semana por vez) */
+.t-material { --tipo: #2F6FB0 } .t-mao { --tipo: #7A4FB3 } .t-metodo { --tipo: #2A7F51 } .t-equip { --tipo: #B36A1E }
+.t-projeto { --tipo: #00838F } .t-seguranca { --tipo: #B8392F } .t-logistica { --tipo: #5B6770 }
+.rest-filtro { flex: 0 1 240px }
+.rest-quadro { display: grid; gap: var(--s3); align-items: start }
+.rest-col { background: #F6F8F9; border: 1px solid var(--line); border-radius: var(--r-card); min-width: 0; display: none }
+.rest-col.ativa { display: block }
+.rest-col-h { padding: var(--s3); border-bottom: 1px solid var(--line); background: var(--card); border-radius: var(--r-card) var(--r-card) 0 0 }
+.rest-col-t { font-family: var(--display); font-stretch: 90%; font-weight: 700; font-size: 16px; display: flex; justify-content: space-between; gap: 8px; align-items: baseline }
+.rest-col-t span { font-family: var(--sans); font-weight: 600; font-size: 13px; color: var(--slate) }
+.rest-col-h .meta { font-size: 12.5px; margin-top: 2px }
+.rest-col-b { padding: var(--s2); display: grid; gap: var(--s2) }
+.rest-vazio { font-size: 13.5px; margin: 4px 4px 0 }
+.rest-card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--tipo); border-radius: var(--r-btn); padding: 10px 10px 8px }
+.rest-card.vencida { border-color: var(--red); border-left-color: var(--tipo); box-shadow: inset 0 0 0 1px var(--red) }
+.rest-card.resolvida { opacity: .7 }
+.rest-card.resolvida .rest-desc { text-decoration: line-through }
+.rest-tipo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--tipo) }
+.rest-desc { margin: 4px 0 2px; font-weight: 600; font-size: 14.5px; line-height: 1.3 }
+.rest-item { font-size: 12.5px; color: var(--slate); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.rest-card .meta { font-size: 12.5px; margin-top: 4px }
+.rest-ok { margin: 4px 0 0; font-size: 12.5px; color: var(--ok); font-weight: 600 }
+.rest-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
+.rest-acoes .btn { min-height: 38px; padding: 0 10px; font-size: 13.5px; gap: 4px; flex: 0 0 auto }
+.rest-ativ { margin-top: 4px; font-size: 13.5px }
+.rest-ativ summary { min-height: 40px; display: flex; align-items: center; font-weight: 600; cursor: pointer; padding: 0 4px; color: var(--brand-d) }
+.rest-ativ ul { list-style: none; margin: 0; padding: 0 }
+.rest-ativ li { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-top: 1px solid var(--line) }
+.rest-ativ-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px }
+.rest-ativ .btn { min-height: 34px; width: 34px; padding: 0; flex: none }
+.rest-tipos { display: flex; flex-wrap: wrap; gap: 6px }
+.rest-tipo-op { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1.5px solid #C3CDD2; background: #fff; font-weight: 600; font-size: 13.5px; color: var(--tipo); cursor: pointer }
+.rest-tipo-op[aria-checked="true"] { background: var(--tipo); border-color: var(--tipo); color: #fff }
+@media (min-width: 900px) {
+  .rest-abas { display: none }
+  .rest-quadro { grid-template-columns: repeat(var(--semanas), minmax(240px, 1fr)); overflow-x: auto; padding-bottom: 4px }
+  .rest-col { display: block }
+}
+/* Curto prazo: semana, PPC, histórico, causas e o kanban (celular: uma coluna por vez) */
+.curto-topo { display: grid; gap: var(--s3); grid-template-columns: 1fr }
+.curto-semana { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap }
+.curto-semana .btn { min-height: 44px; padding: 0 var(--s3) }
+.curto-semana-t { font-family: var(--display); font-stretch: 90%; font-weight: 700; font-size: 20px; line-height: 1.1 }
+.curto-ppc-n { font-family: var(--display); font-stretch: 80%; font-weight: 700; font-size: 44px; line-height: 1; margin: 4px 0 2px }
+.curto-ppc .minibar { margin-top: 8px }
+.curto-barras { display: flex; gap: 6px; align-items: flex-end; margin-top: 8px }
+.curto-barra-h { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit }
+.curto-barra-v { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums }
+.curto-barra-c { position: relative; width: 100%; max-width: 34px; height: 64px; background: var(--track); border-radius: 3px; overflow: hidden }
+.curto-barra-c i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--brand) }
+.curto-barra-h.atual .curto-barra-c i { background: var(--ink) }
+.curto-barra-h.atual .curto-barra-r { color: var(--ink); font-weight: 700 }
+.curto-barra-r { font-size: 11px; color: var(--slate) }
+.curto-causas-top ol { list-style: none; margin: 6px 0 0; padding: 0 }
+.curto-causas-top li { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px }
+.curto-kanban { display: grid; gap: var(--s3); align-items: start }
+.curto-col { background: #F6F8F9; border: 1px solid var(--line); border-radius: var(--r-card); min-width: 0; display: none }
+.curto-col.ativa { display: block }
+.curto-col-h { display: flex; justify-content: space-between; align-items: center; padding: 10px var(--s3); font-weight: 700; border-bottom: 3px solid var(--slate); background: var(--card); border-radius: var(--r-card) var(--r-card) 0 0 }
+.curto-col.c1 .curto-col-h { border-bottom-color: var(--brand) } .curto-col.c2 .curto-col-h { border-bottom-color: var(--ok) } .curto-col.c3 .curto-col-h { border-bottom-color: var(--red) }
+.curto-col-h .n { font-size: 13px; color: var(--slate) }
+.curto-col-b { padding: var(--s2); display: grid; gap: var(--s2) }
+.curto-vazio { font-size: 13.5px; margin: 4px }
+.curto-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-btn); padding: 10px }
+.curto-card-t { font-weight: 600; font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.curto-marcas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px }
+.curto-marcas:empty { display: none }
+.curto-info { font-size: 12.5px; color: var(--slate); margin-top: 4px }
+.curto-card .minibar { margin-top: 6px; height: 6px }
+.curto-causa { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--red-d) }
+.curto-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
+.curto-acoes .btn { min-height: 38px; padding: 0 10px; font-size: 13.5px; gap: 4px; flex: 0 0 auto }
+.curto-sub { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 4px; font-size: 13.5px }
+.curto-sub summary { min-height: 36px; display: flex; align-items: center; font-weight: 600; cursor: pointer; color: var(--brand-d) }
+.curto-sub ul { list-style: none; margin: 0; padding: 0 }
+.curto-sub li { display: flex; align-items: center; gap: 4px; padding: 3px 0 }
+.curto-sub li.nao span { color: var(--red-d) }
+.curto-sub em { font-style: normal; font-size: 12.5px; margin-left: 4px }
+.curto-sub-check { flex: 1; min-width: 0; display: flex; gap: 8px; align-items: flex-start; min-height: 36px; padding-top: 6px }
+.curto-sub-check input { width: 18px; height: 18px; flex: none; accent-color: var(--ok) }
+.curto-sub li .btn { min-height: 34px; width: 34px; padding: 0; flex: none; font-size: 13px }
+.curto-sub-nova { display: flex; gap: 6px; margin-top: 6px }
+.curto-sub-nova .ipt { flex: 1; min-width: 0; min-height: 38px; font-size: 13.5px }
+.curto-sub-nova .btn { min-height: 38px; width: 40px; padding: 0 }
+.curto-causas.chips { grid-template-columns: repeat(3, 1fr) }
+.curto-fora summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center }
+.curto-fora ul { list-style: none; margin: 6px 0 0; padding: 0 }
+.curto-fora li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px }
+@media (min-width: 900px) {
+  .curto-topo { grid-template-columns: auto 200px 1fr 260px; align-items: stretch }
+  .curto-abas { display: none }
+  .curto-kanban { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+  .curto-col { display: block }
+}
+/* Calendário da obra (Ajustes) */
+.cal .chips { grid-template-columns: repeat(7, minmax(0, 1fr)) }
+.cal-ano { margin-top: var(--s2) }
+.cal-feriados { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px var(--s3) }
+.cal-feriados li { display: flex; align-items: center; gap: var(--s2); min-height: 40px; border-bottom: 1px solid var(--line) }
+.cal-data { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; flex: none; width: 86px }
+.cal-nome { flex: 1; min-width: 0; font-size: 14px }
+.cal-feriados .remover { width: 36px; height: 36px; flex: none; border-radius: var(--r-btn); border: 1.5px solid #C3CDD2; background: #fff; font-size: 13px }
 .check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600 }
 .check input { width: 22px; height: 22px; accent-color: var(--brand-d) }
 
@@ -220,8 +364,9 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .btn:hover { background: #F2F4F5 }
 .btn.on { background: var(--ok); border-color: var(--ok); color: #fff }
 .btn .caixa { width: 18px; height: 18px; border: 2px solid currentColor; border-radius: 3px; flex: none }
-.svc .memoria { margin-top: 10px }
-.svc .memoria textarea { min-height: 64px; font-size: 15px }
+.svc .memoria { margin-top: var(--s2) }
+.svc .memoria > span { font-size: 13px }
+.svc .memoria textarea { min-height: 48px; font-size: 14px; field-sizing: content; max-height: 160px }
 .saldo b { font-weight: 700 }
 .saldo.mudou b { color: var(--brand-d) }
 .atividades { list-style: none; display: grid; gap: 2px; margin-top: 6px; font-size: 14px }
@@ -236,17 +381,44 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .btns > .btn { flex: 1 1 160px }
 
 /* ── Diário ── */
-.svc { padding: var(--s4) }
+/* Cartão de produção do dia: compacto, 1 por linha no celular e 3 a 4 no computador */
+.svc { padding: var(--s3); min-width: 0 }
 .svc.has { border-color: var(--brand); box-shadow: inset 4px 0 0 var(--brand) }
-.svc .t { font-weight: 700; font-size: 17px; line-height: 1.25 }
-.svc .meta { margin-top: var(--s1) }
-.qty { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s3) }
-.qty button { width: 52px; height: 52px; border-radius: var(--r-btn); border: 1.5px solid var(--ink); font-size: 26px; font-weight: 600; background: #fff; flex: none }
+.svc-topo { display: flex; gap: var(--s2); align-items: flex-end }
+.svc-topo .escolher { flex: 1; min-width: 0 }
+.svc-topo .remover { width: 40px; height: 40px; flex: none; border-radius: var(--r-btn); border: 1.5px solid #C3CDD2; background: #fff; font-size: 14px }
+.svc-cab { display: flex; gap: var(--s2); justify-content: space-between; align-items: flex-start; margin-top: var(--s2) }
+.svc .t { font-weight: 700; font-size: 14.5px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.svc .meta { margin-top: 2px; font-size: 13px }
+.svc-periodo { font-size: 12.5px; color: var(--slate); margin-top: 2px }
+.svc-periodo b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums }
+.svc-contas { display: flex; flex-direction: column; gap: 2px; margin-top: var(--s1); font-size: 13px }
+.qty { display: flex; align-items: center; gap: 6px; margin-top: var(--s2) }
+.qty button { width: 44px; height: 44px; border-radius: var(--r-btn); border: 1.5px solid var(--ink); font-size: 22px; font-weight: 600; background: #fff; flex: none }
 .qty button:active { background: #E9EEF0 }
-.qty input { width: 100%; min-width: 0; height: 52px; border: 1.5px solid var(--ink); border-radius: var(--r-btn); text-align: center; font-family: var(--display); font-stretch: 85%; font-size: 26px; font-weight: 700; background: #fff }
+.qty input { width: 100%; min-width: 0; height: 44px; border: 1.5px solid var(--ink); border-radius: var(--r-btn); text-align: center; font-family: var(--display); font-stretch: 85%; font-size: 22px; font-weight: 700; background: #fff }
 .qty input[aria-invalid] { border-color: var(--red-d) }
-.qty .un { font-weight: 600; font-size: 15px; min-width: 28px }
-.svc-row { display: flex; gap: var(--s2); margin-top: 10px; flex-wrap: wrap }
+.qty .un { font-weight: 600; font-size: 13px; min-width: 24px }
+.svc-row { display: flex; gap: var(--s2); margin-top: var(--s2); flex-wrap: wrap; align-items: flex-end }
+.svc-row .field { flex: 1 1 140px }
+.svc-row .field > span { font-size: 13px }
+.svc-row .field .ipt { min-height: 44px; font-size: 14px }
+.svc-row .btn { min-height: 44px; padding: 0 var(--s3); font-size: 14px; gap: 6px }
+.svc-concluido { flex: 0 1 auto }
+.svc-fotos .btn { flex: 1 1 0 }
+/* Campo "Item do orçamento": a lista abre por cima dos outros cartões */
+.escolher { position: relative }
+.escolher .field > span { font-size: 13px }
+.escolher-campo { display: flex }
+.escolher-campo .ipt { flex: 1; min-width: 0; min-height: 40px; border-top-right-radius: 0; border-bottom-right-radius: 0; font-size: 14px }
+.escolher-seta { width: 40px; flex: none; border: 1.5px solid #C3CDD2; border-left: 0; border-radius: 0 var(--r-btn) var(--r-btn) 0; background: #fff; font-size: 16px; cursor: pointer }
+.escolher-lista { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 4px 0; list-style: none; max-height: 340px; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: 0 8px 24px rgba(38, 51, 58, .18) }
+.escolher-lista button { display: block; width: 100%; text-align: left; padding: 8px 12px; border: 0; background: none; font: inherit; font-size: 13.5px; line-height: 1.3; cursor: pointer; min-height: 40px }
+.escolher-lista button:hover, .escolher-lista button:focus-visible { background: var(--brand-tint) }
+.escolher-lista [aria-selected="true"] button { background: var(--brand-tint); font-weight: 600 }
+.escolher-grupo { padding: 8px 12px 4px; font-size: 12px; font-weight: 700; color: var(--slate); text-transform: none }
+.escolher-grupo.n1 { color: var(--ink); background: #F2F4F5; padding-top: 6px; padding-bottom: 6px }
+.escolher-vazio { padding: 10px 12px; font-size: 13.5px; color: var(--slate) }
 .thumbs { display: flex; gap: var(--s2); margin-top: 10px; flex-wrap: wrap }
 .thumb-foto { position: relative; width: 88px; flex: none }
 .thumb-foto img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: var(--r-btn); border: 1px solid var(--line) }
@@ -384,7 +556,10 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
 .send .hint { text-align: center; font-size: 13px; color: var(--slate); margin-top: 6px }
 .done-card { padding: var(--s4); display: flex; gap: var(--s3); align-items: flex-start; border-left: 6px solid var(--ok) }
 .done-card .big { font-family: var(--display); font-stretch: 85%; font-size: 22px; font-weight: 700 }
-.lanc-grid { display: grid; gap: var(--s3) }
+.lanc-grid { display: grid; gap: var(--s3); align-items: start }
+@media (min-width: 640px) { .lanc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (min-width: 1100px) { .lanc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) } }
+@media (min-width: 1440px) { .lanc-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) } }
 
 /* ── Barra de ferramentas e filtros ── */
 .toolbar { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center }
@@ -481,7 +656,6 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
   .sheet { left: auto; top: 0; bottom: 0; width: 460px; max-height: none; border-radius: 0; animation-name: entrar-lado }
   .send { bottom: 0 }
   .toast { bottom: 28px }
-  .lanc-grid { grid-template-columns: 1fr 1fr; align-items: start }
 }
 @keyframes entrar-lado { from { transform: translateX(24px); opacity: 0 } }
 /* Janela larga mas baixa (painel ao lado, notebook): menu mais compacto. */

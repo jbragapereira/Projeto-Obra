@@ -3,7 +3,7 @@ import { validarObra, aceitaLancamento, OBRA_VAZIA } from '../src/lib/obras.js'
 import { congelarMeta, bateuMeta, resumoMetas, podeIniciar } from '../src/lib/medicao.js'
 import {
   podeCorrigir, podeLancarData, validarEfetivo, totalEfetivo, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, efetivoParaComecar,
-  efetivoPorFuncao, concluidoAoMudarQuantidade, cartaoNoDiario, porQueNaoLanca, climaComChuva, acimaDoSaldo,
+  efetivoPorFuncao, concluidoAoMudarQuantidade, cartoesDoDia, ordemDosCartoes, atrasadaNoDia, escolherNoCartao, tirarCartao, itensParaCartao, planejadosNoDia, porQueNaoLanca, climaComChuva, acimaDoSaldo,
 } from '../src/lib/diario.js'
 
 let ok = 0
@@ -94,12 +94,21 @@ conferir('desmarcado à mão continua desmarcado mesmo cobrindo o saldo', conclu
 conferir('acima do saldo avisa', acimaDoSaldo({ quantidade: 90.5, saldo: 90 }), true)
 conferir('igual ao saldo não avisa', acimaDoSaldo({ quantidade: 90, saldo: 90 }), false)
 
-// Cartão do serviço no diário
-const item = (q, c = false) => ({ quantidade: q, concluido: c })
-conferir('serviço não concluído aparece', cartaoNoDiario({ concluidoEmOutroDia: false, item: item(0), jaNoDia: false }), true)
-conferir('concluído em outro dia e sem nada hoje: sai', cartaoNoDiario({ concluidoEmOutroDia: true, item: item(0), jaNoDia: false }), false)
-conferir('concluído em outro dia mas com quantidade hoje: fica', cartaoNoDiario({ concluidoEmOutroDia: true, item: item(5), jaNoDia: false }), true)
-conferir('na correção, o que já estava no dia fica mesmo zerado', cartaoNoDiario({ concluidoEmOutroDia: true, item: item(0), jaNoDia: true }), true)
+// Cartões de produção do dia (o item é escolhido em cada cartão)
+conferir('atrasada no dia: devia ter terminado e não está completo nem concluído', [atrasadaNoDia({ servico: { data_inicio_planejada: '2026-10-01', data_fim_planejada: '2026-10-10', qtd_contratada: 10 }, acumulado: 4, concluido: false, dia: '2026-10-20' }), atrasadaNoDia({ servico: { data_inicio_planejada: '2026-10-01', data_fim_planejada: '2026-10-10', qtd_contratada: 10 }, acumulado: 4, concluido: true, dia: '2026-10-20' }), atrasadaNoDia({ servico: { data_inicio_planejada: '2026-10-01', data_fim_planejada: '2026-10-30', qtd_contratada: 10 }, acumulado: 4, concluido: false, dia: '2026-10-20' })], [true, false, false])
+conferir('trocar o item de um cartão', escolherNoCartao(['a', 'b'], 0, 'c'), ['c', 'b'])
+conferir('tirar um cartão', tirarCartao(['a', 'b', 'c'], 1), ['a', 'c'])
+const an = (id, concluido = false) => ({ servico: { id }, concluido })
+// Dia novo: cartões das atividades planejadas na EAP para o dia (e as atrasadas)
+const no = (id, inicio, fim, real = 0) => ({ servico: { id }, inicio, fim, real })
+conferir('planejados no dia: o período inclui o dia ou está atrasada; sem terminadas, concluídas e sem datas',
+  planejadosNoDia({ itens: [no('a', '2026-10-01', '2026-10-30'), no('b', '2026-09-01', '2026-10-10', 0.5), no('c', '2026-10-25', '2026-11-30'), no('d', '2026-10-01', '2026-10-30', 1), no('e', '2026-10-01', '2026-10-30'), no('f', null, null)], dia: '2026-10-20', concluidos: new Set(['e']) }),
+  ['a', 'b'])
+conferir('correção: os lançados no dia e os planejados que faltam, sem repetir e sem cartão vazio', cartoesDoDia({ lancados: ['x', 'a'], planejados: ['a', 'b'] }), ['x', 'a', 'b'])
+conferir('dia novo: só os planejados', cartoesDoDia({ lancados: [], planejados: ['a'] }), ['a'])
+conferir('cartões em ordem crescente de código (1.2 antes de 1.10)', ordemDosCartoes(['x', 'y', 'z', 'w'], { x: '3.4.1', y: '2.1.1', z: '3.1.10', w: '3.1.4' }), [1, 3, 2, 0])
+conferir('lista do cartão: sem concluído em outro dia e sem o que está em outro cartão',
+  itensParaCartao({ analises: [an('a'), an('b', true), an('c'), an('d')], emOutrosCartoes: ['c'] }).map((x) => x.servico.id), ['a', 'd'])
 
 // Mensagens e clima
 conferir('equipe fora do prazo recebe a mensagem certa', porQueNaoLanca({ role: 'Equipe da obra', lancaDiario: true, obraAceita: true }).startsWith('A equipe lança'), true)

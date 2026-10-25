@@ -1,4 +1,6 @@
 import { addDias } from './datas.js'
+import { regraDaSemana } from './curtoPrazo.js'
+import { compararCodigos } from './planejamento.js'
 
 // Texto idêntico ao CHECK de diarios.clima_manha / clima_tarde.
 export const CLIMAS = ['Bom', 'Nublado', 'Chuva', 'Chuva forte']
@@ -125,7 +127,38 @@ export const concluiPeloSaldo = ({ quantidade, saldo }) => saldo > 0 && quantida
 export const concluidoAoMudarQuantidade = ({ quantidade, saldo, atual, manual }) =>
   (manual ? atual : concluiPeloSaldo({ quantidade, saldo }))
 
-// O cartão só sai do diário se o serviço foi concluído em outro dia; o que está
-// em lançamento (com quantidade, concluído ou já lançado neste dia) fica na tela.
-export const cartaoNoDiario = ({ concluidoEmOutroDia, item, jaNoDia }) =>
-  !concluidoEmOutroDia || !!item.concluido || item.quantidade > 0 || jaNoDia
+/* ── Cartões de produção do dia ──
+   Cada cartão é um item do orçamento. O diário de um dia abre só com os cartões do que está
+   planejado na EAP para aquele dia (e, na correção, os itens já lançados nele). Não há cartão vazio:
+   atividade fora do planejado entra lançando as datas dela na EAP. */
+
+// Planejados no dia: o período do item na EAP inclui o dia, ou já deveria ter terminado e não terminou
+// (atrasada). A mesma regra do Kanban, com a "semana" de um dia só. Fica de fora o item terminado
+// (100% no Diário) ou concluído em outro dia.
+// itens: as folhas da EAP (montarEap) com inicio, fim e real; concluidos: Set de servico_id.
+// O cartão marca "Atrasada": já devia ter terminado na EAP e o item não está concluído nem completo.
+export const atrasadaNoDia = ({ servico, acumulado, concluido, dia }) =>
+  !concluido && regraDaSemana({ inicio: servico.data_inicio_planejada, fim: servico.data_fim_planejada, real: servico.qtd_contratada > 0 ? acumulado / servico.qtd_contratada : 0 }, { inicio: dia, fim: dia }).atrasada
+
+export const planejadosNoDia = ({ itens, dia, concluidos }) =>
+  itens.filter((n) => regraDaSemana(n, { inicio: dia, fim: dia }).entra && !concluidos.has(n.servico.id)).map((n) => n.servico.id)
+
+// Os cartões de um dia (novo ou em correção): os itens já lançados naquele dia, depois os planejados
+// na EAP que ainda não estão lá.
+export const cartoesDoDia = ({ lancados, planejados }) => [...lancados, ...planejados.filter((id) => !lancados.includes(id))]
+
+// Ordem em que os cartões aparecem: pelo código do item, do menor para o maior (1.2 antes de 1.10),
+// sempre — também depois de trocar o item de um cartão. Devolve as posições de cartoes na ordem certa.
+export const ordemDosCartoes = (cartoes, codigoDe) =>
+  cartoes.map((id, indice) => ({ id, indice })).sort((x, y) => compararCodigos(codigoDe[x.id] ?? '', codigoDe[y.id] ?? '')).map((c) => c.indice)
+
+// Trocar o item de um cartão (escolhido errado).
+export const escolherNoCartao = (cartoes, indice, servicoId) => cartoes.map((c, i) => (i === indice ? servicoId : c))
+
+// Tirar um cartão que não vai ser usado no dia.
+export const tirarCartao = (cartoes, indice) => cartoes.filter((_, i) => i !== indice)
+
+// O que pode ser escolhido num cartão: itens não concluídos em outro dia e que não estão em
+// OUTRO cartão do dia (o item do próprio cartão continua na lista).
+export const itensParaCartao = ({ analises, emOutrosCartoes }) =>
+  analises.filter((a) => !a.concluido && !emOutrosCartoes.includes(a.servico.id))

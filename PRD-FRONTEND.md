@@ -224,7 +224,8 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 - **Tirar foto:** abre a câmera; a foto aparece em miniatura no serviço.
 - **Enviar:** salva o diário, os lançamentos e as fotos. Mostra "Diário de 23/10 enviado" e volta para a lista.
 - **Histórico:** os dias anteriores aparecem em cartões, do mais novo para o mais antigo: data por extenso, etiqueta do clima, total do efetivo, quantos serviços e fotos, as **atividades do dia — o nome de cada serviço que teve produção (os cartões), com a quantidade**, ocorrências em vermelho e miniaturas das fotos (até 4, com "+N"). Tocar no cartão abre aquele dia.
-- **Quantidade do serviço:** cada cartão mostra o **feito no mês** e o **saldo do item** (contratado − acumulado), os dois **em tempo real** enquanto a quantidade é digitada, com o valor de antes entre parênteses ("Feito 42,5 m de 120 m no mês (era 30 m)"). A quantidade de um dia fora do período da medição não entra no feito do mês. No planejamento da Medição, o R$ de cada linha e a meta em montagem também mudam enquanto se digita. O botão **"Concluído"** (antes "Marcar concluído") fica marcado sozinho quando a quantidade do dia cobre o saldo, e pode ser desmarcado. Quantidade acima do saldo mostra o aviso "Acima do saldo do item", sem bloquear.
+- **Cartões de produção (desde 24/10/2026):** o dia novo já abre com **um cartão para cada atividade planejada na EAP para aquele dia** (o período do item inclui o dia) **e as atrasadas** (deveriam ter terminado e não terminaram); item terminado no Diário ou concluído em outro dia fica de fora. É a mesma regra do Kanban do Curto prazo, para um dia só. **Não há cartão vazio** (desde 25/10/2026): o diário tem só os cartões do planejado na EAP; atividade fora do planejado entra lançando as datas dela na EAP. Dia sem nada planejado mostra o aviso "Nenhuma atividade planejada na EAP para este dia". No topo de cada cartão, o campo **"Item do orçamento"** com a **setinha ▾** permite trocar o item (escolhido errado); digitar filtra pelo código ou pela descrição. Escolhido o item, o cartão traz código, descrição, unidade, a **situação no Kanban da semana** (A fazer, Em andamento, Concluído, Não realizado; a mesma do Curto prazo), "Atrasada" quando já devia ter terminado, o **período na EAP** ("Período na EAP: dd/mm/aaaa a dd/mm/aaaa", ou "Sem datas na EAP"), feito no mês, saldo do item, quantidade, memória de cálculo, quem executou, Concluído e fotos. Não aparecem na lista os itens concluídos em outro dia nem os que já estão em outro cartão do dia. Trocar o item ou tirar (✕) um cartão com lançamento pergunta antes, porque apaga o lançamento. **Enviar o diário faz o Kanban andar:** item com produção que estava "A fazer" vai para "Em andamento", e item concluído no diário vai para "Concluído" (nunca volta; não mexe em "Não realizado" nem em atividade tirada da semana). Na correção, os cartões abrem com os itens já lançados naquele dia e, junto, as atividades planejadas na EAP para o dia que ainda não estavam lá (sem repetir). O ✕ tira um cartão que não vai ser usado; trocar de dia e voltar recria os cartões. Cartões compactos: 1 por linha no celular, 3 no notebook e 4 em tela larga.
+- **Quantidade do serviço:** cada cartão mostra o **feito no mês** ("Feito X de Y no mês", com Y = a meta do item na **Medição** atual; item sem meta na Medição mostra "Feito X no mês (sem meta na Medição)" — a meta do mês vem da Medição, não da EAP) e o **saldo do item** (contratado − acumulado), os dois **em tempo real** enquanto a quantidade é digitada, com o valor de antes entre parênteses ("Feito 42,5 m de 120 m no mês (era 30 m)"). A quantidade de um dia fora do período da medição não entra no feito do mês. No planejamento da Medição, o R$ de cada linha e a meta em montagem também mudam enquanto se digita. O botão **"Concluído"** (antes "Marcar concluído") fica marcado sozinho quando a quantidade do dia cobre o saldo, e pode ser desmarcado. Quantidade acima do saldo mostra o aviso "Acima do saldo do item", sem bloquear.
 - **Efetivo de um dia novo** já começa com o efetivo do último diário anterior, para só ajustar. Linha deixada em branco é ignorada no envio.
 - **Concluído à mão vale:** se a pessoa marcar ou desmarcar o Concluído, mudar a quantidade depois não muda a escolha dela.
 - **Trocar de dia** com um lançamento ainda não enviado pede confirmação antes de descartar; durante o preparo de uma foto, o dia não pode ser trocado.
@@ -290,7 +291,7 @@ saldo, responsável e, para quem vê valores, C. Unit., BDI, P. Unit. e P. Total
 ## Tela: Planejamento — aba EAP (F1, desde 24/10/2026)
 
 **Quem acessa:** Engenheiro (lança as datas), Diretoria e Equipe da obra (veem). Fiscalização não vê.
-**Chega aqui por:** menu Planejamento, primeira aba. As abas Longo, Médio e Curto prazo vêm nas próximas etapas.
+**Chega aqui por:** menu Planejamento, primeira aba. Ciclo de uso: EAP → Longo prazo → Médio prazo → Curto prazo.
 
 **O que mostra:** a árvore do Orçamento (etapa › subgrupo › item), sem lista paralela: itens e grupos
 vêm do Orçamento e **não são criados nem editados aqui** (botão "Ir para o Orçamento"). Cada linha tem
@@ -308,6 +309,82 @@ subetapa, que puxa a etapa). Grupo só com itens sem data fica "Sem datas".
 topo mostra "N item(ns) com data não salva", **Salvar datas** (grava tudo de uma vez) e **Cancelar**
 (descarta, com confirmação). **Fim antes do início** (ou só uma data) deixa a linha vermelha e impede
 salvar. No celular, os dois campos ficam embaixo do item; no computador, numa coluna à direita.
+
+---
+
+## Tela: Planejamento — aba Longo prazo (F1, desde 24/10/2026)
+
+**Quem acessa:** Engenheiro, Diretoria e Equipe da obra (só leitura; nada aqui mostra R$).
+
+**O que mostra:** o cronograma em barras da EAP (sem biblioteca de Gantt), com as mesmas linhas
+(etapa › subetapa › item) e as datas lançadas na EAP. Cada barra vai do início ao fim planejado; a
+parte cheia é o **avanço real** (Diário ÷ quantidade vigente) e a marca fina é o **previsto para hoje**,
+contado em **dias úteis** pelo calendário da obra. Linha vertical de **hoje**. No grupo, previsto e
+real são médias dos itens com datas, ponderadas pelo valor (simples para quem não vê valores).
+- **Situação (cor da barra):** Em dia (verde: até 2 pontos atrás), Atenção (âmbar: até 10 pontos
+  atrás), Atrasado (vermelho: mais de 10 pontos, ou passou do fim sem concluir), Concluído (cinza),
+  A iniciar (azul, antes do início).
+- **Escala Semana ou Mês** (botão). Coluna fixa à esquerda com código, nome e "Prev. / Real".
+- Grupos abrem e fecham (de início só as etapas); busca; filtro **Atrasados (N)**; Abrir/Fechar tudo.
+- Itens sem datas não entram; aviso "N itens sem datas" com o botão **Lançar datas na EAP**.
+- **No celular:** lista com código, nome, datas, "Previsto X%, real Y%", a situação e a barra.
+- Para depois: linha de base (salvar o planejado e comparar com o atual).
+
+---
+
+## Tela: Planejamento — aba Médio prazo (F1, desde 24/10/2026)
+
+**Quem acessa:** Engenheiro e Equipe da obra **criam e resolvem** restrições; **editar, mover de semana
+e excluir é só do Engenheiro**; a Diretoria só vê.
+
+**O que mostra:** um quadro com **uma coluna por semana** (segunda a domingo), começando na semana de
+hoje; **3, 4 (padrão), 5 ou 6 semanas**. Cada coluna: datas, "N atividades" e "N restrições abertas";
+os cartões de **restrição** daquela semana e, recolhida, a lista **"Atividades previstas"** (itens da
+EAP cujo período cruza a semana e que não terminaram), cada uma **Liberada** (sem restrição aberta) ou
+**Com restrição**, com "＋" para registrar restrição nela.
+- **Cartão da restrição:** tipo com cor e ícone (**Material, Mão de obra, Método, Equipamento,
+  Projeto, Segurança, Logística**), descrição, atividade (código e nome), responsável e prazo (vermelho
+  e "vencido" quando passou sem resolver). Botões: **Resolver** / Reabrir (guarda quem e quando),
+  **◀ ▶** para mover de semana (sem arrastar) e **Editar**.
+- Restrição aberta de semana que já passou aparece em "Esta semana" com "Veio da semana de dd/mm";
+  resolvida nesta semana também continua lá.
+- **Nova restrição:** atividade (campo com setinha e busca, só itens com datas), tipo, o que está
+  travando, semana, prazo para resolver e responsável (texto com sugestões dos responsáveis da obra).
+- **Filtros:** número de semanas, responsável e **Mostrar resolvidas** (de início escondidas).
+- **No celular:** uma semana por vez, com as abas "Sem. 1…N" (e o número de restrições abertas).
+
+---
+
+## Tela: Planejamento — aba Curto prazo (F1, desde 24/10/2026)
+
+**Quem acessa:** Engenheiro e Equipe da obra **movem as atividades e cuidam das subtarefas**; **tirar
+atividade da semana é só do Engenheiro**; a Diretoria só vê.
+
+**O que mostra:** a semana (segunda a domingo) com **◀ ▶** para navegar e "Hoje" para voltar.
+- **PPC da semana** = atividades concluídas ÷ planejadas × 100, em número grande, barra e "X de Y
+  concluídas". Ao lado, o **PPC das últimas 8 semanas** (barras; tocar leva à semana) e as
+  **principais causas** de não realizado nessas semanas.
+- **Kanban** com 4 colunas: **A fazer, Em andamento, Concluído, Não realizado**. Mover é por botões
+  (Iniciar, Concluir, Não realizado, Voltar, Reabrir), sem arrastar. **Não realizado exige a causa
+  raiz**: Material, Mão de obra, Projeto, Método, Equipamento, Segurança, Logística, Clima ou Outra
+  (com texto).
+- **Cartão:** código e nome, "Atrasada" (deveria ter terminado), "Com restrição" (restrição aberta
+  no Médio prazo), responsável, datas e a barra do real no Diário. **Subtarefas** (checklist): incluir,
+  marcar feita, marcar não realizada (com causa) e excluir; o cartão mostra "X de Y".
+- **Quem entra na semana (automático):** o item da EAP cujo período cruza a semana, ou que já
+  deveria ter terminado e não terminou (atrasada); item terminado no Diário sai. O que já foi mexido
+  na semana continua lá. O engenheiro pode **tirar da semana** (vai para "Fora da semana", não conta
+  no PPC) e devolver.
+- **No celular:** as 4 colunas viram abas com o número de atividades de cada uma.
+
+---
+
+## Tela: Ajustes — calendário de trabalho (F1, desde 24/10/2026)
+
+Para a obra escolhida no topo: os **dias de trabalho** (Dom a Sáb; padrão seg a sex) e os **feriados**.
+Toda obra nasce com os feriados nacionais de 2026 e 2027 (com Carnaval e Corpus Christi); o engenheiro
+tira o que a obra trabalha e inclui os municipais e estaduais (data e nome). "Salvar calendário".
+O previsto do Longo prazo e os "dias úteis" da EAP contam por ele.
 
 ---
 

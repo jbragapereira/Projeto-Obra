@@ -197,6 +197,86 @@ lançamentos do item), nem abaixo de zero. Conferido em `validarAditivo` e, no b
 
 ---
 
+## Tabela `restricoes` (F1, desde 24/10/2026)
+
+Para que serve: as restrições (impedimentos) das atividades no médio prazo (lookahead).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| servico_id | uuid | sim | → servicos da mesma obra (a atividade travada) |
+| tipo | text | sim | CHECK: `Material`, `Mão de obra`, `Método`, `Equipamento`, `Projeto`, `Segurança`, `Logística` |
+| descricao | text | sim | |
+| semana | date | sim | a segunda-feira da semana (CHECK: extract(isodow) = 1) |
+| prazo | date | sim | prazo para resolver |
+| responsavel | text | sim | quem vai resolver (texto livre) |
+| resolvida | boolean | sim | padrão falso |
+| resolvida_em | timestamptz | não | |
+| resolvida_por | uuid | não | → profiles |
+| criado_por | uuid | sim | → profiles |
+| created_at | timestamptz | sim | automático |
+
+**Permissões:** quem é da obra lê. Engenheiro e Equipe da obra inserem e resolvem (só as colunas
+resolvida, resolvida_em, resolvida_por); editar, mover (semana) e excluir é do Engenheiro.
+
+---
+
+## Tabela `semana_atividades` (F1, desde 24/10/2026)
+
+Para que serve: a situação de cada atividade no kanban de uma semana (curto prazo). Uma linha por
+atividade e semana, criada na primeira vez que a atividade é mexida; sem linha = "A fazer".
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| semana | date | sim | a segunda-feira |
+| servico_id | uuid | sim | → servicos da mesma obra; único por (obra, semana, servico) |
+| status | text | sim | CHECK: `A fazer`, `Em andamento`, `Concluído`, `Não realizado` |
+| causa | text | não | obrigatória quando `Não realizado`. CHECK: `Material`, `Mão de obra`, `Projeto`, `Método`, `Equipamento`, `Segurança`, `Logística`, `Clima`, `Outra` |
+| causa_texto | text | não | obrigatória quando a causa é `Outra` |
+| fora | boolean | sim | tirada da semana pelo engenheiro (não conta no PPC); padrão falso |
+| atualizado_por | uuid | não | → profiles |
+| atualizado_em | timestamptz | não | |
+
+**PPC da semana** = linhas `Concluído` ÷ atividades planejadas na semana (as da regra mais as com linha, menos as `fora`).
+
+---
+
+## Tabela `subtarefas` (F1, desde 24/10/2026)
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| semana | date | sim | a segunda-feira |
+| servico_id | uuid | sim | → servicos da mesma obra |
+| texto | text | sim | |
+| situacao | text | sim | CHECK: `Pendente`, `Feita`, `Não realizada` |
+| causa, causa_texto | text | não | como em semana_atividades, obrigatória quando `Não realizada` |
+| criado_por | uuid | sim | → profiles |
+
+**Permissões (semana_atividades e subtarefas):** quem é da obra lê; Engenheiro e Equipe da obra
+gravam; marcar `fora` é só do Engenheiro.
+
+---
+
+## Tabela `calendarios` (F1, desde 24/10/2026)
+
+Para que serve: o calendário de trabalho de cada obra (uma linha por obra).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras; único |
+| dias_semana | smallint[] | sim | 0 = domingo … 6 = sábado; ao menos um; padrão {1,2,3,4,5} |
+| feriados | jsonb | sim | [{ data: 'AAAA-MM-DD', nome }], sem data repetida; nasce com os nacionais |
+
+Só o Engenheiro grava. Quem é da obra lê (o cronograma usa).
+
+---
+
 ## Tabela `orcamentos` (F1, desde 24/10/2026)
 
 Para que serve: o cabeçalho do orçamento de cada obra (uma linha por obra).

@@ -35,3 +35,6 @@ export const dataLonga = (iso) => {
   const d = meioDia(iso)
   return `${DIAS[d.getDay()]}, ${iso.slice(8, 10)} de ${MESES[d.getMonth()]}`
 }
+
+// Segunda-feira da semana de uma data (a semana do app vai de segunda a domingo).
+export const segundaDaSemana = (iso) => addDias(iso, -((new Date(`${iso}T12:00:00`).getDay() + 6) % 7))

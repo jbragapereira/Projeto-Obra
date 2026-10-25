@@ -4,27 +4,31 @@
 import { useEffect, useState } from 'react'
 import {
   buscarEndereco, buscarMedicaoAtual, juntar, listarDiarios, listarFotos, listarFuncoes, listarItensMedicao,
-  listarLancamentos, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
+  listarGrupos, listarLancamentos, listarSemanaAtividades, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
 } from '../lib/dados.js'
 import {
-  CLIMAS, acimaDoSaldo, cartaoNoDiario, climaComChuva, concluidoAoMudarQuantidade, diarioTemConteudo, efetivoParaComecar, efetivoPorFuncao,
+  CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluidoAoMudarQuantidade, diarioTemConteudo, efetivoParaComecar, efetivoPorFuncao,
+  escolherNoCartao, itemTemConteudo, itensParaCartao, planejadosNoDia, tirarCartao,
   feitoNoMesComODia, podeCorrigir, podeLancarData, porQueNaoLanca, primeiroDiaPermitido, saldoDoItem, saldoRestante, temPrazoDeCorrecao,
   totalEfetivo, ultimoDiaDeCorrecao, validarEfetivo,
 } from '../lib/diario.js'
-import { analisarServico, ORDEM_SITUACAO } from '../lib/painel.js'
+import { analisarServico } from '../lib/painel.js'
+import { achatarEap, acumuladoPorServico, ehItem, montarEap } from '../lib/planejamento.js'
+import { COR_STATUS_SEMANA, statusNaSemana } from '../lib/curtoPrazo.js'
 import { podeEditar, podeLancar, rotuloDoDiario, veCadastrosDoDiario } from '../lib/perfis.js'
 import { TIPOS_RESPONSAVEL, aceitaLancamento } from '../lib/obras.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
-import { dataHoraCurta, dataLonga, dm, dmy, hojeISO } from '../lib/datas.js'
+import { dataHoraCurta, dataLonga, dm, dmy, hojeISO, segundaDaSemana } from '../lib/datas.js'
 import { ORIGENS_DATA } from '../lib/fotos.js'
-import { CampoNumero, Carregando, Critico, ErroCarga, Faixa, Icon, Meta, Pill, Vazio, avisar, useDados } from '../components/index.jsx'
+import { CampoNumero, Carregando, Critico, ErroCarga, Faixa, Icon, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
 import { prepararFoto } from '../components/prepararFoto.js'
+import EscolherItem from '../components/EscolherItem.jsx'
 import DiarioCadastros from './diarioCadastros.jsx'
 
 async function carregar() {
   const r = await juntar({
     servicos: listarServicos(), lancamentos: listarLancamentos(), responsaveis: listarResponsaveis(),
-    diarios: listarDiarios(), medicao: buscarMedicaoAtual(), funcoes: listarFuncoes(), fotos: listarFotos(),
+    diarios: listarDiarios(), medicao: buscarMedicaoAtual(), funcoes: listarFuncoes(), fotos: listarFotos(), grupos: listarGrupos(), semanaAtividades: listarSemanaAtividades(),
   })
   if (r.erro || !r.data.medicao) return r
   const itens = await listarItensMedicao(r.data.medicao.id)
@@ -93,7 +97,8 @@ function Clima({ diario }) {
   return <span className={`pill ${climaComChuva(diario) ? 'amber' : 'soft'}`}>{texto}</span>
 }
 
-function formularioDe(dados, dia, diario) {
+// Cartões: os itens lançados no dia (na correção) e as atividades planejadas na EAP para o dia.
+function formularioDe(dados, dia, diario, planejados = []) {
   const daqui = dados.lancamentos.filter((l) => diario && l.diario_id === diario.id)
   const itens = {}
   for (const s of dados.servicos) {
@@ -112,7 +117,7 @@ function formularioDe(dados, dia, diario) {
       ? diario.efetivo.map((l) => ({ responsavel_id: l.responsavel_id, funcao_id: l.funcao_id, quantidade: l.quantidade }))
       : efetivoParaComecar(dados.diarios, dia),
     itens,
-    extras: daqui.map((l) => l.servico_id),
+    cartoes: cartoesDoDia({ lancados: daqui.map((l) => l.servico_id), planejados }), // um item do orçamento por cartão
   }
 }
 
@@ -123,7 +128,6 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   const hoje = hojeISO()
   const [dia, setDia] = useState(hoje)
   const [form, setForm] = useState(null)
-  const [busca, setBusca] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [comprimindo, setComprimindo] = useState([]) // ids dos serviços com foto sendo preparada
   const [novaFuncao, setNovaFuncao] = useState(null) // nome em digitação, ou null (fechado)
@@ -140,6 +144,12 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   }
 
   const fotosDoDiario = (id) => data.fotos.filter((f) => f.diario_id === id)
+  // As atividades planejadas na EAP para o dia (ou atrasadas) abrem em cartões, no dia novo e na correção.
+  const executado = acumuladoPorServico(data.lancamentos)
+  const planejados = planejadosNoDia({
+    itens: achatarEap(montarEap({ servicos: data.servicos, grupos: data.grupos, acumulado: executado })).filter(ehItem).map((n) => ({ ...n, real: n.progresso })),
+    dia, concluidos: new Set(data.lancamentos.filter((l) => l.concluido).map((l) => l.servico_id)),
+  })
   const diarioDoDia = data.diarios.find((x) => x.data === dia)
   const autorDoDia = diarioDoDia?.criado_por
   const pode = lanca && aceitaLancamento(obra)
@@ -153,7 +163,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
     const temRascunho = form && (fotosDoForm.length || diarioTemConteudo({ itens: Object.values(form.itens), efetivo: form.efetivo, ocorrencias: form.ocorrencias }))
     if (temRascunho && !window.confirm('Há um lançamento que ainda não foi enviado. Trocar de dia e descartar?')) return
     fotosDoForm.forEach((f) => URL.revokeObjectURL(f.url_previa))
-    setDia(novo); setForm(null); setBusca(''); setNovaFuncao(null); setNovoResp(null)
+    setDia(novo); setForm(null); setNovaFuncao(null); setNovoResp(null)
     window.scrollTo(0, 0)
   }
 
@@ -223,7 +233,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
                 <Miniaturas fotos={fotosDoDiario(diarioDoDia.id)} max={8} />
                 {corrigivel && <>
                   {temPrazoDeCorrecao(profile.role) && <div className="obs" style={{ fontSize: 14, marginTop: 8 }}>Dá para corrigir até {dm(ultimoDiaDeCorrecao(dia))}, 23h59.</div>}
-                  <button className="btn" style={{ marginTop: 10 }} onClick={() => setForm(formularioDe(data, dia, diarioDoDia))}>Corrigir este diário</button>
+                  <button className="btn" style={{ marginTop: 10 }} onClick={() => setForm(formularioDe(data, dia, diarioDoDia, planejados))}>Corrigir este diário</button>
                 </>}
               </div>
             </section>
@@ -236,7 +246,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
     )
   }
 
-  const f = form ?? formularioDe(data, dia, null)
+  const f = form ?? formularioDe(data, dia, null, planejados)
   const atualizar = (mudanca) => setForm({ ...f, ...mudanca })
   const atualizarItem = (id, mudanca) => setForm({ ...f, itens: { ...f.itens, [id]: { ...f.itens[id], ...mudanca } } })
   const atualizarLinha = (i, mudanca) => atualizar({ efetivo: f.efetivo.map((l, k) => (k === i ? { ...l, ...mudanca } : l)) })
@@ -248,23 +258,16 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   const lancamentosDeOutrosDias = data.lancamentos.filter((l) => !diarioDoDia || l.diario_id !== diarioDoDia.id)
   const analises = data.servicos.filter((s) => s.ativo).map((s) =>
     analisarServico({ servico: s, lancamentos: lancamentosDeOutrosDias, item: itemDe[s.id] ?? null, medicao: data.medicao, hoje }))
-  // Cartão some só se o serviço já foi concluído em outro dia; o que está em
-  // lançamento (com quantidade, concluído ou já lançado neste dia) fica na tela.
-  const visiveis = analises
-    .filter((a) => cartaoNoDiario({ concluidoEmOutroDia: a.concluido, item: f.itens[a.servico.id], jaNoDia: f.extras.includes(a.servico.id) }))
-    .filter((a) => a.noMes || f.extras.includes(a.servico.id))
-    .sort((x, y) => ORDEM_SITUACAO.indexOf(x.situacao) - ORDEM_SITUACAO.indexOf(y.situacao))
-  const termo = busca.trim().toLowerCase()
-  const achados = termo
-    ? analises.filter((a) => !a.concluido && !visiveis.includes(a) && `${a.servico.codigo} ${a.servico.descricao}`.toLowerCase().includes(termo)).slice(0, 6)
-    : []
+  const analiseDe = Object.fromEntries(analises.map((a) => [a.servico.id, a]))
+  const codigoDe = Object.fromEntries(data.servicos.map((s) => [s.id, s.codigo]))
+  const nomeDoGrupo = Object.fromEntries(data.grupos.map((g) => [g.codigo, g.nome]))
   const comProducao = Object.values(f.itens).filter((i) => i.quantidade > 0).length
   const fotosNovas = Object.values(f.itens).reduce((s, i) => s + i.fotos.length, 0)
   const temConteudo = diarioTemConteudo({ itens: Object.values(f.itens), efetivo: f.efetivo, ocorrencias: f.ocorrencias })
 
   // A compressão demora um instante: as fotos entram no formulário pelo estado mais recente.
   const mudarFotos = (id, mudar) => setForm((atual) => {
-    const base = atual ?? formularioDe(data, dia, null)
+    const base = atual ?? formularioDe(data, dia, null, planejados)
     return { ...base, itens: { ...base.itens, [id]: { ...base.itens[id], fotos: mudar(base.itens[id].fotos) } } }
   })
 
@@ -292,6 +295,28 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   function tirarFoto(id, foto) {
     URL.revokeObjectURL(foto.url_previa)
     mudarFotos(id, (fotos) => fotos.filter((x) => x !== foto))
+  }
+
+  // Cartão com algo lançado: trocar o item ou tirar o cartão apaga o lançamento dele (pergunta antes).
+  const cartaoTemConteudo = (id) => !!id && (itemTemConteudo(f.itens[id]) || f.itens[id].fotos.length > 0)
+  const limparItem = (id) => {
+    f.itens[id].fotos.forEach((foto) => URL.revokeObjectURL(foto.url_previa))
+    const s = data.servicos.find((x) => x.id === id)
+    return { quantidade: 0, responsavel_id: s?.responsavel_id ?? null, concluido: false, concluidoManual: false, memoria_calculo: '', fotos: [] }
+  }
+  function mexerNoCartao(indice, novoId) {
+    const atual = f.cartoes[indice]
+    if (atual && comprimindo.includes(atual)) { avisar('Espere a foto terminar de ser preparada.'); return }
+    if (atual === novoId) return
+    if (cartaoTemConteudo(atual)) {
+      const s = analiseDe[atual]?.servico
+      if (!window.confirm(`O cartão de ${s?.codigo ?? 'item'} tem lançamento (quantidade, memória ou foto). ${novoId ? 'Trocar o item' : 'Tirar o cartão'} apaga esse lançamento. Continuar?`)) return
+    }
+    setForm({
+      ...f,
+      cartoes: novoId ? escolherNoCartao(f.cartoes, indice, novoId) : tirarCartao(f.cartoes, indice),
+      itens: atual ? { ...f.itens, [atual]: limparItem(atual) } : f.itens,
+    })
   }
 
   // O cadastrado já entra na primeira linha que estava sem aquele campo (ou numa linha nova).
@@ -343,7 +368,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
 
   return (
     <>
-      <div className="view">
+      <div className="view larga">
         {seletorDeDia}
 
         <section className="card card-b" style={{ display: 'grid', gap: 12 }}>
@@ -423,29 +448,52 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
           )}
         </section>
 
-        <div className="sec-t">Produção {dia === hoje ? 'de hoje' : `de ${dmy(dia)}`} ({visiveis.length} serviços)</div>
+        <div className="sec-t">Produção {dia === hoje ? 'de hoje' : `de ${dmy(dia)}`} ({f.cartoes.length} {f.cartoes.length === 1 ? 'item planejado' : 'itens planejados'} na EAP)</div>
+        {!f.cartoes.length && (
+          <p className="obs" style={{ margin: 0 }}>Nenhuma atividade planejada na EAP para este dia. Para lançar produção, coloque as datas da atividade na EAP (Planejamento).</p>
+        )}
         <div className="lanc-grid">
-          {visiveis.map((a) => {
+          {ordemDosCartoes(f.cartoes, codigoDe).map((indice) => {
+            const sid = f.cartoes[indice]
+            const a = analiseDe[sid]
+            if (!a) return null // item arquivado no Orçamento depois do lançamento
+            const escolha = (
+              <div className="svc-topo">
+                <EscolherItem nomeDoGrupo={nomeDoGrupo} escolhido={a.servico} onEscolher={(id) => mexerNoCartao(indice, id)}
+                  itens={itensParaCartao({ analises, emOutrosCartoes: f.cartoes.filter((_, i) => i !== indice) }).map((x) => x.servico)} />
+                <button className="remover" aria-label={`Tirar o cartão ${a.servico.codigo}`} onClick={() => mexerNoCartao(indice, null)}>✕</button>
+              </div>
+            )
             const s = a.servico
             const it = f.itens[s.id]
             const saldo = saldoDoItem({ contratado: s.qtd_contratada, acumulado: a.acumulado })
             const fica = saldoRestante({ saldo, quantidade: it.quantidade })
             const feito = feitoNoMesComODia({ executadoNoMes: a.executadoPeriodo, quantidade: it.quantidade, dia, medicao: data.medicao })
             const feitoMudou = feito !== a.executadoPeriodo
+            // A situação é a do Kanban da semana do dia (Curto prazo); o período, o da EAP.
+            const status = statusNaSemana({ registros: data.semanaAtividades, semana: segundaDaSemana(dia), servicoId: s.id })
+            const atrasada = atrasadaNoDia({ servico: s, acumulado: a.acumulado, concluido: a.concluido, dia })
             // Quantidade nova: o Concluído acompanha sozinho o saldo do item.
             const mudarQuantidade = (q) => atualizarItem(s.id, {
               quantidade: q, concluido: concluidoAoMudarQuantidade({ quantidade: q, saldo, atual: it.concluido, manual: it.concluidoManual }),
             })
             return (
               <section key={s.id} className={`card svc ${it.quantidade > 0 ? 'has' : ''}`}>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div className="t">{s.descricao}</div>
-                    <Meta><span className="cod">{s.codigo}</span>{s.critico && <Critico />}{a.noMes
-                      ? <span className={`saldo ${feitoMudou ? 'mudou' : ''}`} aria-live="polite">Feito <b>{qtd(feito, s.unidade)}</b> de {qtd(a.planejadoMes, s.unidade)} no mês{feitoMudou && <span className="obs"> (era {qtd(a.executadoPeriodo, s.unidade)})</span>}</span>
-                      : 'Fora do planejado do mês'}<span className={`saldo ${it.quantidade > 0 ? 'mudou' : ''}`} aria-live="polite">Saldo do item: <b>{qtd(fica, s.unidade)}</b>{it.quantidade > 0 && <span className="obs"> (era {qtd(saldo, s.unidade)})</span>}</span></Meta>
-                  </div>
-                  <Pill situacao={a.situacao} />
+                {escolha}
+                <div className="svc-cab">
+                  <div className="t" title={s.descricao}>{s.descricao}</div>
+                  <span className={`pill ${COR_STATUS_SEMANA[status]}`} title="Situação da atividade no Kanban desta semana (Planejamento › Curto prazo)">{status}</span>
+                </div>
+                <Meta><span className="cod">{s.codigo}</span>{s.unidade}{s.critico && <Critico />}{atrasada && <span className="pill red">Atrasada</span>}</Meta>
+                <div className="svc-periodo">{s.data_inicio_planejada ? <>Período na EAP: <b>{dmy(s.data_inicio_planejada)} a {dmy(s.data_fim_planejada)}</b></> : <span className="obs">Sem datas na EAP</span>}</div>
+                <div className="svc-contas">
+                  {/* A meta do mês vem da Medição (não da EAP): item sem meta mostra só o feito no mês. */}
+                  <span className={`saldo ${feitoMudou ? 'mudou' : ''}`} aria-live="polite">
+                    Feito <b>{qtd(feito, s.unidade)}</b>{a.noMes ? <> de {qtd(a.planejadoMes, s.unidade)}</> : null} no mês
+                    {!a.noMes && <span className="obs"> (sem meta na Medição)</span>}
+                    {feitoMudou && <span className="obs"> (era {qtd(a.executadoPeriodo, s.unidade)})</span>}
+                  </span>
+                  <span className={`saldo ${it.quantidade > 0 ? 'mudou' : ''}`} aria-live="polite">Saldo do item: <b>{qtd(fica, s.unidade)}</b>{it.quantidade > 0 && <span className="obs"> (era {qtd(saldo, s.unidade)})</span>}</span>
                 </div>
                 <div className="qty">
                   <button aria-label={`Diminuir ${s.descricao}`} onClick={() => mudarQuantidade(Math.max(0, it.quantidade - 1))}>−</button>
@@ -455,7 +503,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
                   <button aria-label={`Aumentar ${s.descricao}`} onClick={() => mudarQuantidade(it.quantidade + 1)}>＋</button>
                 </div>
                 {acimaDoSaldo({ quantidade: it.quantidade, saldo }) && (
-                  <div className="alerta" style={{ fontSize: 14, marginTop: 6 }}>Acima do saldo do item ({qtd(saldo, s.unidade)}). Confira a quantidade.</div>
+                  <div className="alerta" style={{ fontSize: 13, marginTop: 6 }}>Acima do saldo do item ({qtd(saldo, s.unidade)}). Confira a quantidade.</div>
                 )}
                 <label className="field memoria">
                   <span>Memória de cálculo</span>
@@ -469,21 +517,19 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
                       {data.responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
                     </select>
                   </label>
-                </div>
-                <div className="svc-row">
-                  <button className={`btn ${it.concluido ? 'on' : ''}`} style={{ flex: 1 }} aria-pressed={it.concluido}
+                  <button className={`btn svc-concluido ${it.concluido ? 'on' : ''}`} aria-pressed={it.concluido}
                     title="Fica marcado sozinho quando a quantidade do dia cobre o saldo do item; marcado ou desmarcado à mão, a sua escolha vale"
                     onClick={() => atualizarItem(s.id, { concluido: !it.concluido, concluidoManual: true })}>
-                    {it.concluido ? <Icon nome="check" tamanho={20} /> : <span className="caixa" aria-hidden="true" />} Concluído
+                    {it.concluido ? <Icon nome="check" tamanho={18} /> : <span className="caixa" aria-hidden="true" />} Concluído
                   </button>
                 </div>
-                <div className="svc-row">
+                <div className="svc-row svc-fotos">
                   {[['camera', 'Tirar foto', true], ['galeria', 'Da galeria', false]].map(([chave, rotulo, pelaCamera]) => (
-                    <label key={chave} className="btn" style={{ flex: 1 }} aria-disabled={comprimindo.includes(s.id)}>
+                    <label key={chave} className="btn" aria-disabled={comprimindo.includes(s.id)}>
                       <input className="sr-only" type="file" accept="image/*" multiple={!pelaCamera} capture={pelaCamera ? 'environment' : undefined}
                         disabled={comprimindo.includes(s.id)}
                         onChange={(e) => { const arquivos = [...e.target.files]; e.target.value = ''; if (arquivos.length) anexarFotos(s.id, arquivos, pelaCamera) }} />
-                      <Icon nome={pelaCamera ? 'camera' : 'fotos'} tamanho={20} />
+                      <Icon nome={pelaCamera ? 'camera' : 'fotos'} tamanho={18} />
                       {comprimindo.includes(s.id) ? 'Preparando…' : rotulo}
                     </label>
                   ))}
@@ -505,18 +551,6 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
             )
           })}
         </div>
-
-        <section className="card card-b">
-          <label className="field"><span>Outro serviço (fora do planejado do mês)</span>
-            <input className="ipt" type="search" placeholder="Buscar por código ou descrição" value={busca} onChange={(e) => setBusca(e.target.value)} />
-          </label>
-          {achados.map((a) => (
-            <button key={a.servico.id} className="opt" style={{ marginTop: 6, border: '1px solid var(--line)', borderRadius: 6 }}
-              onClick={() => { atualizar({ extras: [...f.extras, a.servico.id] }); setBusca('') }}>
-              <span style={{ flex: 1 }}><span className="nome">{a.servico.descricao}</span><Meta><span className="cod">{a.servico.codigo}</span>Toque para incluir</Meta></span>
-            </button>
-          ))}
-        </section>
 
         <section className="card card-b" style={{ display: 'grid', gap: 12 }}>
           <label className="field"><span>Ocorrências do dia</span>
