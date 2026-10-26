@@ -86,7 +86,7 @@ export default function Painel({ profile, obra, goto }) {
           <>
           <Vazio icone="medicao" titulo="Nenhuma medição em andamento"
             texto="O painel compara o executado com a meta do mês. Monte e inicie a medição do mês para ele começar a mostrar os números."
-            acao={podeEditar(profile.role) ? 'Ir para Medição' : null} onAcao={() => goto('medicao')} />
+            acao={podeEditar(profile.role) ? 'Ir para Medição cliente' : null} onAcao={() => goto('medicao')} />
           {previsao}
           </>
         ) : (

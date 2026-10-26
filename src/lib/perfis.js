@@ -27,7 +27,7 @@ export const veCadastrosDoDiario = (role) => podeVerValores(role)
 const PAINEL = { id: 'painel', rotulo: 'Início', curto: 'Início', icone: 'painel' }
 const ORCAMENTO = { id: 'orcamento', rotulo: 'Orçamento', curto: 'Orçamento', icone: 'servicos' }
 const PLANEJAMENTO = { id: 'planejamento', rotulo: 'Planejamento', curto: 'Planejar', icone: 'planejamento' }
-const MEDICAO = { id: 'medicao', rotulo: 'Medição', curto: 'Medição', icone: 'medicao' }
+const MEDICAO = { id: 'medicao', rotulo: 'Medição cliente', curto: 'Med. cliente', icone: 'medicao' }
 const RECADOS = { id: 'recados', rotulo: 'Recados', curto: 'Recados', icone: 'recados', fase2: true, secundario: true }
 const PERFIL = { id: 'perfil', rotulo: 'Meu perfil', curto: 'Perfil', icone: 'perfil' }
 

@@ -407,7 +407,9 @@ O previsto do Longo prazo e os "dias úteis" da EAP contam por ele.
 
 ---
 
-## Tela: Medição (F1, com partes F2)
+## Tela: Medição cliente (F1, com partes F2)
+
+No menu: **Medição cliente** (desde 26/10/2026; antes "Medição"), a medição que vai para o contratante.
 
 **Quem acessa:** Engenheiro (edita), Diretoria (vê).
 **Chega aqui por:** item de menu Medição.

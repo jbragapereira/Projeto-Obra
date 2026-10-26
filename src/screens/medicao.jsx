@@ -171,7 +171,7 @@ export default function Medicao({ profile, obra }) {
   const edita = podeEditar(profile.role)
 
   if (!podeVerValores(profile.role)) {
-    return <div className="view"><Vazio titulo="Medição é do engenheiro e da diretoria" texto="Seu perfil acompanha o avanço pela tela Início." /></div>
+    return <div className="view"><Vazio titulo="A Medição cliente é do engenheiro e da diretoria" texto="Seu perfil acompanha o avanço pela tela Início." /></div>
   }
   if (carregando) return <Carregando />
   if (erro) return <ErroCarga erro={erro} onTentar={recarregar} />
@@ -196,7 +196,7 @@ export default function Medicao({ profile, obra }) {
 
   return (
     <>
-      <Faixa><div className="faixa-titulo">Medição mensal</div></Faixa>
+      <Faixa><div className="faixa-titulo">Medição cliente</div></Faixa>
       <div className={`view${aberta ? ' larga' : ''}`}>
         {aberta ? (
           <Detalhe key={aberta.id + aberta.status} medicao={aberta} servicos={servicos} grupos={grupos} edita={edita}
