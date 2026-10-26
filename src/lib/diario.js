@@ -94,11 +94,19 @@ export function efetivoParaComecar(diarios, dia) {
 // Um serviço conta se tem quantidade, se foi concluído ou se tem memória de cálculo.
 export const itemTemConteudo = (i) => i.quantidade > 0 || !!i.concluido || !!i.memoria_calculo?.trim()
 
-export function diarioTemConteudo({ itens = [], efetivo = [], ocorrencias = '' }) {
-  return itens.some(itemTemConteudo)
+// zeraLancamento: a correção leva para zero um item que já tinha quantidade lançada naquele dia. Desfazer
+// o que foi lançado é registro (o Kanban e o saldo acompanham), mesmo que o dia fique sem mais nada.
+export function diarioTemConteudo({ itens = [], efetivo = [], ocorrencias = '', zeraLancamento = false }) {
+  return zeraLancamento
+    || itens.some(itemTemConteudo)
     || linhasPreenchidas(efetivo).length > 0
     || !!ocorrencias?.trim()
 }
+
+// A correção zera algum lançamento do dia? lancados: [{ servico_id, quantidade }] já gravados no diário;
+// quantidadeDe: { servico_id: quantidade digitada agora } (item fora do formulário fica como estava).
+export const zeraAlgumLancamento = ({ lancados, quantidadeDe }) =>
+  lancados.some((l) => l.quantidade > 0 && l.servico_id in quantidadeDe && !(Number(quantidadeDe[l.servico_id]) > 0))
 
 /* ── Saldo, feito no mês e Concluído ── */
 
@@ -154,7 +162,9 @@ export const escolherNoCartao = (cartoes, indice, servicoId) => cartoes.map((c, 
 // Tirar um cartão que não vai ser usado no dia.
 export const tirarCartao = (cartoes, indice) => cartoes.filter((_, i) => i !== indice)
 
-// O que pode ser escolhido num cartão: itens não concluídos em outro dia e que não estão em
-// OUTRO cartão do dia (o item do próprio cartão continua na lista).
-export const itensParaCartao = ({ analises, emOutrosCartoes }) =>
-  analises.filter((a) => !a.concluido && !emOutrosCartoes.includes(a.servico.id))
+// O que pode ser escolhido num cartão: itens com início e fim na EAP (o Diário segue a EAP alimentada),
+// não concluídos em outro dia e que não estão em OUTRO cartão do dia. O item do próprio cartão (atual)
+// continua na lista mesmo sem datas, para a correção de um lançamento antigo mostrar o que foi lançado.
+export const itensParaCartao = ({ analises, emOutrosCartoes, atual = null }) =>
+  analises.filter((a) => a.servico.id === atual
+    || (!!a.servico.data_inicio_planejada && !!a.servico.data_fim_planejada && !a.concluido && !emOutrosCartoes.includes(a.servico.id)))

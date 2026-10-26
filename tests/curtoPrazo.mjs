@@ -1,5 +1,5 @@
 // Curto prazo: quem entra na semana, PPC e causas (src/lib/curtoPrazo.js).
-import { atividadesDaSemanaCurta, causasMaisFrequentes, ppc, regraDaSemana, semanasAnteriores, statusAposLancamento, statusNaSemana, validarCausa } from '../src/lib/curtoPrazo.js'
+import { atividadesDaSemanaCurta, causasMaisFrequentes, ppc, regraDaSemana, semanasAnteriores, efeitoDoDiarioNoKanban, quantidadeNaSemana, statusNaSemana, statusPeloDiario, validarCausa } from '../src/lib/curtoPrazo.js'
 import { CAUSAS, CAUSA_OUTRA, acoesDoStatus, causaParaGravar, planejadaNaSemana, realPorItem, responsavelNaSemana, textoDaCausa } from '../src/lib/curtoPrazo.js'
 
 let ok = 0
@@ -33,10 +33,32 @@ conferir('semana sem atividade: PPC vazio', ppc([]), { concluidas: 0, total: 0, 
 
 // Diário ↔ Kanban
 conferir('situação no Kanban da semana (sem registro: A fazer)', [statusNaSemana({ registros, semana: '2026-10-19', servicoId: 'a' }), statusNaSemana({ registros, semana: '2026-10-19', servicoId: 'b' })], ['Concluído', 'A fazer'])
-const apos = (atual, quantidade, concluido = false, fora = false) => statusAposLancamento({ atual, fora, quantidade, concluido })
-conferir('produção no Diário faz o Kanban andar, sem voltar',
-  [apos('A fazer', 5), apos('Em andamento', 5), apos('A fazer', 5, true), apos('Em andamento', 0, true), apos('A fazer', 0), apos('Concluído', 5), apos('Não realizado', 5), apos('A fazer', 5, false, true)],
-  ['Em andamento', null, 'Concluído', 'Concluído', null, null, null, null])
+const pelo = (atual, quantidadeNaSemana, concluido = false, extra = {}) => statusPeloDiario({ atual, quantidadeNaSemana, concluido, ...extra })
+conferir('produção no Diário faz o Kanban andar',
+  [pelo('A fazer', 5), pelo('Em andamento', 5), pelo('A fazer', 5, true), pelo('Em andamento', 0, true)],
+  ['Em andamento', null, 'Concluído', 'Concluído'])
+conferir('corrigir ou desfazer no Diário faz o Kanban voltar junto',
+  [pelo('Em andamento', 0), pelo('Concluído', 3), pelo('Concluído', 0), pelo('A fazer', 0)],
+  ['A fazer', 'Em andamento', 'A fazer', null])
+const lancsSemana = [{ servico_id: 's1', quantidade: 3, data: '2026-10-19', diario_id: 'd1' }, { servico_id: 's1', quantidade: 4, data: '2026-10-21', diario_id: 'd2' }, { servico_id: 's1', quantidade: 9, data: '2026-10-26', diario_id: 'd3' }, { servico_id: 's2', quantidade: 5, data: '2026-10-20', diario_id: 'd1' }]
+conferir('quantidade do item na semana, sem o diário que está sendo corrigido',
+  [quantidadeNaSemana({ lancamentos: lancsSemana, servicoId: 's1', semana: '2026-10-19' }), quantidadeNaSemana({ lancamentos: lancsSemana, servicoId: 's1', semana: '2026-10-19', excetoDiarioId: 'd2' })], [7, 3])
+// O cartão do Diário: mostra o Kanban; com a quantidade mudada agora, já mostra o que vai ficar.
+// Item de 10 com período na semana de 26/10. d3 é o diário de 26/10; d4, de 27/10, já tem 4.
+const sEfeito = { id: 's1', qtd_contratada: 10, data_inicio_planejada: '2026-10-26', data_fim_planejada: '2026-10-30' }
+const lancsEfeito = [{ servico_id: 's1', quantidade: 2, data: '2026-10-26', diario_id: 'd3' }, { servico_id: 's1', quantidade: 4, data: '2026-10-27', diario_id: 'd4' }]
+const efeito = (status, diarioId, quantidade, lancamentos = lancsEfeito, servico = sEfeito) => efeitoDoDiarioNoKanban({
+  registros: status ? [{ semana: '2026-10-26', servico_id: 's1', status }] : [], lancamentos, servico, semana: '2026-10-26', diarioId, quantidade }).novo
+conferir('Diário → Kanban: só muda o que mudou; parcial anda, total conclui, menos volta, zero com outro dia na semana fica em andamento',
+  [efeito('Concluído', 'd3', 2), efeito('A fazer', null, 3, []), efeito('Em andamento', 'd3', 6), efeito('Concluído', 'd3', 1), efeito('Em andamento', 'd3', 0), efeito('Em andamento', 'd3', 0, [lancsEfeito[0]])],
+  [null, 'Em andamento', 'Concluído', 'Em andamento', null, 'A fazer'])
+conferir('item novo só com memória (quantidade 0) não mexe no cartão movido no Kanban', efeito('Em andamento', null, 0, []), null)
+conferir('concluído pelo total: corrigir outro dia para menos tira o Concluído (sem marca velha)',
+  efeito('Concluído', 'd4', 1, [{ servico_id: 's1', quantidade: 6, data: '2026-10-26', diario_id: 'd3' }, { servico_id: 's1', quantidade: 4, data: '2026-10-27', diario_id: 'd4' }]), 'Em andamento')
+conferir('item fora do Kanban da semana (sem registro e fora do período na EAP) não muda',
+  efeito(null, null, 3, [], { ...sEfeito, data_inicio_planejada: '2026-11-09', data_fim_planejada: '2026-11-13' }), null)
+conferir('não mexe em "Não realizado" nem em atividade tirada da semana',
+  [pelo('Não realizado', 5), pelo('A fazer', 5, false, { fora: true })], [null, null])
 
 // PPC de semana passada não muda: quem entra é decidido pelo progresso no começo da semana.
 const terminouDepois = [{ servico: { id: 'g', qtd_contratada: 10 }, codigo: 'g', inicio: '2026-10-01', fim: '2026-10-20', real: 1 }]

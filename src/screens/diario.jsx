@@ -7,14 +7,14 @@ import {
   listarGrupos, listarLancamentos, listarSemanaAtividades, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
 } from '../lib/dados.js'
 import {
-  CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluiPeloSaldo, diarioTemConteudo, efetivoParaComecar, efetivoPorFuncao,
+  CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluiPeloSaldo, diarioTemConteudo, zeraAlgumLancamento, efetivoParaComecar, efetivoPorFuncao,
   escolherNoCartao, itemTemConteudo, itensParaCartao, planejadosNoDia, tirarCartao,
   feitoNoMesComODia, podeCorrigir, podeLancarData, porQueNaoLanca, primeiroDiaPermitido, saldoDoItem, saldoRestante, temPrazoDeCorrecao,
   totalEfetivo, ultimoDiaDeCorrecao, validarEfetivo,
 } from '../lib/diario.js'
 import { analisarServico } from '../lib/painel.js'
 import { achatarEap, acumuladoPorServico, ehItem, montarEap } from '../lib/planejamento.js'
-import { COR_STATUS_SEMANA, responsavelNaSemana, statusNaSemana } from '../lib/curtoPrazo.js'
+import { COR_STATUS_SEMANA, efeitoDoDiarioNoKanban, responsavelNaSemana } from '../lib/curtoPrazo.js'
 import { podeEditar, podeLancar, rotuloDoDiario, veCadastrosDoDiario } from '../lib/perfis.js'
 import { TIPOS_RESPONSAVEL, aceitaLancamento } from '../lib/obras.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
@@ -265,7 +265,12 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   const nomeDoGrupo = Object.fromEntries(data.grupos.map((g) => [g.codigo, g.nome]))
   const comProducao = Object.values(f.itens).filter((i) => i.quantidade > 0).length
   const fotosNovas = Object.values(f.itens).reduce((s, i) => s + i.fotos.length, 0)
-  const temConteudo = diarioTemConteudo({ itens: Object.values(f.itens), efetivo: f.efetivo, ocorrencias: f.ocorrencias })
+  // Na correção, zerar o que estava lançado também é salvar (o Kanban e o saldo voltam junto).
+  const zeraLancamento = !!diarioDoDia && zeraAlgumLancamento({
+    lancados: data.lancamentos.filter((l) => l.diario_id === diarioDoDia.id),
+    quantidadeDe: Object.fromEntries(Object.entries(f.itens).map(([id, i]) => [id, i.quantidade])),
+  })
+  const temConteudo = diarioTemConteudo({ itens: Object.values(f.itens), efetivo: f.efetivo, ocorrencias: f.ocorrencias, zeraLancamento })
 
   // A compressão demora um instante: as fotos entram no formulário pelo estado mais recente.
   const mudarFotos = (id, mudar) => setForm((atual) => {
@@ -462,7 +467,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
             const escolha = (
               <div className="svc-topo">
                 <EscolherItem nomeDoGrupo={nomeDoGrupo} escolhido={a.servico} onEscolher={(id) => mexerNoCartao(indice, id)}
-                  itens={itensParaCartao({ analises, emOutrosCartoes: f.cartoes.filter((_, i) => i !== indice) }).map((x) => x.servico)} />
+                  itens={itensParaCartao({ analises, emOutrosCartoes: f.cartoes.filter((_, i) => i !== indice), atual: sid }).map((x) => x.servico)} />
                 <button className="remover" aria-label={`Tirar o cartão ${a.servico.codigo}`} onClick={() => mexerNoCartao(indice, null)}>✕</button>
               </div>
             )
@@ -472,8 +477,13 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
             const fica = saldoRestante({ saldo, quantidade: it.quantidade })
             const feito = feitoNoMesComODia({ executadoNoMes: a.executadoPeriodo, quantidade: it.quantidade, dia, medicao: data.medicao })
             const feitoMudou = feito !== a.executadoPeriodo
-            // A situação é a do Kanban da semana do dia (Curto prazo); o período, o da EAP.
-            const status = statusNaSemana({ registros: data.semanaAtividades, semana: segundaDaSemana(dia), servicoId: s.id })
+            // A situação é a do Kanban da semana do dia (Curto prazo); com a quantidade mudada agora, a que
+            // o Kanban vai ter ao salvar (vale a última ação). O período é o da EAP.
+            const { atual: noKanban, novo } = efeitoDoDiarioNoKanban({
+              registros: data.semanaAtividades, lancamentos: data.lancamentos, servico: s, semana: segundaDaSemana(dia),
+              diarioId: diarioDoDia?.id ?? null, quantidade: it.quantidade,
+            })
+            const status = novo ?? noKanban
             const atrasada = atrasadaNoDia({ servico: s, acumulado: a.acumulado, concluido: a.concluido, dia })
             // Quantidade nova: o item conclui sozinho quando a quantidade cobre o saldo (sem marcação à mão).
             const mudarQuantidade = (q) => atualizarItem(s.id, { quantidade: q, concluido: concluiPeloSaldo({ quantidade: q, saldo }) })

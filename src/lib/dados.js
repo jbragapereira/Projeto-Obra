@@ -20,8 +20,8 @@ import { congelarMeta, itensPelaEap, mesVigente, periodoDaProxima, podeIniciar, 
 import { aceitaLancamento, validarObra } from './obras.js'
 import { CALENDARIO_PADRAO, validarCalendario } from './calendario.js'
 import { moverSemana, validarRestricao } from './restricoes.js'
-import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, planejadaNaSemana, statusAposLancamento, validarCausa } from './curtoPrazo.js'
-import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo } from './diario.js'
+import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, efeitoDoDiarioNoKanban, planejadaNaSemana, validarCausa } from './curtoPrazo.js'
+import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo, zeraAlgumLancamento } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
 
 let sessao = null
@@ -570,12 +570,17 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
   if (!podeLancar(sessao.role)) return falha('Seu perfil não lança diário.')
   const obra = mock.obras.find((o) => o.id === obraAtual)
   if (!aceitaLancamento(obra)) return falha('Esta obra está concluída e não aceita lançamentos.')
-  if (!diarioTemConteudo({ itens, efetivo, ocorrencias })) return falha('Registre alguma coisa do dia: produção, efetivo, memória de cálculo ou ocorrências.')
   if (Object.keys(validarEfetivo(efetivo)).length) return falha('Confira as linhas do efetivo.')
   const responsaveisDaObra = new Set(daObra(mock.responsaveis).map((r) => r.id))
   const funcoesDaObra = new Set(daObra(mock.funcoes).map((x) => x.id))
   if (efetivo.some((l) => !responsaveisDaObra.has(l.responsavel_id) || !funcoesDaObra.has(l.funcao_id))) return falha('Há responsável ou função de outra obra no efetivo.')
   const diarioExistente = daObra(mock.diarios).find((x) => x.data === data)
+  // Na correção, zerar o que estava lançado também é registro (o Kanban e o saldo voltam junto).
+  const zeraLancamento = !!diarioExistente && zeraAlgumLancamento({
+    lancados: daObra(mock.lancamentos).filter((l) => l.diario_id === diarioExistente.id),
+    quantidadeDe: Object.fromEntries(itens.map((i) => [i.servico_id, i.quantidade])),
+  })
+  if (!diarioTemConteudo({ itens, efetivo, ocorrencias, zeraLancamento })) return falha('Registre alguma coisa do dia: produção, efetivo, memória de cálculo ou ocorrências.')
   const jaLancados = new Set(diarioExistente ? daObra(mock.lancamentos).filter((l) => l.diario_id === diarioExistente.id).map((l) => l.servico_id) : [])
   // Na correção, um serviço que voltou para zero também é gravado (zera o lançamento).
   const comProducao = itens.filter((i) => itemTemConteudo(i) || jaLancados.has(i.servico_id))
@@ -617,12 +622,20 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
     responsavel_id: l.responsavel_id, funcao_id: l.funcao_id, quantidade: l.quantidade,
   }))
 
+  const dataDoDiario = Object.fromEntries(daObra(mock.diarios).map((x) => [x.id, x.data]))
   for (const i of comProducao) {
     const existente = daObra(mock.lancamentos).find((l) => l.diario_id === diario.id && l.servico_id === i.servico_id)
     const campos = {
       quantidade: Math.max(0, Number(i.quantidade) || 0), concluido: !!i.concluido,
       responsavel_id: i.responsavel_id ?? null, memoria_calculo: (i.memoria_calculo ?? '').trim(),
     }
+    // O que este envio faz com o cartão do Kanban (regra em efeitoDoDiarioNoKanban), calculado antes de
+    // gravar: vale a última ação, e só o item cuja quantidade ou conclusão mudou mexe no Kanban.
+    const semana = segundaDaSemana(data)
+    const { novo: novoNoKanban } = efeitoDoDiarioNoKanban({
+      registros: daObra(mock.semanaAtividades), lancamentos: daObra(mock.lancamentos).map((l) => ({ ...l, data: dataDoDiario[l.diario_id] })),
+      servico: comVigente(daObra(mock.servicos).find((s) => s.id === i.servico_id)), semana, diarioId: diario.id, quantidade: campos.quantidade,
+    })
     if (existente) {
       Object.assign(existente, campos, { corrigido_por: sessao.id, corrigido_em: new Date().toISOString() })
     } else {
@@ -631,15 +644,12 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
         ...campos, lancado_por: sessao.id, corrigido_por: null, corrigido_em: null,
       })
     }
-    // A produção do dia faz o Kanban da semana andar (A fazer → Em andamento; concluído → Concluído),
-    // só para o que já está no Kanban da semana: planejado pela EAP (progresso no começo da semana) ou já mexido.
-    const semana = segundaDaSemana(data)
+    // "Quem executou" vai para o cartão só do que já está no Kanban da semana (registro ou EAP).
     const reg = daObra(mock.semanaAtividades).find((x) => x.semana === semana && x.servico_id === i.servico_id)
     const servico = comVigente(daObra(mock.servicos).find((s) => s.id === i.servico_id))
     const antes = acumuladoAntesDe(i.servico_id, semana)
     const noKanban = !!reg || planejadaNaSemana({ servico, real: servico.qtd_contratada > 0 ? antes / servico.qtd_contratada : 0, semana })
-    const novo = noKanban && statusAposLancamento({ atual: reg?.status ?? STATUS_SEMANA.aFazer, fora: !!reg?.fora, quantidade: campos.quantidade, concluido: campos.concluido })
-    if (novo) Object.assign(registroDaSemana(semana, i.servico_id), { status: novo, causa: null, causa_texto: '', atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
+    if (novoNoKanban) Object.assign(registroDaSemana(semana, i.servico_id), { status: novoNoKanban, causa: null, causa_texto: '', atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
     // Quem executou no Diário passa a ser o responsável do cartão na semana (vale a última ação).
     if (noKanban && campos.quantidade > 0 && campos.responsavel_id && reg?.responsavel_id !== campos.responsavel_id) {
       Object.assign(registroDaSemana(semana, i.servico_id), { responsavel_id: campos.responsavel_id, atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })

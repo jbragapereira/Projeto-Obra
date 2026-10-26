@@ -15,14 +15,56 @@ export const COR_STATUS_SEMANA = {
 export const statusNaSemana = ({ registros, semana, servicoId }) =>
   registros.find((r) => r.semana === semana && r.servico_id === servicoId)?.status ?? STATUS_SEMANA.aFazer
 
-// Produção lançada no Diário faz o Kanban da semana andar: "A fazer" vira "Em andamento", e o item
-// concluído no Diário vira "Concluído". Nunca volta, e não mexe em "Não realizado" (tem causa
-// registrada) nem em atividade tirada da semana. Devolve a nova situação, ou null (fica como está).
-export function statusAposLancamento({ atual, fora, quantidade, concluido }) {
-  if (fora || atual === STATUS_SEMANA.naoRealizado || atual === STATUS_SEMANA.concluido) return null
-  if (concluido) return STATUS_SEMANA.concluido
-  if (quantidade > 0 && atual === STATUS_SEMANA.aFazer) return STATUS_SEMANA.andamento
-  return null
+// Kanban e Diário andam juntos e vale a última ação. Mover o cartão no Kanban muda a situação que o
+// Diário mostra; mudar a quantidade de um item no Diário muda o cartão dele: quantidade que cobre o
+// saldo (concluído) → "Concluído"; produção na semana → "Em andamento"; nada na semana → "A fazer".
+// Só o item que mudou no Diário é recalculado (quem chama decide). Não mexe em "Não realizado" (tem
+// causa registrada) nem em atividade tirada da semana.
+// quantidadeNaSemana: soma do Diário naquela semana. Devolve a nova situação, ou null (fica como está).
+export function statusPeloDiario({ atual, fora, quantidadeNaSemana, concluido }) {
+  if (fora || atual === STATUS_SEMANA.naoRealizado) return null
+  const alvo = concluido ? STATUS_SEMANA.concluido : quantidadeNaSemana > 0 ? STATUS_SEMANA.andamento : STATUS_SEMANA.aFazer
+  return alvo === atual ? null : alvo
+}
+
+// Quanto o Diário tem de um item numa semana (segunda a domingo), sem contar o diário em correção
+// (excetoDiarioId). lancamentos: [{ servico_id, quantidade, data, diario_id }].
+export const quantidadeNaSemana = ({ lancamentos, servicoId, semana, excetoDiarioId = null }) => {
+  const fim = addDias(semana, 6)
+  return lancamentos
+    .filter((l) => l.servico_id === servicoId && l.diario_id !== excetoDiarioId && l.data >= semana && l.data <= fim)
+    .reduce((s, l) => s + (l.quantidade ?? 0), 0)
+}
+
+// O que o Diário faz com o cartão do Kanban de um item, numa regra só para a tela (o que o cartão do
+// Diário mostra enquanto se digita) e para o salvamento (o que o Kanban grava). Vale a última ação: só
+// mexe se a quantidade do item MUDOU em relação ao que este diário tinha salvo, e só se o item está no
+// Kanban da semana (tem registro, ou a EAP o põe na semana pelo progresso no começo dela).
+// Concluído = o executado total do item (todos os dias, com a quantidade nova) cobre a quantidade
+// vigente — conta refeita a cada vez, então corrigir qualquer dia para menos tira o "Concluído".
+// servico: { id, qtd_contratada (vigente), data_inicio_planejada, data_fim_planejada };
+// lancamentos: os gravados, com data ([{ servico_id, quantidade, data, diario_id }]);
+// diarioId: o diário do dia (null se ainda não existe); quantidade: a do formulário.
+// Devolve { atual (situação no Kanban), novo (a que vai ficar, ou null se não muda) }.
+export function efeitoDoDiarioNoKanban({ registros, lancamentos, servico, semana, diarioId, quantidade }) {
+  const reg = registros.find((r) => r.semana === semana && r.servico_id === servico.id)
+  const atual = reg?.status ?? STATUS_SEMANA.aFazer
+  const doItem = lancamentos.filter((l) => l.servico_id === servico.id)
+  const salvo = doItem.find((l) => diarioId && l.diario_id === diarioId)
+  const qtd = Number(quantidade) || 0
+  if (qtd === (salvo?.quantidade ?? 0)) return { atual, novo: null }
+  const contratado = servico.qtd_contratada ?? 0
+  const antes = doItem.filter((l) => l.data < semana).reduce((s, l) => s + (l.quantidade ?? 0), 0)
+  const noKanban = !!reg || planejadaNaSemana({ servico, real: contratado > 0 ? antes / contratado : 0, semana })
+  if (!noKanban) return { atual, novo: null }
+  const outros = doItem.filter((l) => l.diario_id !== diarioId).reduce((s, l) => s + (l.quantidade ?? 0), 0)
+  return {
+    atual,
+    novo: statusPeloDiario({
+      atual, fora: !!reg?.fora, concluido: contratado > 0 && outros + qtd >= contratado - 1e-6,
+      quantidadeNaSemana: quantidadeNaSemana({ lancamentos, servicoId: servico.id, semana, excetoDiarioId: diarioId }) + qtd,
+    }),
+  }
 }
 
 // Responsável da atividade na semana: o do cartão do Kanban e o "Quem executou" do cartão do Diário são
