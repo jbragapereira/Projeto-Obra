@@ -3,18 +3,19 @@
 // e mostra o histórico em cartões. Tudo da obra escolhida no seletor.
 import { useEffect, useState } from 'react'
 import {
-  buscarEndereco, buscarMedicaoAtual, juntar, listarDiarios, listarFotos, listarFuncoes, listarItensMedicao,
+  buscarEndereco, juntar, listarDiarios, listarFotos, listarFuncoes, listarItensDasMedicoes, listarMedicoes,
   listarGrupos, listarLancamentos, listarSemanaAtividades, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
 } from '../lib/dados.js'
 import {
   CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluiPeloSaldo, diarioTemConteudo, zeraAlgumLancamento, efetivoParaComecar, efetivoPorFuncao,
-  escolherNoCartao, itemTemConteudo, itensParaCartao, planejadosNoDia, tirarCartao,
+  itemTemConteudo, planejadosNoDia, tirarCartao,
   feitoNoMesComODia, podeCorrigir, podeLancarData, porQueNaoLanca, primeiroDiaPermitido, saldoDoItem, saldoRestante, temPrazoDeCorrecao,
   totalEfetivo, ultimoDiaDeCorrecao, validarEfetivo,
 } from '../lib/diario.js'
 import { analisarServico } from '../lib/painel.js'
 import { achatarEap, acumuladoPorServico, ehItem, montarEap } from '../lib/planejamento.js'
 import { COR_STATUS_SEMANA, efeitoDoDiarioNoKanban, responsavelNaSemana } from '../lib/curtoPrazo.js'
+import { medicaoDoDia, metaDoItem, rotuloDoPeriodo } from '../lib/medicao.js'
 import { podeEditar, podeLancar, rotuloDoDiario, veCadastrosDoDiario } from '../lib/perfis.js'
 import { TIPOS_RESPONSAVEL, aceitaLancamento } from '../lib/obras.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
@@ -22,19 +23,13 @@ import { dataHoraCurta, dataLonga, dm, dmy, hojeISO, segundaDaSemana } from '../
 import { ORIGENS_DATA } from '../lib/fotos.js'
 import { CampoNumero, Carregando, Critico, ErroCarga, Faixa, Icon, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
 import { prepararFoto } from '../components/prepararFoto.js'
-import EscolherItem from '../components/EscolherItem.jsx'
 import DiarioCadastros from './diarioCadastros.jsx'
 
-async function carregar() {
-  const r = await juntar({
-    servicos: listarServicos(), lancamentos: listarLancamentos(), responsaveis: listarResponsaveis(),
-    diarios: listarDiarios(), medicao: buscarMedicaoAtual(), funcoes: listarFuncoes(), fotos: listarFotos(), grupos: listarGrupos(), semanaAtividades: listarSemanaAtividades(),
-  })
-  if (r.erro || !r.data.medicao) return r
-  const itens = await listarItensMedicao(r.data.medicao.id)
-  if (itens.erro) return itens
-  return { data: { ...r.data, itens: itens.data }, erro: null }
-}
+// Todas as medições e os itens delas: o cartão mostra a meta da medição do dia do diário.
+const carregar = () => juntar({
+  servicos: listarServicos(), lancamentos: listarLancamentos(), responsaveis: listarResponsaveis(),
+  diarios: listarDiarios(), medicoes: listarMedicoes(), itensMedicao: listarItensDasMedicoes(), funcoes: listarFuncoes(), fotos: listarFotos(), grupos: listarGrupos(), semanaAtividades: listarSemanaAtividades(),
+})
 
 // O que a fiscalização vai conferir em cada foto: data e hora, GPS e endereço.
 function DadosDaFoto({ foto }) {
@@ -254,15 +249,17 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   const atualizarLinha = (i, mudanca) => atualizar({ efetivo: f.efetivo.map((l, k) => (k === i ? { ...l, ...mudanca } : l)) })
   const errosEfetivo = validarEfetivo(f.efetivo)
 
-  const itemDe = Object.fromEntries((data.itens ?? []).map((i) => [i.servico_id, i]))
+  // A meta de cada cartão vem da medição cujo período tem o dia do diário (planejando, em andamento ou fechada).
+  const medicao = medicaoDoDia(data.medicoes, dia)
+  // A meta é a congelada quando a medição já foi iniciada (metaDoItem).
+  const itemDe = Object.fromEntries(data.itensMedicao.filter((i) => i.medicao_id === medicao?.id).map((i) => [i.servico_id, { ...i, qtd_planejada: metaDoItem(i) }]))
   // O formulário olha o serviço SEM o próprio dia: assim o que se está lançando
   // (ou corrigindo) não esconde o cartão nem entra duas vezes no saldo.
   const lancamentosDeOutrosDias = data.lancamentos.filter((l) => !diarioDoDia || l.diario_id !== diarioDoDia.id)
   const analises = data.servicos.filter((s) => s.ativo).map((s) =>
-    analisarServico({ servico: s, lancamentos: lancamentosDeOutrosDias, item: itemDe[s.id] ?? null, medicao: data.medicao, hoje }))
+    analisarServico({ servico: s, lancamentos: lancamentosDeOutrosDias, item: itemDe[s.id] ?? null, medicao, hoje }))
   const analiseDe = Object.fromEntries(analises.map((a) => [a.servico.id, a]))
   const codigoDe = Object.fromEntries(data.servicos.map((s) => [s.id, s.codigo]))
-  const nomeDoGrupo = Object.fromEntries(data.grupos.map((g) => [g.codigo, g.nome]))
   const comProducao = Object.values(f.itens).filter((i) => i.quantidade > 0).length
   const fotosNovas = Object.values(f.itens).reduce((s, i) => s + i.fotos.length, 0)
   // Na correção, zerar o que estava lançado também é salvar (o Kanban e o saldo voltam junto).
@@ -304,26 +301,22 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
     mudarFotos(id, (fotos) => fotos.filter((x) => x !== foto))
   }
 
-  // Cartão com algo lançado: trocar o item ou tirar o cartão apaga o lançamento dele (pergunta antes).
+  // Cartão com algo lançado: tirar o cartão apaga o lançamento dele (pergunta antes).
   const cartaoTemConteudo = (id) => !!id && (itemTemConteudo(f.itens[id]) || f.itens[id].fotos.length > 0)
   const limparItem = (id) => {
     f.itens[id].fotos.forEach((foto) => URL.revokeObjectURL(foto.url_previa))
     const s = data.servicos.find((x) => x.id === id)
     return { quantidade: 0, responsavel_id: s ? responsavelNaSemana({ registros: data.semanaAtividades, lancamentos: data.lancamentos, servicoId: id, semana: segundaDaSemana(f.data), padrao: s.responsavel_id }) : null, concluido: false, memoria_calculo: '', fotos: [] }
   }
-  function mexerNoCartao(indice, novoId) {
+  // Os cartões vêm da EAP; o ✕ tira do dia um cartão que não vai ser usado.
+  function tirarCartaoDoDia(indice) {
     const atual = f.cartoes[indice]
-    if (atual && comprimindo.includes(atual)) { avisar('Espere a foto terminar de ser preparada.'); return }
-    if (atual === novoId) return
+    if (comprimindo.includes(atual)) { avisar('Espere a foto terminar de ser preparada.'); return }
     if (cartaoTemConteudo(atual)) {
       const s = analiseDe[atual]?.servico
-      if (!window.confirm(`O cartão de ${s?.codigo ?? 'item'} tem lançamento (quantidade, memória ou foto). ${novoId ? 'Trocar o item' : 'Tirar o cartão'} apaga esse lançamento. Continuar?`)) return
+      if (!window.confirm(`O cartão de ${s?.codigo ?? 'item'} tem lançamento (quantidade, memória ou foto). Tirar o cartão apaga esse lançamento. Continuar?`)) return
     }
-    setForm({
-      ...f,
-      cartoes: novoId ? escolherNoCartao(f.cartoes, indice, novoId) : tirarCartao(f.cartoes, indice),
-      itens: atual ? { ...f.itens, [atual]: limparItem(atual) } : f.itens,
-    })
+    setForm({ ...f, cartoes: tirarCartao(f.cartoes, indice), itens: { ...f.itens, [atual]: limparItem(atual) } })
   }
 
   // O cadastrado já entra na primeira linha que estava sem aquele campo (ou numa linha nova).
@@ -464,18 +457,11 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
             const sid = f.cartoes[indice]
             const a = analiseDe[sid]
             if (!a) return null // item arquivado no Orçamento depois do lançamento
-            const escolha = (
-              <div className="svc-topo">
-                <EscolherItem nomeDoGrupo={nomeDoGrupo} escolhido={a.servico} onEscolher={(id) => mexerNoCartao(indice, id)}
-                  itens={itensParaCartao({ analises, emOutrosCartoes: f.cartoes.filter((_, i) => i !== indice), atual: sid }).map((x) => x.servico)} />
-                <button className="remover" aria-label={`Tirar o cartão ${a.servico.codigo}`} onClick={() => mexerNoCartao(indice, null)}>✕</button>
-              </div>
-            )
             const s = a.servico
             const it = f.itens[s.id]
             const saldo = saldoDoItem({ contratado: s.qtd_contratada, acumulado: a.acumulado })
             const fica = saldoRestante({ saldo, quantidade: it.quantidade })
-            const feito = feitoNoMesComODia({ executadoNoMes: a.executadoPeriodo, quantidade: it.quantidade, dia, medicao: data.medicao })
+            const feito = feitoNoMesComODia({ executadoNoMes: a.executadoPeriodo, quantidade: it.quantidade, dia, medicao })
             const feitoMudou = feito !== a.executadoPeriodo
             // A situação é a do Kanban da semana do dia (Curto prazo); com a quantidade mudada agora, a que
             // o Kanban vai ter ao salvar (vale a última ação). O período é o da EAP.
@@ -489,18 +475,20 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
             const mudarQuantidade = (q) => atualizarItem(s.id, { quantidade: q, concluido: concluiPeloSaldo({ quantidade: q, saldo }) })
             return (
               <section key={s.id} className={`card svc ${it.quantidade > 0 ? 'has' : ''}`}>
-                {escolha}
                 <div className="svc-cab">
                   <div className="t" title={s.descricao}>{s.descricao}</div>
                   <span className={`pill ${COR_STATUS_SEMANA[status]}`} title="Situação da atividade no Kanban desta semana (Planejamento › Curto prazo)">{status}</span>
+                  <button className="remover" aria-label={`Tirar o cartão ${s.codigo}`} title="Tirar este cartão do dia" onClick={() => tirarCartaoDoDia(indice)}>✕</button>
                 </div>
                 <Meta><span className="cod">{s.codigo}</span>{s.unidade}{s.critico && <Critico />}{atrasada && <span className="pill red">Atrasada</span>}</Meta>
                 <div className="svc-periodo">{s.data_inicio_planejada ? <>Período na EAP: <b>{dmy(s.data_inicio_planejada)} a {dmy(s.data_fim_planejada)}</b></> : <span className="obs">Sem datas na EAP</span>}</div>
                 <div className="svc-contas">
-                  {/* A meta do mês vem da Medição (não da EAP): item sem meta mostra só o feito no mês. */}
+                  {/* A meta vem da medição do período do dia (a mesma atividade, com a quantidade prevista nela). */}
+                  {medicao && a.noMes
+                    ? <span className="svc-meta">Meta na Medição {medicao.numero} ({rotuloDoPeriodo(medicao.data_inicio, medicao.data_fim)}): <b>{qtd(a.planejadoMes, s.unidade)}</b></span>
+                    : <span className="obs">{medicao ? `Sem meta na Medição ${medicao.numero}` : 'Sem medição neste período'}</span>}
                   <span className={`saldo ${feitoMudou ? 'mudou' : ''}`} aria-live="polite">
-                    Feito <b>{qtd(feito, s.unidade)}</b>{a.noMes ? <> de {qtd(a.planejadoMes, s.unidade)}</> : null} no mês
-                    {!a.noMes && <span className="obs"> (sem meta na Medição)</span>}
+                    Feito na medição <b>{qtd(feito, s.unidade)}</b>
                     {feitoMudou && <span className="obs"> (era {qtd(a.executadoPeriodo, s.unidade)})</span>}
                   </span>
                   <span className={`saldo ${it.quantidade > 0 ? 'mudou' : ''}`} aria-live="polite">Saldo do item: <b>{qtd(fica, s.unidade)}</b>{it.quantidade > 0 && <span className="obs"> (era {qtd(saldo, s.unidade)})</span>}</span>

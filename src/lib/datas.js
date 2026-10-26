@@ -36,5 +36,15 @@ export const dataLonga = (iso) => {
   return `${DIAS[d.getDay()]}, ${iso.slice(8, 10)} de ${MESES[d.getMonth()]}`
 }
 
+// '2026-10' → 'out/26'
+export const rotuloDoMes = (mes) => `${MESES[Number(mes.slice(5, 7)) - 1]}/${mes.slice(2, 4)}`
+// O dia 1 do mês seguinte ('2026-10-15' → '2026-11-01').
+export const primeiroDoMesSeguinte = (iso) => {
+  const [a, m] = iso.split('-').map(Number)
+  return m === 12 ? `${a + 1}-01-01` : `${a}-${String(m + 1).padStart(2, '0')}-01`
+}
+// O período vai do dia 1 de um mês ao último dia de um mês (meses inteiros)?
+export const ehDeMesesInteiros = (inicio, fim) => inicio.endsWith('-01') && addDias(fim, 1).endsWith('-01')
+
 // Segunda-feira da semana de uma data (a semana do app vai de segunda a domingo).
 export const segundaDaSemana = (iso) => addDias(iso, -((new Date(`${iso}T12:00:00`).getDay() + 6) % 7))

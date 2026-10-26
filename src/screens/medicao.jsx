@@ -1,8 +1,8 @@
 // Medição: os períodos da obra, o planejamento do mês e a pergunta de um ano
 // ("em quais meses, e em quantos, a gente bateu a meta?").
 import { useState } from 'react'
-import { criarMedicao, iniciarMedicao, juntar, listarGrupos, listarItensMedicao, listarMedicoes, listarServicos, salvarQtdPlanejada } from '../lib/dados.js'
-import { estruturaDaMedicao, resumoMetas } from '../lib/medicao.js'
+import { criarMedicao, descongelarMedicao, iniciarMedicao, juntar, listarGrupos, listarItensMedicao, listarMedicoes, listarServicos, salvarQtdPlanejada } from '../lib/dados.js'
+import { estruturaDaMedicao, periodoDaProxima, resumoMetas, rotuloDoPeriodo, temCronograma as obraTemCronograma } from '../lib/medicao.js'
 import { podeEditar, podeVerValores } from '../lib/perfis.js'
 import { brl, brlCentavos, qtd } from '../lib/formato.js'
 import { dm, dmy } from '../lib/datas.js'
@@ -33,6 +33,15 @@ function Detalhe({ medicao, servicos, grupos, edita, onVoltar, onMudou }) {
       avisar(r.erro)
       setRascunho((x) => { const { [item.id]: _volta, ...resto } = x; return resto })
     } else recarregar()
+  }
+  async function descongelar() {
+    if (!window.confirm(`Descongelar a Medição ${medicao.numero}? Ela volta para planejamento: a meta congelada deixa de valer e os itens voltam a acompanhar a EAP (o que você ajustou à mão fica). Para valer de novo, inicie a medição outra vez.`)) return
+    setSalvando(true)
+    const r = await descongelarMedicao(medicao.id)
+    setSalvando(false)
+    if (r.erro) { avisar(r.erro); return }
+    avisar(`Medição ${medicao.numero} descongelada: replaneje e inicie de novo.`)
+    onMudou()
   }
   async function iniciar() {
     setSalvando(true)
@@ -68,7 +77,10 @@ function Detalhe({ medicao, servicos, grupos, edita, onVoltar, onMudou }) {
           <button className="btn primary" style={{ marginTop: 12 }} onClick={iniciar} disabled={salvando || !itens.length}>{salvando ? 'Iniciando…' : 'Iniciar medição e congelar a meta'}</button>
         )}
         {edita && medicao.status === 'Em andamento' && (
-          <button className="btn ghost" style={{ marginTop: 12 }} onClick={() => avisar('Fechar a medição e exportar para Excel chegam na Fase 2.')}>Fechar medição <span className="pill soft">Fase 2</span></button>
+          <div className="btns" style={{ marginTop: 12 }}>
+            <button className="btn ghost" onClick={descongelar} disabled={salvando}>{salvando ? 'Descongelando…' : 'Descongelar para replanejar'}</button>
+            <button className="btn ghost" onClick={() => avisar('Fechar a medição e exportar para Excel chegam na Fase 2.')}>Fechar medição <span className="pill soft">Fase 2</span></button>
+          </div>
         )}
       </section>
       <section className="card">
@@ -153,7 +165,7 @@ function Detalhe({ medicao, servicos, grupos, edita, onVoltar, onMudou }) {
   )
 }
 
-export default function Medicao({ profile }) {
+export default function Medicao({ profile, obra }) {
   const { data, erro, carregando, recarregar } = useDados(() => juntar({ medicoes: listarMedicoes(), servicos: listarServicos(), grupos: listarGrupos() }))
   const [abertaId, setAbertaId] = useState(null)
   const edita = podeEditar(profile.role)
@@ -167,8 +179,14 @@ export default function Medicao({ profile }) {
   const { medicoes, servicos, grupos } = data
   const aberta = medicoes.find((m) => m.id === abertaId)
   const { batidas, total } = resumoMetas(medicoes)
+  const temCronograma = obraTemCronograma(obra)
+  const emOrdem = [...medicoes].sort((a, b) => a.numero - b.numero)
+  // O botão "Nova medição" já diz qual vem: a seguinte à última (no cronograma, a que passa do contrato).
+  const ultima = emOrdem.at(-1)
+  const proxima = ultima && periodoDaProxima(ultima.data_fim)
 
   async function nova() {
+    if (!window.confirm(`Criar a Medição ${ultima.numero + 1} (${rotuloDoPeriodo(proxima.inicio, proxima.fim)})? Ela puxa da EAP os itens com datas nesse período.`)) return
     const r = await criarMedicao()
     if (r.erro) { avisar(r.erro); return }
     avisar(`Medição ${r.data.numero} criada com os itens da EAP do período.`)
@@ -185,31 +203,39 @@ export default function Medicao({ profile }) {
             onVoltar={() => setAbertaId(null)} onMudou={recarregar} />
         ) : !medicoes.length ? (
           <Vazio icone="medicao" titulo="Nenhuma medição ainda"
-            texto="A Medição 1 é criada sozinha quando você lança o início e o fim de um item na EAP (Planejamento) dentro do mês vigente. Cada item com datas no mês entra nela, na estrutura do Orçamento." />
+            texto="Com o cronograma de medições na ficha da obra (Ajustes), todas as medições do contrato são criadas de uma vez. Sem ele, a Medição 1 nasce sozinha quando um item da EAP ganha datas no mês vigente." />
         ) : (
           <>
             <section className="card kpis" aria-label="Resumo das medições">
               <div className="kpi ok"><div className="lbl">Metas batidas</div><div className="num">{batidas}<small> de {total}</small></div><div className="sub">medições fechadas</div></div>
               <div className="kpi"><div className="lbl">Medições</div><div className="num">{medicoes.length}</div><div className="sub">nesta obra</div></div>
-              {edita && <button className="kpi" onClick={nova}><div className="lbl">Nova medição</div><div className="num">＋</div><div className="sub">criar o próximo período</div></button>}
             </section>
-            <section className="card">
-              <div className="card-h"><span className="rotulo">Períodos de medição</span></div>
-              <ul className="rows">
-                {medicoes.map((m) => (
-                  <li key={m.id}><button className="row" onClick={() => setAbertaId(m.id)}>
-                    <div className="main-c">
-                      <div className="t">Medição {m.numero}, de {dm(m.data_inicio)} a {dm(m.data_fim)}</div>
-                      <div className="m">
-                        {m.status === 'Fechada' ? `Planejado ${brl(m.valor_planejado)}, medido ${brl(m.valor_medido)}` : m.valor_planejado ? `Meta de ${brl(m.valor_planejado)}` : 'Meta em montagem'}
-                      </div>
-                    </div>
+            <section className="card card-b">
+              <div className="rotulo" style={{ marginBottom: 10 }}>{temCronograma ? 'Medições do contrato' : 'Períodos de medição'}</div>
+              <div className="med-grade">
+                {emOrdem.map((m) => (
+                  <button key={m.id} className={`med-bt${m.qtd_itens ? ' com-itens' : ''}`} onClick={() => setAbertaId(m.id)}>
+                    <span className="med-bt-t">Medição {m.numero}</span>
+                    <span className="med-bt-p">{rotuloDoPeriodo(m.data_inicio, m.data_fim)}</span>
+                    <span className="obs">{dm(m.data_inicio)} a {dmy(m.data_fim)}</span>
                     {m.status === 'Fechada'
                       ? <span className={`pill ${m.meta_batida ? 'ok' : 'red'}`}>{m.meta_batida ? 'Bateu a meta' : 'Não bateu'}</span>
                       : <span className={`pill ${COR[m.status]}`}>{m.status}</span>}
-                  </button></li>
+                    <span className="med-bt-v">
+                      {m.status === 'Fechada' ? `Planejado ${brl(m.valor_planejado)}, medido ${brl(m.valor_medido)}`
+                        : m.status === 'Em andamento' ? `Meta de ${brl(m.valor_planejado)}`
+                          : m.qtd_itens ? `${m.qtd_itens} ${m.qtd_itens === 1 ? 'item' : 'itens'}, ${brl(m.valor_em_montagem)}` : 'Sem itens da EAP ainda'}
+                    </span>
+                  </button>
                 ))}
-              </ul>
+                {edita && proxima && (
+                  <button className="med-bt med-nova" onClick={nova}>
+                    <span className="med-bt-t">＋ Nova medição</span>
+                    <span className="med-bt-p">Medição {ultima.numero + 1}, {rotuloDoPeriodo(proxima.inicio, proxima.fim)}</span>
+                    <span className="med-bt-v">{temCronograma ? 'Só se a obra passar do contrato' : 'Criar o próximo período'}</span>
+                  </button>
+                )}
+              </div>
             </section>
           </>
         )}

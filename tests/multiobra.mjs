@@ -6,7 +6,7 @@ import {
   entrar, definirObraAtual, listarMinhasObras, listarServicos, listarLancamentos, listarDiarios,
   listarResponsaveis, listarMedicoes, listarFuncoes, listarGrupos, salvarDatasEap, salvarDiario,
   listarAditivos, buscarDadosOrcamento, buscarCalendario, salvarCalendario, listarRestricoes, salvarRestricao, resolverRestricao, moverRestricao, excluirRestricao,
-  listarSemanaAtividades, listarSubtarefas, criarMedicao, listarItensMedicao, salvarQtdPlanejada, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
+  listarSemanaAtividades, listarSubtarefas, criarMedicao, listarItensMedicao, salvarQtdPlanejada, iniciarMedicao, descongelarMedicao, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
 } from '../src/lib/dados.js'
 import { addDias, hojeISO } from '../src/lib/datas.js'
 import { segundaDaSemana } from '../src/lib/datas.js'
@@ -52,16 +52,28 @@ const inicioBA = await salvarDiario({ data: addDias(hojeISO(), -3), clima_manha:
   efetivo: [{ responsavel_id: respBAInicio.id, funcao_id: funcaoBAInicio.id, quantidade: 4 }],
   itens: [{ servico_id: tapumeBA.id, quantidade: 260, responsavel_id: respBAInicio.id, concluido: true }] })
 conferir('diário de preparo lançado na ARRECIFES', inicioBA.erro, null)
-// Medição 1 da ARRECIFES nasce sozinha pela EAP do mês vigente e segue a EAP enquanto está em planejamento.
-const mesBA = (dia) => hojeISO().slice(0, 8) + dia
-conferir('sem datas na EAP, não há medição e ela não se cria à mão', [(await listarMedicoes()).data.length, (await criarMedicao()).erro !== null], [0, true])
+// ARRECIFES: o cronograma do contrato já cria as 10 medições (1ª = out + nov/26; depois mês a mês até
+// ago/27), em planejamento e vazias; cada uma se enche pela EAP do seu período.
+const mesBA = (dia) => '2026-10-' + dia
+const medicoesBA = (await listarMedicoes()).data.sort((a, b) => a.numero - b.numero)
+conferir('cronograma: 10 medições vazias, a 1ª de 01/10 a 30/11/26 e a última em ago/27',
+  [medicoesBA.length, medicoesBA[0].data_inicio, medicoesBA[0].data_fim, medicoesBA[1].data_inicio, medicoesBA.at(-1).data_fim, medicoesBA.every((m) => m.qtd_itens === 0)],
+  [10, '2026-10-01', '2026-11-30', '2026-12-01', '2027-08-31', true])
+const med11 = await criarMedicao()
+const med12 = await criarMedicao()
+conferir('passando do contrato, a Nova medição cria a 11 (set/27) e depois a 12 (out/27), na obra escolhida',
+  [med11.erro, med11.data?.numero, med11.data?.data_inicio, med11.data?.data_fim, med11.data?.obra_id, med12.data?.numero, med12.data?.data_inicio, med12.data?.data_fim],
+  [null, 11, '2027-09-01', '2027-09-30', 'obra-ba', 12, '2027-10-01', '2027-10-31'])
+await entrar('p-dir')
+conferir('diretoria não cria medição', (await criarMedicao()).erro !== null, true)
+await entrar('p-eng'); definirObraAtual('obra-ba')
 const placaBA = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '2.1.1')
 await salvarDatasEap([{ id: placaBA.id, inicio: mesBA('01'), fim: mesBA('02') }])
-const med1 = (await listarMedicoes()).data[0]
+const med1 = medicoesBA[0]
 const itensMed1 = async () => (await listarItensMedicao(med1.id)).data
-conferir('a placa de obra com datas no mês cria a Medição 1, no mês vigente, só com ela',
-  [med1.numero, med1.data_inicio, med1.obra_id, (await itensMed1()).map((i) => [i.servico_id, i.obra_id, i.qtd_planejada])],
-  [1, mesBA('01'), 'obra-ba', [[placaBA.id, 'obra-ba', placaBA.qtd_orcada]]])
+conferir('a placa de obra com datas em outubro entra na Medição 1, só ela',
+  [med1.numero, med1.obra_id, (await itensMed1()).map((i) => [i.servico_id, i.obra_id, i.qtd_planejada])],
+  [1, 'obra-ba', [[placaBA.id, 'obra-ba', placaBA.qtd_orcada]]])
 const escavacaoBA = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '3.4.1')
 await salvarDatasEap([{ id: escavacaoBA.id, inicio: mesBA('03'), fim: mesBA('10') }])
 conferir('outro item com datas no mês entra sozinho na Medição 1', (await itensMed1()).map((i) => i.servico_id).sort(), [placaBA.id, escavacaoBA.id].sort())
@@ -69,6 +81,23 @@ const itemPlaca = (await itensMed1()).find((i) => i.servico_id === placaBA.id)
 await salvarQtdPlanejada(itemPlaca.id, 3)
 await salvarDatasEap([{ id: placaBA.id, inicio: mesBA('01'), fim: mesBA('05') }])
 conferir('quantidade ajustada à mão não muda com a EAP', (await itensMed1()).find((i) => i.servico_id === placaBA.id).qtd_planejada, 3)
+// Congelar e descongelar para replanejar: volta a Planejando, sem meta congelada, e segue a EAP de novo.
+const congelada = await iniciarMedicao(med1.id)
+await entrar('p-dir'); definirObraAtual('obra-ba')
+const pelaDiretoria = await descongelarMedicao(med1.id)
+await entrar('p-eng'); definirObraAtual('obra-ba')
+const descongelada = await descongelarMedicao(med1.id)
+conferir('descongelar: só o engenheiro; a medição volta a Planejando sem meta congelada',
+  [congelada.data?.status, pelaDiretoria.erro !== null, descongelada.erro, descongelada.data?.status, descongelada.data?.valor_planejado, (await itensMed1()).every((i) => i.qtd_planejada_inicial === null)],
+  ['Em andamento', true, null, 'Planejando', null, true])
+conferir('medição em planejamento não descongela', (await descongelarMedicao(med1.id)).erro !== null, true)
+// Item de 23/11 a 04/12: 6 dias úteis em novembro (Medição 1) e 4 em dezembro (Medição 2).
+await salvarDatasEap([{ id: escavacaoBA.id, inicio: '2026-11-23', fim: '2026-12-04' }])
+const itensDe = async (m) => (await listarItensMedicao(m.id)).data
+const fatia = async (m) => (await itensDe(m)).find((i) => i.servico_id === escavacaoBA.id)?.qtd_planejada
+conferir('item que cruza dois períodos entra nas duas medições, dividido pelos dias úteis',
+  [await fatia(medicoesBA[0]), await fatia(medicoesBA[1]), await fatia(medicoesBA[2])],
+  [Math.floor(escavacaoBA.qtd_orcada * 6 / 10 * 100) / 100, Math.floor(escavacaoBA.qtd_orcada * 4 / 10 * 100) / 100, undefined])
 await salvarDatasEap([{ id: escavacaoBA.id, inicio: null, fim: null }])
 conferir('item que perde as datas sai da Medição 1', (await itensMed1()).map((i) => i.servico_id), [placaBA.id])
 // O que o Diário executa dentro do mês não encolhe a meta do próprio mês.

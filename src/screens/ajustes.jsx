@@ -42,6 +42,8 @@ function FormObra({ inicial, onCancelar, onSalvo }) {
         <Campo rotulo="Nº do contrato (opcional)">{ipt('numero_contrato')}</Campo>
         <Campo rotulo="Data de início" erro={erros.data_inicio}>{ipt('data_inicio', { type: 'date' })}</Campo>
         <Campo rotulo="Data-meta de entrega" erro={erros.data_entrega}>{ipt('data_entrega', { type: 'date' })}</Campo>
+        <Campo rotulo="Início das medições (opcional)" erro={erros.medicoes_inicio}>{ipt('medicoes_inicio', { type: 'date' })}</Campo>
+        <Campo rotulo="Fim da 1ª medição (opcional)" erro={erros.medicoes_fim_primeira}>{ipt('medicoes_fim_primeira', { type: 'date' })}</Campo>
         <Campo rotulo="Situação" erro={erros.situacao}>
           <select className="ipt" value={o.situacao} onChange={set('situacao')}>{SITUACOES_OBRA.map((s) => <option key={s}>{s}</option>)}</select>
         </Campo>

@@ -1,5 +1,5 @@
 // Medição pela EAP (src/lib/medicao.js): o mês vigente, os itens do período e a estrutura do Orçamento.
-import { estruturaDaMedicao, itensPelaEap, mesVigente, periodoDaProxima, reconciliarItens } from '../src/lib/medicao.js'
+import { estruturaDaMedicao, itensPelaEap, mesVigente, metaDoItem, periodoDaProxima, podeDescongelar, reconciliarItens, temCronograma, valorEmMontagem } from '../src/lib/medicao.js'
 import { CALENDARIO_PADRAO } from '../src/lib/calendario.js'
 
 let ok = 0
@@ -70,6 +70,12 @@ conferir('reconciliar: c sai, d entra, a muda com a EAP e b fica com o ajuste à
 conferir('próxima medição: mês seguinte inteiro, ou 31 dias quando não começa no dia 1',
   [periodoDaProxima('2026-10-31'), periodoDaProxima('2026-12-31'), periodoDaProxima('2026-11-02')],
   [{ inicio: '2026-11-01', fim: '2026-11-30' }, { inicio: '2027-01-01', fim: '2027-01-31' }, { inicio: '2026-11-03', fim: '2026-12-03' }])
+
+conferir('descongela só a em andamento', [podeDescongelar({ status: 'Em andamento' }), podeDescongelar({ status: 'Planejando' }), podeDescongelar({ status: 'Fechada' }), podeDescongelar(null)], [true, false, false, false])
+
+conferir('meta do item: a congelada quando iniciada; senão a em montagem', [metaDoItem({ qtd_planejada: 9, qtd_planejada_inicial: 7 }), metaDoItem({ qtd_planejada: 9, qtd_planejada_inicial: null }), metaDoItem(null)], [7, 9, 0])
+conferir('R$ em montagem: P. Total truncado por item', valorEmMontagem([{ qtd_planejada: 3.77, preco_unitario: 841.08 }, { qtd_planejada: 1, preco_unitario: 0.333 }]), 3171.2)
+conferir('obra com cronograma', [temCronograma({ medicoes_inicio: '2026-10-01' }), temCronograma({ medicoes_inicio: null }), temCronograma(null)], [true, false, false])
 
 console.log(`${ok}/${tot} — medição pela EAP`)
 process.exit(ok === tot ? 0 : 1)

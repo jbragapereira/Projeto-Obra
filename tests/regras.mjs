@@ -3,7 +3,7 @@ import { validarObra, aceitaLancamento, OBRA_VAZIA } from '../src/lib/obras.js'
 import { congelarMeta, bateuMeta, resumoMetas, podeIniciar } from '../src/lib/medicao.js'
 import {
   podeCorrigir, podeLancarData, validarEfetivo, totalEfetivo, diarioTemConteudo, zeraAlgumLancamento, itemTemConteudo, linhasPreenchidas, efetivoParaComecar,
-  efetivoPorFuncao, cartoesDoDia, ordemDosCartoes, atrasadaNoDia, escolherNoCartao, tirarCartao, itensParaCartao, planejadosNoDia, porQueNaoLanca, climaComChuva, acimaDoSaldo,
+  efetivoPorFuncao, cartoesDoDia, ordemDosCartoes, atrasadaNoDia, tirarCartao, planejadosNoDia, porQueNaoLanca, climaComChuva, acimaDoSaldo,
 } from '../src/lib/diario.js'
 
 let ok = 0
@@ -37,7 +37,8 @@ conferir('resumo só conta medições fechadas', resumoMetas([
   { status: 'Fechada', meta_batida: true }, { status: 'Fechada', meta_batida: false }, { status: 'Em andamento', meta_batida: null },
 ]), { batidas: 1, total: 2 })
 conferir('não inicia com outra em andamento', podeIniciar([{ id: 'm1', status: 'Em andamento' }, { id: 'm2', status: 'Planejando' }], 'm2'), false)
-conferir('inicia a que está em planejamento', podeIniciar([{ id: 'm1', status: 'Fechada' }, { id: 'm2', status: 'Planejando' }], 'm2'), true)
+conferir('inicia a que está em planejamento', podeIniciar([{ id: 'm1', numero: 1, status: 'Fechada' }, { id: 'm2', numero: 2, status: 'Planejando' }], 'm2'), true)
+conferir('inicia na ordem: a 5 não passa na frente da 1 em planejamento', [podeIniciar([{ id: 'm1', numero: 1, status: 'Planejando' }, { id: 'm5', numero: 5, status: 'Planejando' }], 'm5'), podeIniciar([{ id: 'm1', numero: 1, status: 'Planejando' }, { id: 'm5', numero: 5, status: 'Planejando' }], 'm1')], [false, true])
 
 // Correção do diário
 const base = { role: 'Equipe da obra', profileId: 'p1', lancadoPor: 'p1', dataDiario: '2026-10-22' }
@@ -96,11 +97,9 @@ conferir('efetivo por função soma os responsáveis', efetivoPorFuncao([{ funca
 conferir('acima do saldo avisa', acimaDoSaldo({ quantidade: 90.5, saldo: 90 }), true)
 conferir('igual ao saldo não avisa', acimaDoSaldo({ quantidade: 90, saldo: 90 }), false)
 
-// Cartões de produção do dia (o item é escolhido em cada cartão)
+// Cartões de produção do dia (vêm da EAP)
 conferir('atrasada no dia: devia ter terminado e não está completo nem concluído', [atrasadaNoDia({ servico: { data_inicio_planejada: '2026-10-01', data_fim_planejada: '2026-10-10', qtd_contratada: 10 }, acumulado: 4, concluido: false, dia: '2026-10-20' }), atrasadaNoDia({ servico: { data_inicio_planejada: '2026-10-01', data_fim_planejada: '2026-10-10', qtd_contratada: 10 }, acumulado: 4, concluido: true, dia: '2026-10-20' }), atrasadaNoDia({ servico: { data_inicio_planejada: '2026-10-01', data_fim_planejada: '2026-10-30', qtd_contratada: 10 }, acumulado: 4, concluido: false, dia: '2026-10-20' })], [true, false, false])
-conferir('trocar o item de um cartão', escolherNoCartao(['a', 'b'], 0, 'c'), ['c', 'b'])
 conferir('tirar um cartão', tirarCartao(['a', 'b', 'c'], 1), ['a', 'c'])
-const an = (id, concluido = false, datas = true) => ({ servico: { id, data_inicio_planejada: datas ? '2026-10-01' : null, data_fim_planejada: datas ? '2026-10-30' : null }, concluido })
 // Dia novo: cartões das atividades planejadas na EAP para o dia (e as atrasadas)
 const no = (id, inicio, fim, real = 0) => ({ servico: { id }, inicio, fim, real })
 conferir('planejados no dia: o período inclui o dia ou está atrasada; sem terminadas, concluídas e sem datas',
@@ -109,10 +108,6 @@ conferir('planejados no dia: o período inclui o dia ou está atrasada; sem term
 conferir('correção: os lançados no dia e os planejados que faltam, sem repetir e sem cartão vazio', cartoesDoDia({ lancados: ['x', 'a'], planejados: ['a', 'b'] }), ['x', 'a', 'b'])
 conferir('dia novo: só os planejados', cartoesDoDia({ lancados: [], planejados: ['a'] }), ['a'])
 conferir('cartões em ordem crescente de código (1.2 antes de 1.10)', ordemDosCartoes(['x', 'y', 'z', 'w'], { x: '3.4.1', y: '2.1.1', z: '3.1.10', w: '3.1.4' }), [1, 3, 2, 0])
-conferir('lista do cartão: sem concluído em outro dia e sem o que está em outro cartão',
-  itensParaCartao({ analises: [an('a'), an('b', true), an('c'), an('d')], emOutrosCartoes: ['c'] }).map((x) => x.servico.id), ['a', 'd'])
-conferir('lista do cartão: só itens com datas na EAP; o item do próprio cartão fica mesmo sem datas',
-  itensParaCartao({ analises: [an('a'), an('s', false, false), an('t', false, false)], emOutrosCartoes: [], atual: 't' }).map((x) => x.servico.id), ['a', 't'])
 
 // Mensagens e clima
 conferir('equipe fora do prazo recebe a mensagem certa', porQueNaoLanca({ role: 'Equipe da obra', lancaDiario: true, obraAceita: true }).startsWith('A equipe lança'), true)

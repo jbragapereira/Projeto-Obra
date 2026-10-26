@@ -2,13 +2,10 @@
 // O valor vigente de cada item (P. Total do Orçamento) é espalhado pelos dias úteis do período dele
 // na EAP e somado por mês. Ao lado, o realizado: o que o Diário executou em cada mês, a preço do item.
 // Regra pura, com teste em tests/previsaoMensal.mjs.
-import { addDias } from './datas.js'
+import { addDias, ehDeMesesInteiros, primeiroDoMesSeguinte, rotuloDoMes } from './datas.js'
 import { ehDiaUtil } from './calendario.js'
 import { precoTotal } from './orcamento.js'
 
-const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-// '2026-10' → 'out/26'
-export const rotuloDoMes = (mes) => `${MESES[Number(mes.slice(5, 7)) - 1]}/${mes.slice(2, 4)}`
 const centavos = (x) => Math.round(x * 100) / 100
 
 // servicos: os itens do Orçamento (com preço: só quem vê valores). cal: calendário da obra.
@@ -78,4 +75,29 @@ export function linhasPorMes({ previsto, realizado, totalComDatas }) {
     m = mm === 12 ? `${a + 1}-01` : `${a}-${String(mm + 1).padStart(2, '0')}`
   }
   return linhas
+}
+
+// Na obra que mede por meses inteiros, a previsão segue as medições: os meses de uma mesma medição viram
+// uma linha só (ex.: Medição 1 = "out/26 + nov/26", com a soma dos dois). Medição que não é de meses
+// inteiros não junta nada. linhas: as de linhasPorMes; medicoes: [{ numero, data_inicio, data_fim }].
+// Cada linha ganha meses (os 'AAAA-MM' que ela soma) e medicao (o número, quando juntou).
+export function juntarPorMedicao(linhas, medicoes) {
+  const medicaoDoMes = {}
+  for (const m of medicoes) {
+    if (!ehDeMesesInteiros(m.data_inicio, m.data_fim)) continue
+    for (let d = m.data_inicio; d <= m.data_fim; d = primeiroDoMesSeguinte(d)) medicaoDoMes[d.slice(0, 7)] = m.numero
+  }
+  const saida = []
+  for (const l of linhas) {
+    const numero = medicaoDoMes[l.mes] ?? null
+    const anterior = saida.at(-1)
+    if (numero !== null && anterior?.medicao === numero) {
+      Object.assign(anterior, {
+        rotulo: `${anterior.rotulo} + ${l.rotulo}`, meses: [...anterior.meses, l.mes],
+        previsto: centavos(anterior.previsto + l.previsto), realizado: centavos(anterior.realizado + l.realizado),
+        previstoAcumulado: l.previstoAcumulado, pctAcumulado: l.pctAcumulado,
+      })
+    } else saida.push({ ...l, meses: [l.mes], medicao: numero })
+  }
+  return saida
 }

@@ -2,7 +2,7 @@
 import { diasUteisEntre } from './calendario.js'
 import { compararCodigos, paiDoCodigo } from './planejamento.js'
 import { precoTotal, truncar2 } from './orcamento.js'
-import { addDias, diasEntre } from './datas.js'
+import { addDias, diasEntre, ehDeMesesInteiros, rotuloDoMes } from './datas.js'
 
 export const SITUACOES_MEDICAO = ['Planejando', 'Em andamento', 'Fechada']
 
@@ -28,10 +28,17 @@ export function resumoMetas(medicoes) {
   return { batidas: fechadas.filter((m) => m.meta_batida).length, total: fechadas.length }
 }
 
+// Descongelar: a medição em andamento volta para "Planejando", para replanejar (a meta deixa de valer até
+// iniciar de novo). Fechada não descongela.
+export const podeDescongelar = (medicao) => medicao?.status === 'Em andamento'
+
 // Só uma medição em andamento por obra.
+// E na ordem: só a medição de número mais baixo ainda em planejamento (a 5 não passa na frente da 1, e
+// a 1 descongelada é iniciada de novo antes da 2).
 export function podeIniciar(medicoes, medicaoId) {
   const alvo = medicoes.find((m) => m.id === medicaoId)
   if (!alvo || alvo.status !== 'Planejando') return false
+  if (medicoes.some((m) => m.status === 'Planejando' && m.numero < alvo.numero)) return false
   return !medicoes.some((m) => m.status === 'Em andamento')
 }
 
@@ -119,3 +126,53 @@ export function estruturaDaMedicao({ itens, servicoDe, grupos }) {
     .map((l) => ({ ...l, nivel: String(l.codigo).split('.').length }))
     .sort((a, b) => compararCodigos(a.codigo, b.codigo))
 }
+
+/* ── Cronograma de medições do contrato ── */
+
+// O contrato define quando as medições começam e onde termina a primeira (que pode juntar mais de um
+// mês, como out + nov); daí em diante, uma medição por mês-calendário até o mês da entrega.
+// inicio, fimPrimeira, entrega: 'AAAA-MM-DD'. Devolve [{ numero, inicio, fim }]; vazio sem os dados.
+export function cronogramaDeMedicoes({ inicio, fimPrimeira, entrega }) {
+  if (!inicio || !fimPrimeira || !entrega || fimPrimeira < inicio) return []
+  const periodos = [{ numero: 1, inicio, fim: fimPrimeira }]
+  const ultimoMes = entrega.slice(0, 7)
+  for (let ini = addDias(fimPrimeira, 1); ini.slice(0, 7) <= ultimoMes;) {
+    const fim = mesVigente(ini).fim
+    periodos.push({ numero: periodos.length + 1, inicio: ini, fim })
+    ini = addDias(fim, 1)
+  }
+  return periodos
+}
+
+// Erros dos campos do cronograma na ficha da obra ({} = ok). Os dois juntos, ou nenhum.
+export function validarCronogramaDeMedicoes({ inicio, fimPrimeira, entrega }) {
+  const e = {}
+  if (!inicio && !fimPrimeira) return e
+  if (!inicio) e.medicoes_inicio = 'Informe quando as medições começam.'
+  if (!fimPrimeira) e.medicoes_fim_primeira = 'Informe o fim da primeira medição.'
+  else if (inicio && fimPrimeira < inicio) e.medicoes_fim_primeira = 'O fim da primeira medição não pode ser antes do início.'
+  else if (entrega && fimPrimeira > entrega) e.medicoes_fim_primeira = 'A primeira medição não pode passar da entrega.'
+  return e
+}
+
+// Rótulo do período de uma medição no botão: os meses cobertos ("out/26 + nov/26", "dez/26") quando
+// o período é feito de meses inteiros; senão, as datas ("10/10 a 15/11").
+export function rotuloDoPeriodo(inicio, fim) {
+  const meses = []
+  for (let ini = inicio; ini <= fim; ini = addDias(mesVigente(ini).fim, 1)) meses.push(ini)
+  if (!ehDeMesesInteiros(inicio, fim)) return `${inicio.slice(8, 10)}/${inicio.slice(5, 7)} a ${fim.slice(8, 10)}/${fim.slice(5, 7)}`
+  return meses.map((m) => rotuloDoMes(m.slice(0, 7))).join(' + ')
+}
+
+// A medição de um dia: a que tem o dia dentro do período (em qualquer situação). É dela a meta que o
+// cartão do Diário mostra para cada item. medicoes: [{ data_inicio, data_fim }]; dia: 'AAAA-MM-DD'.
+export const medicaoDoDia = (medicoes, dia) => medicoes.find((m) => m.data_inicio <= dia && dia <= m.data_fim) ?? null
+
+// A obra tem cronograma de medições no contrato (as medições nascem todas de uma vez)?
+export const temCronograma = (obra) => !!obra?.medicoes_inicio
+
+// A meta de um item na medição: a congelada (ao iniciar) quando existe; em planejamento, a que está sendo montada.
+export const metaDoItem = (item) => item?.qtd_planejada_inicial ?? item?.qtd_planejada ?? 0
+
+// O R$ que uma medição em planejamento está montando: soma dos P. Total truncados (Qtd × P. Unit.).
+export const valorEmMontagem = (itens) => centavos(itens.reduce((s, i) => s + precoTotal(i.qtd_planejada ?? 0, i.preco_unitario ?? 0), 0))

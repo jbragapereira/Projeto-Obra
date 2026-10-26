@@ -1,4 +1,5 @@
 // Regras da entidade OBRA. O texto das situações é idêntico ao CHECK do banco.
+import { validarCronogramaDeMedicoes } from './medicao.js'
 
 export const SITUACOES_OBRA = ['Em andamento', 'Concluída', 'Parada']
 
@@ -8,6 +9,7 @@ export const TIPOS_RESPONSAVEL = ['Empreiteiro', 'Empresa especializada', 'Mão 
 export const OBRA_VAZIA = {
   nome: '', codigo: '', endereco: '', cliente: '', numero_contrato: '',
   data_inicio: '', data_entrega: '', situacao: 'Em andamento',
+  medicoes_inicio: '', medicoes_fim_primeira: '',
 }
 
 // Devolve { campo: 'mensagem' } com cada problema; objeto vazio = pode salvar.
@@ -20,7 +22,7 @@ export function validarObra(o) {
   if (!o.data_entrega) e.data_entrega = 'Informe a data-meta de entrega.'
   else if (o.data_inicio && o.data_entrega < o.data_inicio) e.data_entrega = 'A entrega não pode ser antes do início.'
   if (!SITUACOES_OBRA.includes(o.situacao)) e.situacao = 'Escolha a situação.'
-  return e
+  return { ...e, ...validarCronogramaDeMedicoes({ inicio: o.medicoes_inicio, fimPrimeira: o.medicoes_fim_primeira, entrega: o.data_entrega }) }
 }
 
 // Obra concluída não aceita lançamento novo.

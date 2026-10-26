@@ -1,5 +1,6 @@
 // Previsão de faturamento por mês pela EAP (src/lib/previsaoMensal.js).
-import { linhasPorMes, previstoPorMes, realizadoPorMes, rotuloDoMes } from '../src/lib/previsaoMensal.js'
+import { juntarPorMedicao, linhasPorMes, previstoPorMes, realizadoPorMes } from '../src/lib/previsaoMensal.js'
+import { ehDeMesesInteiros, primeiroDoMesSeguinte, rotuloDoMes } from '../src/lib/datas.js'
 import { CALENDARIO_PADRAO } from '../src/lib/calendario.js'
 
 let ok = 0
@@ -29,10 +30,21 @@ conferir('realizado: quantidade lançada × P. Unit., por mês da data do diári
 
 // Linhas
 conferir('rótulo do mês', [rotuloDoMes('2026-10'), rotuloDoMes('2027-01')], ['out/26', 'jan/27'])
+conferir('mês seguinte e meses inteiros', [primeiroDoMesSeguinte('2026-10-15'), primeiroDoMesSeguinte('2026-12-01'), ehDeMesesInteiros('2026-10-01', '2026-11-30'), ehDeMesesInteiros('2026-10-01', '2026-11-29'), ehDeMesesInteiros('2026-10-02', '2026-11-30')],
+  ['2026-11-01', '2027-01-01', true, false, false])
 const linhas = linhasPorMes({ previsto: { '2026-10': 500, '2027-01': 400 }, realizado: { '2026-11': 50 }, totalComDatas: 900 })
 conferir('meses do primeiro ao último, sem buraco, com acumulado e %', linhas.map((l) => [l.rotulo, l.previsto, l.realizado, l.previstoAcumulado, Math.round(l.pctAcumulado * 100)]),
   [['out/26', 500, 0, 500, 56], ['nov/26', 0, 50, 500, 56], ['dez/26', 0, 0, 500, 56], ['jan/27', 400, 0, 900, 100]])
 conferir('sem valores, sem linhas', linhasPorMes({ previsto: {}, realizado: {}, totalComDatas: 0 }), [])
+
+// Obra que mede out + nov juntos: a previsão mostra uma linha só para a Medição 1, com a soma.
+const porMes = linhasPorMes({ previsto: { '2026-10': 100, '2026-11': 200, '2026-12': 50 }, realizado: { '2026-10': 30, '2026-11': 10 }, totalComDatas: 350 })
+const medicoesCt = [{ numero: 1, data_inicio: '2026-10-01', data_fim: '2026-11-30' }, { numero: 2, data_inicio: '2026-12-01', data_fim: '2026-12-31' }]
+conferir('meses da mesma medição viram uma linha, com a soma e o acumulado do último mês',
+  juntarPorMedicao(porMes, medicoesCt).map((l) => [l.rotulo, l.meses, l.medicao, l.previsto, l.realizado, l.previstoAcumulado]),
+  [['out/26 + nov/26', ['2026-10', '2026-11'], 1, 300, 40, 300], ['dez/26', ['2026-12'], 2, 50, 0, 350]])
+conferir('medição que não é de meses inteiros não junta nada',
+  juntarPorMedicao(porMes, [{ numero: 1, data_inicio: '2026-10-03', data_fim: '2026-11-02' }]).map((l) => l.rotulo), ['out/26', 'nov/26', 'dez/26'])
 
 console.log(`${ok}/${tot} — previsão de faturamento por mês`)
 process.exit(ok === tot ? 0 : 1)

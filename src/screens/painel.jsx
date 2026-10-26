@@ -1,6 +1,6 @@
 // Painel do mês — a tela de toda manhã. As contas vêm prontas de lib/painel.js.
 import { useState } from 'react'
-import { buscarCalendario, buscarMedicaoAtual, juntar, listarItensMedicao, listarLancamentos, listarResponsaveis, listarServicos, listarDiarios } from '../lib/dados.js'
+import { buscarCalendario, buscarMedicaoAtual, juntar, listarItensMedicao, listarLancamentos, listarMedicoes, listarResponsaveis, listarServicos, listarDiarios } from '../lib/dados.js'
 import { COR_SITUACAO, FILTROS_PAINEL, analisarServico, ordenarPainel, sinalEntrega, totaisDoMes } from '../lib/painel.js'
 import { podeVerValores, podeEditar } from '../lib/perfis.js'
 import { brl, pct, qtd } from '../lib/formato.js'
@@ -10,7 +10,7 @@ import ServicoDetalhe from './servicoDetalhe.jsx'
 import PrevisaoMensal from './previsaoMensal.jsx'
 
 async function carregar() {
-  const r = await juntar({ servicos: listarServicos(), lancamentos: listarLancamentos(), medicao: buscarMedicaoAtual(), responsaveis: listarResponsaveis(), diarios: listarDiarios(), calendario: buscarCalendario() })
+  const r = await juntar({ servicos: listarServicos(), lancamentos: listarLancamentos(), medicao: buscarMedicaoAtual(), responsaveis: listarResponsaveis(), diarios: listarDiarios(), calendario: buscarCalendario(), medicoes: listarMedicoes() })
   if (r.erro || !r.data.medicao) return r
   const itens = await listarItensMedicao(r.data.medicao.id)
   if (itens.erro) return itens
@@ -58,7 +58,7 @@ export default function Painel({ profile, obra, goto }) {
   const curto = (id) => (nomeResp[id] ?? '—').replace(/^(Construtora|Empreiteira) /, '')
   const alternar = (f) => setFiltro((atual) => (atual === f ? 'todos' : f))
   // Previsão de faturamento pela EAP: só quem vê valores.
-  const previsao = comValores && <PrevisaoMensal dados={{ servicos, lancamentos, calendario: data.calendario }} hoje={hoje} onIrParaEap={() => goto('planejamento')} />
+  const previsao = comValores && <PrevisaoMensal dados={{ servicos, lancamentos, calendario: data.calendario, medicoes: data.medicoes }} hoje={hoje} onIrParaEap={() => goto('planejamento')} />
 
   return (
     <>

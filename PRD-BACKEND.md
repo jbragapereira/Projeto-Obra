@@ -68,6 +68,8 @@ Para que serve: cada obra, a unidade principal.
 | data_inicio | date | sim | |
 | data_entrega | date | sim | data-meta de entrega; é a data do sinal "a entrega está de pé?"; não pode ser antes do início |
 | situacao | text | sim | CHECK: `Em andamento`, `Concluída`, `Parada`; padrão `Em andamento` |
+| medicoes_inicio | date | não | início das medições do contrato (desde 26/10/2026); com `medicoes_fim_primeira`, define o cronograma de medições |
+| medicoes_fim_primeira | date | não | fim da 1ª medição (pode juntar meses, ex.: out + nov); depois, uma medição por mês-calendário até o mês da entrega. Os dois juntos ou nenhum; não passa da entrega |
 | criada_por | uuid | sim | → profiles |
 | created_at | timestamptz | sim | automático |
 

@@ -11,7 +11,7 @@
 // As datas são relativas a hoje, para o exemplo nunca envelhecer.
 // ============================================================
 import { addDias, hojeISO, segundaDaSemana } from './datas.js'
-import { congelarMeta } from './medicao.js'
+import { congelarMeta, cronogramaDeMedicoes } from './medicao.js'
 import { FUNCOES_PADRAO } from './diario.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, precoUnitario } from './orcamento.js'
 import { CALENDARIO_PADRAO } from './calendario.js'
@@ -34,6 +34,7 @@ export const obras = [
     id: 'obra-ba', nome: 'ARRECIFES JORDÃO ALTO', codigo: 'CT01',
     endereco: 'Praça Presidente Kennedy, Jordão Alto, Recife', cliente: 'Secretaria de Educação (exemplo)',
     numero_contrato: 'CT01', data_inicio: d(-40), data_entrega: '2027-08-14', situacao: 'Em andamento',
+    medicoes_inicio: '2026-10-01', medicoes_fim_primeira: '2026-11-30',
   },
 ]
 
@@ -237,8 +238,16 @@ montarMedicoes('obra-vn', montarObra('obra-vn', ITENS_VN, VN), [
   { ini: -84, fim: -54, plan: 182000, medido: 186400 },
   { ini: -53, fim: -23, plan: 210000, medido: 193200 },
 ])
-// A ARRECIFES não tem medição de exemplo: a Medição 1 nasce no app, pela EAP do mês vigente.
+// A ARRECIFES tem o cronograma de medições do contrato (1ª = out + nov/26; depois, uma por mês até ago/27):
+// as medições nascem em planejamento, vazias, e cada uma se enche pela EAP do seu período.
 montarObra('obra-ba', ITENS_ARRECIFES, BA)
+const ba = obras.find((o) => o.id === 'obra-ba')
+for (const p of cronogramaDeMedicoes({ inicio: ba.medicoes_inicio, fimPrimeira: ba.medicoes_fim_primeira, entrega: ba.data_entrega })) {
+  medicoes.push({
+    id: `med-obra-ba-${p.numero}`, obra_id: 'obra-ba', numero: p.numero, data_inicio: p.inicio, data_fim: p.fim, status: 'Planejando',
+    valor_planejado: null, valor_medido: null, meta_batida: null, fechada_em: null,
+  })
+}
 
 // Uma ocorrência de exemplo no INSS.
 const diaChuva = diarios.find((x) => x.obra_id === 'obra-vn' && x.data === d(-9))

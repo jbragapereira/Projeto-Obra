@@ -16,7 +16,7 @@ import { dataHoraLocal, hojeISO, segundaDaSemana } from './datas.js'
 import { podeAtualizarSemana, podeEditar, podeLancar, podePlanejar, podeRegistrarRestricao, podeVerValores, veTodasAsObras } from './perfis.js'
 import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
-import { congelarMeta, itensPelaEap, mesVigente, periodoDaProxima, podeIniciar, reconciliarItens } from './medicao.js'
+import { congelarMeta, cronogramaDeMedicoes, itensPelaEap, mesVigente, periodoDaProxima, podeDescongelar, podeIniciar, reconciliarItens, temCronograma, valorEmMontagem } from './medicao.js'
 import { aceitaLancamento, validarObra } from './obras.js'
 import { CALENDARIO_PADRAO, validarCalendario } from './calendario.js'
 import { moverSemana, validarRestricao } from './restricoes.js'
@@ -50,6 +50,7 @@ function semValores(registro) {
   delete limpo.bdi
   delete limpo.valor_planejado
   delete limpo.valor_medido
+  delete limpo.valor_em_montagem
   return limpo
 }
 
@@ -103,15 +104,18 @@ export function salvarObra(obra) {
     nome: obra.nome.trim(), codigo: obra.codigo.trim(), endereco: obra.endereco?.trim() ?? '',
     cliente: obra.cliente.trim(), numero_contrato: obra.numero_contrato?.trim() ?? '',
     data_inicio: obra.data_inicio, data_entrega: obra.data_entrega, situacao: obra.situacao,
+    medicoes_inicio: obra.medicoes_inicio || null, medicoes_fim_primeira: obra.medicoes_fim_primeira || null,
   }
   if (obra.id) {
     const atual = mock.obras.find((o) => o.id === obra.id)
     if (!atual) return falha('Obra não encontrada.')
     Object.assign(atual, campos)
+    criarMedicoesDoCronograma(atual)
     return ok(copia(atual))
   }
   const nova = { id: novoId('obra'), ...campos }
   mock.obras.push(nova)
+  criarMedicoesDoCronograma(nova)
   FUNCOES_PADRAO.forEach((nome) => mock.funcoes.push({ id: novoId('fn'), obra_id: nova.id, nome, ativo: true }))
   mock.calendarios.push({ id: novoId('cal'), obra_id: nova.id, ...structuredClone(CALENDARIO_PADRAO) })
   // Quem cria a obra passa a ter acesso a ela.
@@ -675,10 +679,31 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
 
 /* ── Medição ── */
 
+// Cada medição vem com quantos itens tem e, em planejamento, o valor que está montando (só quem vê R$).
 export function listarMedicoes() {
   const e = checar(); if (e) return falha(e)
-  return ok(copia(daObra(mock.medicoes).map(semValores).sort((a, b) => b.numero - a.numero)))
+  const itensDe = (id) => daObra(mock.medicaoItens).filter((i) => i.medicao_id === id)
+  return ok(copia(daObra(mock.medicoes).map((m) => semValores({
+    ...m, qtd_itens: itensDe(m.id).length,
+    valor_em_montagem: valorEmMontagem(itensDe(m.id)),
+  })).sort((a, b) => b.numero - a.numero)))
 }
+
+// Obra com cronograma de medições no contrato: todas as medições nascem de uma vez, em planejamento
+// (a 1ª pode juntar meses; depois, uma por mês até a entrega), e cada uma segue a EAP do seu período.
+// Só cria se a obra ainda não tem medição (cronograma mudado depois não reescreve o que existe).
+function criarMedicoesDoCronograma(obra) {
+  const periodos = cronogramaDeMedicoes({ inicio: obra.medicoes_inicio, fimPrimeira: obra.medicoes_fim_primeira, entrega: obra.data_entrega })
+  if (!periodos.length || mock.medicoes.some((m) => m.obra_id === obra.id)) return
+  for (const p of periodos) {
+    mock.medicoes.push({
+      id: novoId('med'), obra_id: obra.id, numero: p.numero, data_inicio: p.inicio, data_fim: p.fim, status: 'Planejando',
+      valor_planejado: null, valor_medido: null, meta_batida: null, fechada_em: null,
+    })
+  }
+  if (obra.id === obraAtual) acompanharEap()
+}
+const obraAtualTemCronograma = () => temCronograma(mock.obras.find((o) => o.id === obraAtual))
 
 export function buscarMedicaoAtual() {
   const e = checar(); if (e) return falha(e)
@@ -686,17 +711,24 @@ export function buscarMedicaoAtual() {
   return ok(m ? copia(semValores(m)) : null)
 }
 
+// Os itens de todas as medições da obra (o Diário acha a medição do dia e mostra a meta de cada item).
+export function listarItensDasMedicoes() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.medicaoItens).map(semValores)))
+}
+
 export function listarItensMedicao(medicaoId) {
   const e = checar(); if (e) return falha(e)
   return ok(copia(daObra(mock.medicaoItens).filter((i) => i.medicao_id === medicaoId).map(semValores)))
 }
 
-// Próximas medições (a 2, a 3…): continuam do fim da anterior. A Medição 1 nasce sozinha pela EAP.
+// A próxima medição, continuando do fim da última (periodoDaProxima: mês inteiro quando começa no dia 1),
+// criada só quando o engenheiro pede. Obra com cronograma: é a que passa do contrato (a 11 em set/27…).
+// Sem cronograma, a Medição 1 nasce sozinha pela EAP. A ordem de iniciar é a de podeIniciar.
 export function criarMedicao() {
   const e = checar(); if (e) return falha(e)
   if (!podeEditar(sessao.role)) return falha('Só o engenheiro cria medições.')
   const daObraAtual = daObra(mock.medicoes)
-  if (daObraAtual.some((m) => m.status === 'Planejando')) return falha('Já existe uma medição em planejamento.')
   const ultima = [...daObraAtual].sort((a, b) => b.numero - a.numero)[0]
   if (!ultima) return falha('A Medição 1 é criada sozinha quando um item da EAP ganha datas no mês vigente.')
   return ok(copia(novaMedicao(periodoDaProxima(ultima.data_fim), ultima.numero + 1)))
@@ -729,7 +761,7 @@ function itensDaEapNoPeriodo(periodo) {
 
 // A Medição 1 nasce no primeiro item da EAP com datas no mês vigente (dia 1 ao último dia do mês).
 function garantirMedicao1() {
-  if (daObra(mock.medicoes).length) return
+  if (obraAtualTemCronograma() || daObra(mock.medicoes).length) return
   const periodo = mesVigente(hojeISO())
   if (itensDaEapNoPeriodo(periodo).length) novaMedicao(periodo, 1)
 }
@@ -775,7 +807,7 @@ export function iniciarMedicao(medicaoId) {
   const e = checar(); if (e) return falha(e)
   if (!podeEditar(sessao.role)) return falha('Só o engenheiro inicia a medição.')
   const lista = daObra(mock.medicoes)
-  if (!podeIniciar(lista, medicaoId)) return falha('Só dá para iniciar uma medição em planejamento, sem outra em andamento.')
+  if (!podeIniciar(lista, medicaoId)) return falha('Inicie as medições na ordem: a de número mais baixo em planejamento, sem outra em andamento.')
   const med = lista.find((m) => m.id === medicaoId)
   sincronizarPelaEap(med)
   const itens = daObra(mock.medicaoItens).filter((i) => i.medicao_id === medicaoId)
@@ -785,6 +817,20 @@ export function iniciarMedicao(medicaoId) {
   congelados.forEach((c) => Object.assign(itens.find((i) => i.id === c.id), c))
   Object.assign(med, { status: 'Em andamento', valor_planejado })
   return ok(copia(med))
+}
+
+// Descongelar para replanejar: volta a "Planejando", a meta congelada sai e os itens voltam a acompanhar
+// a EAP (a quantidade ajustada à mão fica). Iniciar de novo congela a meta replanejada.
+export function descongelarMedicao(medicaoId) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro descongela a medição.')
+  const med = daObra(mock.medicoes).find((m) => m.id === medicaoId)
+  if (!med) return falha('Medição não encontrada nesta obra.')
+  if (!podeDescongelar(med)) return falha('Só a medição em andamento pode ser descongelada.')
+  Object.assign(med, { status: 'Planejando', valor_planejado: null })
+  for (const i of daObra(mock.medicaoItens).filter((x) => x.medicao_id === med.id)) i.qtd_planejada_inicial = null
+  sincronizarPelaEap(med)
+  return ok(copia(semValores(med)))
 }
 
 /* ── Pessoas e liberações ── */
