@@ -1,6 +1,6 @@
 // Campo "Item do orçamento" do cartão do Diário: a setinha abre todos os itens do orçamento,
 // separados por etapa e subetapa; digitar filtra pelo código ou pela descrição.
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { paiDoCodigo } from '../lib/planejamento.js'
 
 const etapaDe = (codigo) => String(codigo).split('.')[0]
@@ -27,19 +27,32 @@ export default function EscolherItem({ itens, nomeDoGrupo, escolhido, onEscolher
 
   const escolher = (s) => { onEscolher(s.id); setAberto(false); setTexto('') }
   const fechar = () => { setAberto(false); setTexto('') }
+  // Aberta pela setinha, a lista não tem foco para perder: clicar (ou tocar) fora dela, ou Esc, fecha e
+  // volta o campo ao normal, sem escolher nada.
+  const caixa = useRef(null)
+  useEffect(() => {
+    if (!aberto) return
+    const foraDaCaixa = (e) => { if (!caixa.current?.contains(e.target)) fechar() }
+    const esc = (e) => { if (e.key === 'Escape') { e.stopPropagation(); fechar() } } // fecha só a lista, não o painel
+    document.addEventListener('pointerdown', foraDaCaixa)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', foraDaCaixa); document.removeEventListener('keydown', esc) }
+  }, [aberto])
 
   return (
-    <div className="escolher" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) fechar() }}>
+    <div className="escolher" ref={caixa} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) fechar() }}>
       <label className="field">
         <span>Item do orçamento</span>
         <div className="escolher-campo">
           <input className="ipt" role="combobox" aria-expanded={aberto} aria-controls={idLista} autoComplete="off"
             placeholder={escolhido ? `${escolhido.codigo}: trocar o item` : 'Escolha ou digite código ou descrição'}
-            value={aberto ? texto : (escolhido?.codigo ?? '')}
+            // Fechado, o campo mostra o código e a descrição do item escolhido (o texto inteiro no title).
+            value={aberto ? texto : (escolhido ? `${escolhido.codigo} ${escolhido.descricao}` : '')}
+            title={escolhido ? `${escolhido.codigo} ${escolhido.descricao}` : undefined}
             onFocus={() => setAberto(true)}
             onChange={(e) => { setTexto(e.target.value); setAberto(true) }}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') fechar()
+              if (e.key === 'Escape') { e.stopPropagation(); fechar() }
               if (e.key === 'Enter' && achados.length) { e.preventDefault(); escolher(achados[0]) }
             }} />
           <button type="button" className="escolher-seta" aria-label="Mostrar todos os itens do orçamento" aria-expanded={aberto}

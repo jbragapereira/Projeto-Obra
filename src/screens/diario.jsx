@@ -1,10 +1,10 @@
 // Diário de obra (Engenheiro e Diretoria) / Lançar o dia (Equipe da obra).
 // Escolhe o dia (hoje por padrão), lança ou corrige o diário daquele dia,
 // e mostra o histórico em cartões. Tudo da obra escolhida no seletor.
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   buscarEndereco, juntar, listarDiarios, listarFotos, listarFuncoes, listarItensDasMedicoes, listarMedicoes,
-  listarGrupos, listarLancamentos, listarSemanaAtividades, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
+  listarGrupos, listarLancamentos, listarSemanaAtividades, listarResponsaveis, listarServicos, salvarDiario,
 } from '../lib/dados.js'
 import {
   CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluiPeloSaldo, diarioTemConteudo, zeraAlgumLancamento, efetivoParaComecar, efetivoPorFuncao,
@@ -16,14 +16,13 @@ import { analisarServico } from '../lib/painel.js'
 import { achatarEap, acumuladoPorServico, ehItem, montarEap } from '../lib/planejamento.js'
 import { COR_STATUS_SEMANA, efeitoDoDiarioNoKanban, responsavelNaSemana } from '../lib/curtoPrazo.js'
 import { medicaoDoDia, metaDoItem, rotuloDoPeriodo } from '../lib/medicao.js'
-import { podeEditar, podeLancar, rotuloDoDiario, veCadastrosDoDiario } from '../lib/perfis.js'
-import { TIPOS_RESPONSAVEL, aceitaLancamento } from '../lib/obras.js'
+import { podeEditar, podeLancar, rotuloDoDiario } from '../lib/perfis.js'
+import { aceitaLancamento } from '../lib/obras.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
 import { dataHoraCurta, dataLonga, dm, dmy, hojeISO, segundaDaSemana } from '../lib/datas.js'
 import { ORIGENS_DATA } from '../lib/fotos.js'
 import { CampoNumero, Carregando, Critico, ErroCarga, Faixa, Icon, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
 import { prepararFoto } from '../components/prepararFoto.js'
-import DiarioCadastros from './diarioCadastros.jsx'
 
 // Todas as medições e os itens delas: o cartão mostra a meta da medição do dia do diário.
 const carregar = () => juntar({
@@ -118,17 +117,13 @@ function formularioDe(dados, dia, diario, planejados = []) {
   }
 }
 
-function DiarioDoDia({ profile, obra, versaoCadastro }) {
+function DiarioDoDia({ profile, obra, goto }) {
   const { data, erro, carregando, recarregar } = useDados(carregar)
-  // Cadastro novo na outra aba: recarrega a lista sem perder o lançamento em andamento.
-  useEffect(() => { if (versaoCadastro) recarregar() }, [versaoCadastro])
   const hoje = hojeISO()
   const [dia, setDia] = useState(hoje)
   const [form, setForm] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [comprimindo, setComprimindo] = useState([]) // ids dos serviços com foto sendo preparada
-  const [novaFuncao, setNovaFuncao] = useState(null) // nome em digitação, ou null (fechado)
-  const [novoResp, setNovoResp] = useState(null) // { nome, tipo }, ou null (fechado)
 
   if (carregando) return <Carregando />
   if (erro) return <ErroCarga erro={erro} onTentar={recarregar} />
@@ -160,7 +155,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
     const temRascunho = form && (fotosDoForm.length || diarioTemConteudo({ itens: Object.values(form.itens), efetivo: form.efetivo, ocorrencias: form.ocorrencias }))
     if (temRascunho && !window.confirm('Há um lançamento que ainda não foi enviado. Trocar de dia e descartar?')) return
     fotosDoForm.forEach((f) => URL.revokeObjectURL(f.url_previa))
-    setDia(novo); setForm(null); setNovaFuncao(null); setNovoResp(null)
+    setDia(novo); setForm(null)
     window.scrollTo(0, 0)
   }
 
@@ -319,31 +314,6 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
     setForm({ ...f, cartoes: tirarCartao(f.cartoes, indice), itens: { ...f.itens, [atual]: limparItem(atual) } })
   }
 
-  // O cadastrado já entra na primeira linha que estava sem aquele campo (ou numa linha nova).
-  function preencherVaga(campo, id) {
-    const vaga = f.efetivo.findIndex((l) => !l[campo])
-    const nova = { responsavel_id: '', funcao_id: '', quantidade: null, [campo]: id }
-    atualizar({ efetivo: vaga >= 0 ? f.efetivo.map((l, k) => (k === vaga ? { ...l, [campo]: id } : l)) : [...f.efetivo, nova] })
-  }
-
-  async function criarFuncao() {
-    const r = await salvarFuncao({ nome: novaFuncao })
-    if (r.erro) { avisar(r.erro); return }
-    avisar(`Função ${r.data.nome} cadastrada.`)
-    setNovaFuncao(null)
-    preencherVaga('funcao_id', r.data.id)
-    recarregar()
-  }
-
-  async function criarResponsavel() {
-    const r = await salvarResponsavel(novoResp)
-    if (r.erro) { avisar(r.erro); return }
-    avisar(`${r.data.nome} cadastrado.`)
-    setNovoResp(null)
-    preencherVaga('responsavel_id', r.data.id)
-    recarregar()
-  }
-
   async function enviar() {
     if (Object.keys(errosEfetivo).length) { avisar('Confira as linhas do efetivo marcadas em vermelho.'); return }
     setSalvando(true)
@@ -414,37 +384,11 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
           ))}
           <div className="btns">
             <button className="btn" onClick={() => atualizar({ efetivo: [...f.efetivo, { responsavel_id: '', funcao_id: '', quantidade: null }] })}>＋ Adicionar linha</button>
-            {edita && <button className="btn ghost" onClick={() => { setNovaFuncao(''); setNovoResp(null) }}>＋ Nova função</button>}
-            {edita && <button className="btn ghost" onClick={() => { setNovoResp({ nome: '', tipo: TIPOS_RESPONSAVEL[0] }); setNovaFuncao(null) }}>＋ Novo responsável</button>}
           </div>
-          {novaFuncao !== null && (
-            <div className="cadastro-rapido">
-              <label className="field"><span>Nome da nova função</span>
-                <input className="ipt" value={novaFuncao} placeholder="Ex.: Gesseiro, Soldador, Operador de betoneira" autoFocus onChange={(e) => setNovaFuncao(e.target.value)} />
-              </label>
-              <div className="btns">
-                <button className="btn primary" onClick={criarFuncao} disabled={!novaFuncao.trim()}>Cadastrar função</button>
-                <button className="btn ghost" onClick={() => setNovaFuncao(null)}>Cancelar</button>
-              </div>
-            </div>
-          )}
-          {novoResp && (
-            <div className="cadastro-rapido">
-              <div className="form-grid">
-                <label className="field"><span>Nome do responsável</span>
-                  <input className="ipt" value={novoResp.nome} placeholder="Ex.: Construtora Alfa" autoFocus onChange={(e) => setNovoResp({ ...novoResp, nome: e.target.value })} />
-                </label>
-                <label className="field"><span>Tipo</span>
-                  <select className="ipt" value={novoResp.tipo} onChange={(e) => setNovoResp({ ...novoResp, tipo: e.target.value })}>
-                    {TIPOS_RESPONSAVEL.map((t) => <option key={t}>{t}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="btns" style={{ marginTop: 10 }}>
-                <button className="btn primary" onClick={criarResponsavel} disabled={!novoResp.nome.trim()}>Cadastrar responsável</button>
-                <button className="btn ghost" onClick={() => setNovoResp(null)}>Cancelar</button>
-              </div>
-            </div>
+          {edita && (
+            <p className="obs" style={{ margin: 0, fontSize: 14 }}>
+              Falta um responsável ou uma função na lista? Cadastre no módulo <button className="link" onClick={() => goto('cadastro')}>Cadastro</button>.
+            </p>
           )}
         </section>
 
@@ -567,20 +511,16 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   )
 }
 
-// O Diário tem duas abas. As duas ficam montadas: trocar de aba não perde o lançamento pela metade.
-export default function Diario({ profile, obra }) {
-  const [aba, setAba] = useState('dia')
-  const [versaoCadastro, setVersaoCadastro] = useState(0)
+// O Diário: uma aba só (os cadastros de responsáveis e funções ficam no módulo Cadastro).
+export default function Diario({ profile, obra, goto }) {
   return (
     <>
       <Faixa>
         <div className="tabs" role="tablist" aria-label="Diário">
-          <button className="tab" role="tab" aria-selected={aba === 'dia'} onClick={() => setAba('dia')}>{rotuloDoDiario(profile.role)}</button>
-          {veCadastrosDoDiario(profile.role) && <button className="tab" role="tab" aria-selected={aba === 'cadastros'} onClick={() => setAba('cadastros')}>Responsáveis e funções</button>}
+          <button className="tab" role="tab" aria-selected="true">{rotuloDoDiario(profile.role)}</button>
         </div>
       </Faixa>
-      <div hidden={aba !== 'dia'}><DiarioDoDia profile={profile} obra={obra} versaoCadastro={versaoCadastro} /></div>
-      {aba === 'cadastros' && <DiarioCadastros profile={profile} onMudou={() => setVersaoCadastro((v) => v + 1)} />}
+      <DiarioDoDia profile={profile} obra={obra} goto={goto} />
     </>
   )
 }

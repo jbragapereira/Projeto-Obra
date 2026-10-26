@@ -21,8 +21,10 @@ import Fotos from '../screens/fotos.jsx'
 // As telas maiores carregam só quando são abertas (o app abre mais rápido no celular).
 const Orcamento = lazy(() => import('../screens/orcamento.jsx'))
 const Planejamento = lazy(() => import('../screens/planejamento.jsx'))
+const Empreiteiros = lazy(() => import('../screens/empreiteiros.jsx'))
+const Cadastro = lazy(() => import('../screens/cadastro.jsx'))
 
-const TELAS = { painel: Painel, diario: Diario, orcamento: Orcamento, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos, planejamento: Planejamento }
+const TELAS = { painel: Painel, diario: Diario, orcamento: Orcamento, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos, planejamento: Planejamento, empreiteiros: Empreiteiros, cadastro: Cadastro }
 
 export default function Shell({ profile, onSair }) {
   const { obras, obra, obraId, erro, trocarObra } = useObra()

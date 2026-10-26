@@ -1,5 +1,5 @@
 // Regras de obra, medição e diário (src/lib/obras.js, medicao.js, diario.js).
-import { validarObra, aceitaLancamento, OBRA_VAZIA } from '../src/lib/obras.js'
+import { validarObra, aceitaLancamento, OBRA_VAZIA, validarEquipamento } from '../src/lib/obras.js'
 import { congelarMeta, bateuMeta, resumoMetas, podeIniciar } from '../src/lib/medicao.js'
 import {
   podeCorrigir, podeLancarData, validarEfetivo, totalEfetivo, diarioTemConteudo, zeraAlgumLancamento, itemTemConteudo, linhasPreenchidas, efetivoParaComecar,
@@ -117,6 +117,13 @@ conferir('dia nublado não é chuvoso', climaComChuva({ clima_manha: 'Nublado', 
 
 conferir('serviço só com memória de cálculo conta', itemTemConteudo({ quantidade: 0, concluido: false, memoria_calculo: '3 × 8,00 m' }), true)
 conferir('serviço com memória em branco não conta', itemTemConteudo({ quantidade: 0, concluido: false, memoria_calculo: '   ' }), false)
+
+conferir('equipamento: nome, próprio ou locado, locado pede de quem, sem repetir na obra', [
+  Object.keys(validarEquipamento({ nome: '', propriedade: 'Próprio' })),
+  Object.keys(validarEquipamento({ nome: 'Betoneira', propriedade: 'Locado', fornecedor: '' })),
+  Object.keys(validarEquipamento({ nome: 'betoneira 400 l', propriedade: 'Próprio' }, ['Betoneira 400 L'])),
+  validarEquipamento({ nome: 'Guincho', propriedade: 'Locado', fornecedor: 'Loca Já' }),
+], [['nome'], ['fornecedor'], ['nome'], {}])
 
 console.log(`${ok}/${tot} — regras de obra, medição e diário`)
 process.exit(ok === tot ? 0 : 1)

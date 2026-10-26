@@ -150,6 +150,18 @@ export const lancamentos = []
 export const fotos = []
 export const medicoes = []
 export const medicaoItens = []
+// Equipamentos de cada obra (cadastro).
+export const equipamentos = [
+  { id: 'eq-vn-1', obra_id: 'obra-vn', nome: 'Betoneira 400 L', propriedade: 'Próprio', fornecedor: '', identificacao: 'BT-02', ativo: true },
+  { id: 'eq-vn-2', obra_id: 'obra-vn', nome: 'Andaime fachadeiro (60 m²)', propriedade: 'Locado', fornecedor: 'Locaforte Andaimes', identificacao: '', ativo: true },
+  { id: 'eq-vn-3', obra_id: 'obra-vn', nome: 'Martelete rompedor 10 kg', propriedade: 'Próprio', fornecedor: '', identificacao: 'MR-11', ativo: true },
+  { id: 'eq-ba-1', obra_id: 'obra-ba', nome: 'Trator de esteiras 170 HP', propriedade: 'Locado', fornecedor: 'Terraplena Nordeste', identificacao: 'D6-0458', ativo: true },
+]
+// Medição de empreiteiros: contratos (Kanban), itens do escopo (do Orçamento), boletins e linhas dos boletins.
+export const contratosEmpreiteiro = []
+export const contratoItens = []
+export const boletinsEmpreiteiro = []
+export const boletimLinhas = []
 
 const itemDoOrcamento = (obraId, [codigo, fonte, codigoRef, descricao, unidade, qtd, custo, bdi, preco]) => ({
   id: `s-${obraId.slice(5)}-${codigo}`, obra_id: obraId, codigo, fonte, codigo_ref: codigoRef, descricao, unidade,
@@ -313,3 +325,56 @@ subtarefas.push(
   subtarefa('st-vn-3', 'obra-vn', 's-vn-4.2.1', 'Reboco das salas 201 a 204', SITUACAO_SUBTAREFA.pendente),
 )
 
+// Medição de empreiteiros de exemplo: as duas obras com contratos em todas as colunas, cada uma com um
+// GLOBAL e um POR ESCOPO ativos, já com boletins. Na ARRECIFES: Gesso (global, R$ 30.000) e Drywall (por
+// escopo, com os itens de forro do Orçamento dela). Acumulado e saldo batem com os boletins.
+responsaveis.push({ id: 'r-ba-gesso', obra_id: 'obra-ba', nome: 'Gesso & Forros Recife', tipo: 'Empresa especializada', contato: '(81) 99999-0004', ativo: true })
+const contrato = (id, obraId, resp, descricao, status, tipo = null, valorGlobal = null) => ({
+  id, obra_id: obraId, responsavel_id: resp, descricao, status, tipo, valor_global: valorGlobal, criado_em: `${d(-30)}T10:00:00`,
+})
+contratosEmpreiteiro.push(
+  contrato('ce-vn-1', 'obra-vn', 'r-pedra', 'Revestimento cerâmico das áreas molhadas', 'Em elaboração'),
+  contrato('ce-vn-2', 'obra-vn', 'r-ponto', 'SPDA e aterramento', 'Enviado p/ aprovação'),
+  contrato('ce-vn-3', 'obra-vn', 'r-ponto', 'Instalações elétricas: mão de obra', 'Aprovado / Ativo', 'Global', 30000),
+  contrato('ce-vn-4', 'obra-vn', 'r-pedra', 'Alvenaria, contrapiso e tapume', 'Aprovado / Ativo', 'Por escopo'),
+  contrato('ce-vn-5', 'obra-vn', 'r-pedra', 'Demolições internas', 'Concluído', 'Global', 6000),
+  contrato('ce-ba-1', 'obra-ba', 'r-silva', 'Terraplenagem e escavação', 'Em elaboração'),
+  contrato('ce-ba-2', 'obra-ba', 'r-silva', 'Pintura interna e externa', 'Enviado p/ aprovação'),
+  contrato('ce-ba-3', 'obra-ba', 'r-ba-gesso', 'Gesso: revestimento de paredes e sancas', 'Aprovado / Ativo', 'Global', 30000),
+  contrato('ce-ba-4', 'obra-ba', 'r-ba-gesso', 'Drywall: forros e sancas', 'Aprovado / Ativo', 'Por escopo'),
+  contrato('ce-ba-5', 'obra-ba', 'r-silva', 'Locação e montagem do canteiro', 'Concluído', 'Global', 8500),
+)
+contratoItens.push(
+  { id: 'ci-vn-4-1', obra_id: 'obra-vn', contrato_id: 'ce-vn-4', servico_id: 's-vn-3.1.4', quantidade: 1850, preco_unitario: 38 },
+  { id: 'ci-vn-4-2', obra_id: 'obra-vn', contrato_id: 'ce-vn-4', servico_id: 's-vn-5.1.1', quantidade: 980, preco_unitario: 21 },
+  { id: 'ci-vn-4-3', obra_id: 'obra-vn', contrato_id: 'ce-vn-4', servico_id: 's-vn-1.2.1', quantidade: 180, preco_unitario: 70 },
+  // Drywall da ARRECIFES: placas (forro em drywall) 200 m² × R$ 80, forro resistente à umidade 200 m² × R$ 40
+  // e sanca de gesso 50 m² × R$ 120 = R$ 30.000 (16.000 + 8.000 + 6.000).
+  { id: 'ci-ba-4-1', obra_id: 'obra-ba', contrato_id: 'ce-ba-4', servico_id: 's-ba-15.10.1', quantidade: 200, preco_unitario: 80 },
+  { id: 'ci-ba-4-2', obra_id: 'obra-ba', contrato_id: 'ce-ba-4', servico_id: 's-ba-15.10.3', quantidade: 200, preco_unitario: 40 },
+  { id: 'ci-ba-4-3', obra_id: 'obra-ba', contrato_id: 'ce-ba-4', servico_id: 's-ba-15.10.2', quantidade: 50, preco_unitario: 120 },
+)
+boletinsEmpreiteiro.push(
+  { id: 'be-vn-3-1', obra_id: 'obra-vn', contrato_id: 'ce-vn-3', numero: 1, data: d(-12), valor: 7500, criado_por: 'p-eng' },
+  { id: 'be-vn-4-1', obra_id: 'obra-vn', contrato_id: 'ce-vn-4', numero: 1, data: d(-20), valor: 29100, criado_por: 'p-eng' },
+  { id: 'be-vn-4-2', obra_id: 'obra-vn', contrato_id: 'ce-vn-4', numero: 2, data: d(-6), valor: 17300, criado_por: 'p-eng' },
+  { id: 'be-vn-5-1', obra_id: 'obra-vn', contrato_id: 'ce-vn-5', numero: 1, data: d(-40), valor: 6000, criado_por: 'p-eng' },
+  // ARRECIFES: Gesso com 1 boletim (30% = R$ 9.000); Drywall com 2 boletins; canteiro concluído (100%).
+  { id: 'be-ba-3-1', obra_id: 'obra-ba', contrato_id: 'ce-ba-3', numero: 1, data: d(-8), valor: 9000, criado_por: 'p-eng' },
+  { id: 'be-ba-4-1', obra_id: 'obra-ba', contrato_id: 'ce-ba-4', numero: 1, data: d(-15), valor: 8800, criado_por: 'p-eng' },
+  { id: 'be-ba-4-2', obra_id: 'obra-ba', contrato_id: 'ce-ba-4', numero: 2, data: d(-4), valor: 7600, criado_por: 'p-eng' },
+  { id: 'be-ba-5-1', obra_id: 'obra-ba', contrato_id: 'ce-ba-5', numero: 1, data: d(-35), valor: 8500, criado_por: 'p-eng' },
+)
+// Boletim 1: 600 m² de alvenaria (22.800) + 90 m de tapume (6.300). Boletim 2: 400 m² de alvenaria (15.200) + 100 m² de contrapiso (2.100).
+boletimLinhas.push(
+  { id: 'bl-vn-4-1-a', obra_id: 'obra-vn', boletim_id: 'be-vn-4-1', contrato_item_id: 'ci-vn-4-1', quantidade: 600, valor: 22800 },
+  { id: 'bl-vn-4-1-b', obra_id: 'obra-vn', boletim_id: 'be-vn-4-1', contrato_item_id: 'ci-vn-4-3', quantidade: 90, valor: 6300 },
+  { id: 'bl-vn-4-2-a', obra_id: 'obra-vn', boletim_id: 'be-vn-4-2', contrato_item_id: 'ci-vn-4-1', quantidade: 400, valor: 15200 },
+  { id: 'bl-vn-4-2-b', obra_id: 'obra-vn', boletim_id: 'be-vn-4-2', contrato_item_id: 'ci-vn-4-2', quantidade: 100, valor: 2100 },
+  // Drywall, boletim 1: 80 m² de placas (6.400) + 60 m² de forro RU (2.400) = 8.800.
+  // Boletim 2: 50 m² de placas (4.000) + 30 m² de sanca (3.600) = 7.600. Acumulado 16.400 de 30.000; saldo 13.600.
+  { id: 'bl-ba-4-1-a', obra_id: 'obra-ba', boletim_id: 'be-ba-4-1', contrato_item_id: 'ci-ba-4-1', quantidade: 80, valor: 6400 },
+  { id: 'bl-ba-4-1-b', obra_id: 'obra-ba', boletim_id: 'be-ba-4-1', contrato_item_id: 'ci-ba-4-2', quantidade: 60, valor: 2400 },
+  { id: 'bl-ba-4-2-a', obra_id: 'obra-ba', boletim_id: 'be-ba-4-2', contrato_item_id: 'ci-ba-4-1', quantidade: 50, valor: 4000 },
+  { id: 'bl-ba-4-2-b', obra_id: 'obra-ba', boletim_id: 'be-ba-4-2', contrato_item_id: 'ci-ba-4-3', quantidade: 30, valor: 3600 },
+)

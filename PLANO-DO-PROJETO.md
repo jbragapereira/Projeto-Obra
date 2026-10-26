@@ -2,7 +2,7 @@
 
 > **Mudança de 24/10/2026 (decisão do engenheiro), vale sobre o que estiver escrito abaixo:**
 > - O menu **Serviços passou a se chamar Orçamento**. É nele que entra o orçamento da obra em Excel (Fonte, Código, Item, Descrição, Unidade, Quantidade, C. Unitário, BDI por linha, P. Unitário, P. Total), com **aditivo de quantidade** e **item novo** incluídos pelo app. A EAP do Planejamento é montada a partir do Orçamento e enxerga toda mudança feita nele.
-> - O cadastro de **Responsáveis (e de funções) saiu de Serviços e foi para o Diário**, na aba "Responsáveis e funções". Só o engenheiro cadastra.
+> - O cadastro de **Responsáveis (e de funções) saiu de Serviços**. Desde 26/10/2026 ele mora só no módulo **Cadastro** (abas Responsáveis — onde também entram os empreiteiros —, Funções e Equipamentos); o Diário, o Kanban e a medição de empreiteiros só escolhem da lista. Só o engenheiro cadastra; a diretoria vê.
 > - **O MS Project fica de fora por enquanto.** Crítico é só marcado à mão; as datas de início e fim são lançadas na EAP, nos itens; as de etapa e subetapa saem sozinhas dos itens (início mais cedo, fim mais tarde).
 
 > Fonte da verdade deste projeto. Quando mudar de ideia, mude aqui primeiro.
@@ -45,7 +45,7 @@ Um só lugar por obra. O estagiário (e quem mais for de campo) lança no celula
 - Ler o WhatsApp ou o e-mail sozinho. O que chega por lá e importa vira um registro, lançado à mão (ver módulo Recados e pendências).
 - Editar o cronograma. O MS Project continua sendo a ferramenta do cronograma; o sistema só usa as datas de início e fim de cada serviço.
 - Controle de estoque do almoxarifado.
-- Pagamento de empreiteiros e financeiro da obra.
+- Pagamento de empreiteiros e financeiro da obra. *(A **medição** de empreiteiros (contrato, valor e boletins) entrou em 26/10/2026, por decisão do engenheiro; o pagamento continua fora.)*
 - Publicar na Play Store ou na App Store. Mesmo assim, no celular ele **funciona como app**: instala pelo navegador e ganha ícone na tela inicial, e o diário pode ser preenchido **sem sinal no canteiro**, com envio automático quando a internet voltar. *(Corrigido pelo engenheiro em 23/10/2026: o item "app de loja" estava errado.)*
 
 ## Funcionalidades

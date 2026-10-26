@@ -2,17 +2,16 @@
 // realizado), as subtarefas de cada atividade e o PPC. A lista nasce pela regra (cruza a semana ou
 // está atrasada); o engenheiro pode tirar. Engenheiro e equipe movem; a diretoria só vê.
 import { useState } from 'react'
-import { definirResponsavelDaSemana, excluirSubtarefa, mudarStatusAtividade, mudarSubtarefa, salvarResponsavel, salvarSubtarefa, tirarDaSemana } from '../lib/dados.js'
-import { achatarEap, acumuladoPorServico, aplicarPrazo, ehItem, montarEap } from '../lib/planejamento.js'
+import { definirResponsavelDaSemana, excluirSubtarefa, mudarStatusAtividade, mudarSubtarefa, salvarSubtarefa, tirarDaSemana } from '../lib/dados.js'
+import { achatarEap, acumuladoPorServico, aplicarPrazo, eapTemDatas, ehItem, montarEap } from '../lib/planejamento.js'
 import {
   CAUSAS, CAUSA_OUTRA, COLUNAS_KANBAN, SITUACAO_SUBTAREFA, STATUS_SEMANA, acoesDoStatus, atividadesDaSemanaCurta, causasMaisFrequentes, ppc, realPorItem,
   responsavelNaSemana, semanasAnteriores, textoDaCausa, validarCausa,
 } from '../lib/curtoPrazo.js'
 import { atividadeLiberada } from '../lib/restricoes.js'
-import { TIPOS_RESPONSAVEL } from '../lib/obras.js'
 import { podeAtualizarSemana, podeEditar } from '../lib/perfis.js'
 import { addDias, dm, hojeISO, segundaDaSemana } from '../lib/datas.js'
-import { Barra, Icon, Sheet, avisar } from '../components/index.jsx'
+import { Barra, Icon, Sheet, Vazio, avisar } from '../components/index.jsx'
 
 const pctDe = (p) => Math.round((p ?? 0) * 100)
 const SEMANAS_NO_GRAFICO = 8
@@ -38,37 +37,6 @@ function FormCausa({ titulo, onSalvar, onFechar }) {
         {erro && <span className="erro">{erro}</span>}
         <div className="btns" style={{ marginTop: 14 }}>
           <button className="btn primary" onClick={() => { setTocado(true); if (!validarCausa({ causa, causa_texto: texto })) onSalvar(causa, texto) }}>Salvar como não realizado</button>
-          <button className="btn ghost" onClick={onFechar}>Cancelar</button>
-        </div>
-      </div>
-    </Sheet>
-  )
-}
-
-// Atalho para cadastrar responsável sem ir ao Diário (o mesmo cadastro da aba "Responsáveis e funções").
-function FormResponsavel({ onSalvo, onFechar }) {
-  const [novo, setNovo] = useState({ nome: '', tipo: TIPOS_RESPONSAVEL[0], contato: '' })
-  const [salvando, setSalvando] = useState(false)
-  async function salvar() {
-    setSalvando(true)
-    const r = await salvarResponsavel(novo)
-    setSalvando(false)
-    if (r.erro) { avisar(r.erro); return }
-    avisar(`${r.data.nome} cadastrado.`)
-    onSalvo()
-  }
-  return (
-    <Sheet titulo="Novo responsável" subtitulo="Aparece na lista de todos os cartões desta obra" onFechar={onFechar}>
-      <div className="sheet-b">
-        <div className="form-grid">
-          <label className="field"><span>Nome</span><input className="ipt" value={novo.nome} autoFocus placeholder="Ex.: Construtora Alfa" onChange={(e) => setNovo({ ...novo, nome: e.target.value })} /></label>
-          <label className="field"><span>Tipo</span>
-            <select className="ipt" value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value })}>{TIPOS_RESPONSAVEL.map((t) => <option key={t}>{t}</option>)}</select>
-          </label>
-          <label className="field"><span>Contato</span><input className="ipt" value={novo.contato} placeholder="Telefone ou e-mail" onChange={(e) => setNovo({ ...novo, contato: e.target.value })} /></label>
-        </div>
-        <div className="btns" style={{ marginTop: 14 }}>
-          <button className="btn primary" onClick={salvar} disabled={salvando || !novo.nome.trim()}>{salvando ? 'Salvando…' : 'Cadastrar responsável'}</button>
           <button className="btn ghost" onClick={onFechar}>Cancelar</button>
         </div>
       </div>
@@ -174,15 +142,24 @@ function Cartao({ a, semana, nomeResp, responsaveis, registros, lancamentos, sub
   )
 }
 
-export default function AbaCurto({ profile, dados, onMudou }) {
+export default function AbaCurto({ profile, dados, onMudou, onIrParaEap }) {
   const hoje = hojeISO()
   const atual = segundaDaSemana(hoje)
   const [inicio, setInicio] = useState(atual)
   const [coluna, setColuna] = useState(0) // coluna aberta no celular
   const [causaDe, setCausaDe] = useState(null) // { titulo, salvar(causa, texto) }
-  const [novoResp, setNovoResp] = useState(false) // atalho: cadastrar responsável
   const atualiza = podeAtualizarSemana(profile.role)
   const edita = podeEditar(profile.role)
+
+  if (!eapTemDatas(dados.servicos)) {
+    return (
+      <div className="view">
+        <Vazio titulo="Ainda não há semana para acompanhar"
+          texto="O Kanban da semana e o PPC saem das datas de início e fim dos itens da EAP. Lance as datas e a semana aparece aqui."
+          acao="Lançar datas na EAP" onAcao={onIrParaEap} />
+      </div>
+    )
+  }
 
   const acumulado = acumuladoPorServico(dados.lancamentos)
   const raizes = aplicarPrazo(montarEap({ servicos: dados.servicos, grupos: dados.grupos, acumulado }), { hoje, cal: dados.calendario })
@@ -225,7 +202,6 @@ export default function AbaCurto({ profile, dados, onMudou }) {
           </div>
           <button className="btn ghost" aria-label="Semana seguinte" onClick={() => setInicio(addDias(inicio, 7))}>▶</button>
           {inicio !== atual && <button className="btn ghost" onClick={() => setInicio(atual)}>Hoje</button>}
-          {edita && <button className="btn ghost" onClick={() => setNovoResp(true)}>＋ Novo responsável</button>}
         </div>
 
         <section className="card card-b curto-ppc" aria-label="PPC da semana">
@@ -296,7 +272,6 @@ export default function AbaCurto({ profile, dados, onMudou }) {
         </details>
       )}
 
-      {novoResp && <FormResponsavel onSalvo={() => { setNovoResp(false); onMudou() }} onFechar={() => setNovoResp(false)} />}
       {causaDe && <FormCausa titulo={causaDe.titulo} onSalvar={salvarCausa} onFechar={() => setCausaDe(null)} />}
     </div>
   )

@@ -17,12 +17,13 @@ import { podeAtualizarSemana, podeEditar, podeLancar, podePlanejar, podeRegistra
 import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
 import { congelarMeta, cronogramaDeMedicoes, itensPelaEap, mesVigente, periodoDaProxima, podeDescongelar, podeIniciar, reconciliarItens, temCronograma, valorEmMontagem } from './medicao.js'
-import { aceitaLancamento, validarObra } from './obras.js'
+import { TIPOS_EMPREITEIRO, aceitaLancamento, validarObra, validarEquipamento } from './obras.js'
 import { CALENDARIO_PADRAO, validarCalendario } from './calendario.js'
 import { moverSemana, validarRestricao } from './restricoes.js'
 import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, efeitoDoDiarioNoKanban, planejadaNaSemana, validarCausa } from './curtoPrazo.js'
 import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo, zeraAlgumLancamento } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
+import { ATIVO, ENVIADO, GLOBAL, POR_ESCOPO, EM_ELABORACAO, globalPorValor, linhaPorQuantidade, medidoDoContrato, motivoParaNaoMover, pctMedido, proximoNumeroDeBoletim, validarBoletim, validarValorDoContrato, valorDoBoletim, valorDoContrato } from './empreiteiros.js'
 
 let sessao = null
 let obraAtual = null
@@ -520,6 +521,25 @@ export function salvarFuncao({ nome }) {
   return ok(copia(nova))
 }
 
+export function listarEquipamentos() {
+  const e = checar(); if (e) return falha(e)
+  return ok(copia(daObra(mock.equipamentos).filter((x) => x.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))))
+}
+
+// Equipamento da obra (próprio ou locado). Só o engenheiro cadastra.
+export function salvarEquipamento({ nome, propriedade, fornecedor, identificacao }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cadastra equipamentos.')
+  const erros = validarEquipamento({ nome, propriedade, fornecedor }, daObra(mock.equipamentos).map((x) => x.nome))
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const novo = {
+    id: novoId('eq'), obra_id: obraAtual, nome: nome.trim(), propriedade,
+    fornecedor: propriedade === 'Locado' ? fornecedor.trim() : '', identificacao: identificacao?.trim() ?? '', ativo: true,
+  }
+  mock.equipamentos.push(novo)
+  return ok(copia(novo))
+}
+
 /* ── Lançamentos e diário ── */
 
 // Fotos da obra (para as miniaturas do histórico do diário).
@@ -831,6 +851,136 @@ export function descongelarMedicao(medicaoId) {
   for (const i of daObra(mock.medicaoItens).filter((x) => x.medicao_id === med.id)) i.qtd_planejada_inicial = null
   sincronizarPelaEap(med)
   return ok(copia(semValores(med)))
+}
+
+/* ── Medição de empreiteiros ── */
+// Mostra R$ do começo ao fim: só quem vê valores lê; só o engenheiro grava.
+
+const SEM_ACESSO_EMPREITEIROS = 'A medição de empreiteiros é do engenheiro e da diretoria.'
+
+// Um contrato com tudo o que as telas mostram: empreiteiro, itens do escopo (com código, descrição e unidade
+// do Orçamento), boletins (do mais recente para o mais antigo), linhas, valor total, medido e %.
+function contratoCompleto(c) {
+  const nomeResp = Object.fromEntries(daObra(mock.responsaveis).map((x) => [x.id, x.nome]))
+  const servicoDe = Object.fromEntries(daObra(mock.servicos).map((s) => [s.id, s]))
+  const itens = daObra(mock.contratoItens).filter((i) => i.contrato_id === c.id).map((i) => {
+    const s = servicoDe[i.servico_id]
+    return { ...i, codigo: s?.codigo ?? '—', descricao: s?.descricao ?? 'Item fora do Orçamento', unidade: s?.unidade ?? '' }
+  })
+  const boletins = daObra(mock.boletinsEmpreiteiro).filter((b) => b.contrato_id === c.id).sort((a, b) => b.numero - a.numero)
+  const idsBoletins = new Set(boletins.map((b) => b.id))
+  const linhas = daObra(mock.boletimLinhas).filter((l) => idsBoletins.has(l.boletim_id))
+  const valor_total = valorDoContrato({ tipo: c.tipo, valor_global: c.valor_global, itens })
+  const medido = medidoDoContrato({ boletins, linhas })
+  return {
+    ...c, empreiteiro: nomeResp[c.responsavel_id] ?? '—', itens, boletins, linhas, valor_total,
+    medido_valor: medido.valor, medido_por_item: medido.porItem, pct_medido: pctMedido(medido.valor, valor_total ?? 0),
+  }
+}
+
+export function listarContratosEmpreiteiro() {
+  const e = checar(); if (e) return falha(e)
+  if (!podeVerValores(sessao.role)) return falha(SEM_ACESSO_EMPREITEIROS)
+  return ok(copia(daObra(mock.contratosEmpreiteiro).map(contratoCompleto)))
+}
+
+// Novo contrato: empreiteiro (um responsável desta obra) e descrição; nasce em "Em elaboração", sem valor.
+export function salvarContratoEmpreiteiro({ responsavel_id, descricao }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cria contratos de empreiteiro.')
+  const erros = {}
+  if (!daObra(mock.responsaveis).some((r) => r.id === responsavel_id && r.ativo && TIPOS_EMPREITEIRO.includes(r.tipo))) erros.responsavel_id = 'Escolha o empreiteiro.'
+  if (!descricao?.trim()) erros.descricao = 'Descreva o serviço contratado.'
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const novo = {
+    id: novoId('ce'), obra_id: obraAtual, responsavel_id, descricao: descricao.trim(), status: EM_ELABORACAO,
+    tipo: null, valor_global: null, criado_em: dataHoraLocal(new Date()),
+  }
+  mock.contratosEmpreiteiro.push(novo)
+  return ok(copia(contratoCompleto(novo)))
+}
+
+// Mover o card uma coluna (setas). Ir para "Aprovado / Ativo" é pelo cadastro do valor (salvarValorDoContrato).
+export function moverContratoEmpreiteiro(contratoId, para) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro move os contratos.')
+  const c = daObra(mock.contratosEmpreiteiro).find((x) => x.id === contratoId)
+  if (!c) return falha('Contrato não encontrado nesta obra.')
+  if (para === ATIVO && c.status === ENVIADO) return falha('Cadastre o valor do contrato para ativá-lo.')
+  const completo = contratoCompleto(c)
+  const motivo = motivoParaNaoMover({ contrato: c, para, pctMedido: completo.pct_medido, temBoletim: completo.boletins.length > 0 })
+  if (motivo) return falha(motivo)
+  c.status = para
+  return ok(copia(contratoCompleto(c)))
+}
+
+// Cadastro do valor: ao ativar (contrato "Enviado p/ aprovação") ou como aditivo (contrato ativo).
+// Global: só o valor. Por escopo: itens do Orçamento desta obra, com quantidade e preço do empreiteiro.
+// O item que já tem medição mantém o id (os boletins apontam para ele) e não sai nem fica abaixo do medido.
+export function salvarValorDoContrato(contratoId, { tipo, valor_global, itens = [] }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cadastra o valor do contrato.')
+  const c = daObra(mock.contratosEmpreiteiro).find((x) => x.id === contratoId)
+  if (!c) return falha('Contrato não encontrado nesta obra.')
+  if (c.status !== ENVIADO && c.status !== ATIVO) return falha('O valor é cadastrado ao ativar o contrato (ou como aditivo, com ele ativo).')
+  const completo = contratoCompleto(c)
+  if (completo.boletins.length && c.tipo && tipo !== c.tipo) return falha('Contrato com boletim não muda de tipo.')
+  const servicosDaObra = new Set(daObra(mock.servicos).map((s) => s.id))
+  if (itens.some((i) => i.servico_id && !servicosDaObra.has(i.servico_id))) return falha('Há item de outra obra no escopo.')
+  const itemAtualDe = Object.fromEntries(completo.itens.map((i) => [i.servico_id, i]))
+  const medidoPorServico = Object.fromEntries(completo.itens.map((i) => [i.servico_id, completo.medido_por_item[i.id] ?? 0]))
+  const precoPorServico = Object.fromEntries(completo.itens.map((i) => [i.servico_id, i.preco_unitario]))
+  const erros = validarValorDoContrato({ tipo, valor_global, itens, medidoValor: completo.medido_valor, medidoPorServico, precoPorServico })
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  for (let k = mock.contratoItens.length - 1; k >= 0; k--) {
+    if (mock.contratoItens[k].obra_id === obraAtual && mock.contratoItens[k].contrato_id === c.id) mock.contratoItens.splice(k, 1)
+  }
+  if (tipo === POR_ESCOPO) {
+    for (const i of itens) {
+      mock.contratoItens.push({
+        id: itemAtualDe[i.servico_id]?.id ?? novoId('ci'), obra_id: obraAtual, contrato_id: c.id,
+        servico_id: i.servico_id, quantidade: Number(i.quantidade), preco_unitario: Number(i.preco_unitario),
+      })
+    }
+  }
+  Object.assign(c, { tipo, valor_global: tipo === POR_ESCOPO ? null : Number(valor_global), status: ATIVO })
+  return ok(copia(contratoCompleto(c)))
+}
+
+// Nova medição (boletim numerado) de um contrato ativo. Global: o R$ medido. Por escopo: a quantidade de cada
+// item (a fonte da verdade; o R$ da linha sai dela). Nada passa de 100% acumulado. Só o engenheiro lança.
+// linhas: [{ contrato_item_id, quantidade }].
+export function salvarBoletimEmpreiteiro(contratoId, { data, valor, linhas = [] }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro lança boletim de medição.')
+  const c = daObra(mock.contratosEmpreiteiro).find((x) => x.id === contratoId)
+  if (!c) return falha('Contrato não encontrado nesta obra.')
+  if (c.status !== ATIVO) return falha('Só contrato "Aprovado / Ativo" recebe medição.')
+  const completo = contratoCompleto(c)
+  let valorBoletim
+  let linhasBoletim = []
+  let erros
+  if (c.tipo === GLOBAL) {
+    valorBoletim = globalPorValor(completo.valor_total, valor).valor
+    erros = validarBoletim({ tipo: GLOBAL, data, hoje: hojeISO(), valorTotal: completo.valor_total, medidoValor: completo.medido_valor, valor: valorBoletim })
+  } else {
+    const itemDe = Object.fromEntries(completo.itens.map((i) => [i.id, i]))
+    if (linhas.some((l) => !itemDe[l.contrato_item_id])) return falha('Há item fora deste contrato no boletim.')
+    linhasBoletim = linhas.filter((l) => Number(l.quantidade) > 0).map((l) => {
+      const x = linhaPorQuantidade(itemDe[l.contrato_item_id], l.quantidade, completo.medido_por_item[l.contrato_item_id] ?? 0)
+      return { contrato_item_id: l.contrato_item_id, quantidade: x.quantidade, valor: x.valor }
+    })
+    valorBoletim = valorDoBoletim(linhasBoletim)
+    erros = validarBoletim({ tipo: POR_ESCOPO, data, hoje: hojeISO(), itens: completo.itens, medidoPorItem: completo.medido_por_item, linhas: linhasBoletim })
+  }
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: erros.data ?? 'Confira o boletim: nada pode passar de 100% acumulado.', erros })
+  const boletim = {
+    id: novoId('be'), obra_id: obraAtual, contrato_id: c.id, numero: proximoNumeroDeBoletim(completo.boletins),
+    data, valor: valorBoletim, criado_por: sessao.id,
+  }
+  mock.boletinsEmpreiteiro.push(boletim)
+  for (const l of linhasBoletim) mock.boletimLinhas.push({ id: novoId('bl'), obra_id: obraAtual, boletim_id: boletim.id, ...l })
+  return ok(copia(contratoCompleto(c)))
 }
 
 /* ── Pessoas e liberações ── */

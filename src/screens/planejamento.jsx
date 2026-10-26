@@ -4,7 +4,7 @@
 // qualquer mudança recarrega para todas as abas.
 import { useState } from 'react'
 import { buscarCalendario, juntar, listarGrupos, listarLancamentos, listarResponsaveis, listarRestricoes, listarSemanaAtividades, listarServicos, listarSubtarefas } from '../lib/dados.js'
-import { vePlanejamento } from '../lib/perfis.js'
+import { podePlanejar, vePlanejamento } from '../lib/perfis.js'
 import { Carregando, ErroCarga, Faixa, Vazio, useDados } from '../components/index.jsx'
 import AbaEap from './planejamentoEap.jsx'
 import AbaLongo from './planejamentoLongo.jsx'
@@ -26,6 +26,8 @@ const carregar = () => juntar({
 export default function Planejamento({ profile, goto }) {
   const { data, erro, carregando, recarregar } = useDados(carregar)
   const [aba, setAba] = useState('eap')
+  // Só quem lança datas na EAP vê o atalho para ela.
+  const irParaEap = podePlanejar(profile.role) ? () => setAba('eap') : undefined
 
   if (!vePlanejamento(profile.role)) {
     return <div className="view"><Vazio titulo="Planejamento é da equipe da obra" texto="Seu perfil acompanha o avanço pela tela de avanço da fiscalização." /></div>
@@ -43,9 +45,9 @@ export default function Planejamento({ profile, goto }) {
       {carregando ? <Carregando />
         : erro ? <ErroCarga erro={erro} onTentar={recarregar} />
           : aba === 'eap' ? <AbaEap profile={profile} dados={data} onMudou={recarregar} goto={goto} />
-            : aba === 'longo' ? <AbaLongo dados={data} onIrParaEap={() => setAba('eap')} />
-            : aba === 'medio' ? <AbaMedio profile={profile} dados={data} onMudou={recarregar} />
-            : <AbaCurto profile={profile} dados={data} onMudou={recarregar} />}
+            : aba === 'longo' ? <AbaLongo dados={data} onIrParaEap={irParaEap} />
+            : aba === 'medio' ? <AbaMedio profile={profile} dados={data} onMudou={recarregar} onIrParaEap={irParaEap} />
+            : <AbaCurto profile={profile} dados={data} onMudou={recarregar} onIrParaEap={irParaEap} />}
     </>
   )
 }

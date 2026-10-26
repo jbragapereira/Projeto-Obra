@@ -2,7 +2,7 @@
 
 > **Mudança de 24/10/2026 (decisão do engenheiro), vale sobre o que estiver escrito abaixo:**
 > - O menu **Serviços passou a se chamar Orçamento**. É nele que entra o orçamento da obra em Excel (Fonte, Código, Item, Descrição, Unidade, Quantidade, C. Unitário, BDI por linha, P. Unitário, P. Total), com **aditivo de quantidade** e **item novo** incluídos pelo app. A EAP do Planejamento é montada a partir do Orçamento e enxerga toda mudança feita nele.
-> - O cadastro de **Responsáveis (e de funções) saiu de Serviços e foi para o Diário**, na aba "Responsáveis e funções". Só o engenheiro cadastra.
+> - O cadastro de **Responsáveis (e de funções) saiu de Serviços**. Desde 26/10/2026 ele mora só no módulo **Cadastro** (abas Responsáveis — onde também entram os empreiteiros —, Funções e Equipamentos); o Diário, o Kanban e a medição de empreiteiros só escolhem da lista. Só o engenheiro cadastra; a diretoria vê.
 > - **O MS Project fica de fora por enquanto.** Crítico é só marcado à mão; as datas de início e fim são lançadas na EAP, nos itens; as de etapa e subetapa saem sozinhas dos itens (início mais cedo, fim mais tarde).
 
 > Especificação da interface. Quem constrói lê este arquivo.
@@ -42,8 +42,8 @@ O **seletor de obra** fica no alto de todas as telas, menos no Login e no aviso 
 ```
 Login  →  Conta aguardando liberação
 │
-├── Engenheiro:      Painel do mês · Diário (abas Diário do dia, Responsáveis e funções) · Orçamento · Planejamento · Medição · Recados (F2) · Ajustes
-├── Diretoria:       Painel do mês · Diário (abas Diário do dia, Responsáveis e funções; aba Fotos ainda não feita) · Orçamento · Planejamento · Medição · Meu perfil · Recados (F2)
+├── Engenheiro:      Painel do mês · Diário · Orçamento · Planejamento · Medição cliente · Medição empreiteiros · Cadastro · Ajustes · Recados (F2)
+├── Diretoria:       Painel do mês · Diário (aba Fotos ainda não feita) · Orçamento · Planejamento · Medição cliente · Medição empreiteiros · Cadastro · Meu perfil · Recados (F2)
 ├── Equipe da obra:  Lançar o dia · Painel do mês · Planejamento · Orçamento (sem R$) · Meu perfil
 └── Fiscalização:    Avanço por serviço (F2) · Fotos da semana (F2) · Meu perfil
 ```
@@ -214,7 +214,7 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 | Dia do diário | data | sim | já vem com hoje; não aceita futuro; a Equipe escolhe hoje ou ontem, o Engenheiro qualquer dia desde o início da obra. Se o dia já tem diário, abre o resumo (com "Corrigir" quando permitido) |
 | Clima manhã | escolha | não | `Bom`, `Nublado`, `Chuva`, `Chuva forte` |
 | Clima tarde | escolha | não | mesma lista |
-| Efetivo do dia | linhas | não | cada linha: **responsável + função + pessoas** (só número inteiro, teclado numérico). Total do dia no alto. Linha incompleta ou repetida fica marcada em vermelho na hora. O Engenheiro tem **"+ Nova função"** e **"+ Novo responsável"** (empreiteiro, empresa especializada ou mão de obra própria) dentro do próprio diário; o cadastrado já entra na linha que estava vazia |
+| Efetivo do dia | linhas | não | cada linha: **responsável + função + pessoas** (só número inteiro, teclado numérico). Total do dia no alto. Linha incompleta ou repetida fica marcada em vermelho na hora. Responsável ou função que falta se cadastra no módulo **Cadastro** (o Engenheiro vê o atalho logo abaixo das linhas); o diário só escolhe da lista |
 | Memória de cálculo (por serviço) | texto longo | não | **dentro de cada cartão de serviço**, logo abaixo da quantidade: as contas daquela quantidade (ex.: "12,40 m × 2,80 m = 34,72 m²"). Fica só no formulário: **não vai para o resumo do dia nem para o histórico**. Um serviço só com memória de cálculo também é gravado |
 | Ocorrências | texto longo | não | |
 | Quantidade executada (por serviço) | número | não | maior ou igual a zero; com a unidade do serviço |
@@ -449,6 +449,35 @@ Ao abrir um período: a **medição fatiada, na estrutura do Orçamento** (desde
 
 **Estado vazio**
 "Nenhuma medição aberta. Crie a primeira e informe o período."
+
+---
+
+## Tela: Medição empreiteiros (desde 26/10/2026)
+
+**Quem acessa:** Engenheiro (mexe e lança boletim), Diretoria (vê). Equipe da obra e Fiscalização não veem (tem R$).
+**Chega aqui por:** menu **Medição empreiteiros** (depois de Medição cliente).
+**Decidido pelo engenheiro em 26/10/2026:** entra agora, mesmo com "pagamento de empreiteiros" fora da v1 no plano; itens do escopo vêm do **Orçamento da obra**; só o Engenheiro lança boletim; contrato concluído **pode ser reaberto** (aditivo).
+
+**Tela 1, fluxo do contrato (Kanban):** colunas Em elaboração → Enviado p/ aprovação → Aprovado / Ativo → Concluído; no celular, uma coluna por vez (abas). Card: empreiteiro, descrição, tipo, valor total (quando cadastrado) e, ativo ou concluído, a barra do % medido. Move por **setas** (sem arrastar): "Avançar ▶", "◀ Voltar". **Ativar** abre o cadastro do valor; **Concluir** só com 100% medido (senão avisa e bloqueia); contrato com boletim não volta para antes de ativo; concluído tem **"◀ Reabrir"**; ativo tem **"Aditivo"** (o mesmo cadastro do valor). **"＋ Novo contrato"**: empreiteiro (responsáveis da obra que não são mão de obra própria) + descrição; nasce em Em elaboração.
+
+**Cadastro do valor:** escolha entre **Global** (só o valor total) e **Por escopo** (uma linha por item do Orçamento, escolhido pelo campo com setinha e busca; quantidade e preço unitário do empreiteiro; "＋ Adicionar item"; o ✕ remove, perguntando antes se a linha tem dado). O app soma o **valor total** (P. Total truncado, como o Orçamento). No aditivo, nada fica abaixo do já medido.
+
+**Tela 2, ficha de medição** (botão **"Ficha de medição ▸"** no card ativo ou concluído): resumo (valor total, medido acumulado em R$ e %, saldo a medir e barra); no escopo, os itens com contratado, medido, saldo e %; e o **histórico de boletins** (nº, data, valor), do mais recente para o mais antigo. **"＋ Nova medição"** (só Engenheiro, só contrato ativo) abre o **boletim numerado** (Medição nº 1, 2…) com a data de hoje (não aceita data futura). **Global:** digita-se o % ou o R$ e o outro sai na hora (o R$, em centavos, é a verdade). **Por escopo:** uma linha por item; em cada linha digita-se a **quantidade, o % ou o R$** e os outros dois saem na hora; a **quantidade é a fonte da verdade** (o % e o R$ = TRUNCAR(quantidade × preço, 2) saem dela, 3 casas na quantidade). Cada linha mostra o acumulado novo. **Bloqueio:** nenhum item (nem o global) passa de 100% acumulado: a linha fica vermelha, aparece o saldo do item e o botão de salvar trava. Rodapé: total do boletim, novo acumulado (R$ e %) e saldo. Ao salvar, o resumo e o histórico atualizam na hora, o formulário fecha e a barra do card no Kanban sobe. **No celular**, cada linha do boletim vira um **cartão empilhado**; a partir de 900 px, linha de tabela.
+
+---
+
+## Tela: Cadastro (desde 26/10/2026)
+
+**Quem acessa:** Engenheiro (cadastra), Diretoria (vê). Equipe da obra e Fiscalização não têm o menu.
+**Chega aqui por:** menu **Cadastro** (depois de Medição empreiteiros) ou pelo atalho do Diário.
+**Decidido pelo engenheiro em 26/10/2026:** todo cadastro da obra fica aqui, e só aqui. Os outros módulos (Diário, Curto prazo, Medição empreiteiros) só escolhem da lista.
+
+Abas no alto, todas da obra atual:
+- **Responsáveis:** nome (obrigatório), tipo (Empreiteiro, Empresa especializada ou Mão de obra própria) e contato. **Empreiteiro não tem aba própria** (decisão de 26/10/2026, para não duplicar): é cadastrado aqui como responsável e aparece no efetivo do Diário, no responsável do Curto prazo e no "＋ Novo contrato" da medição de empreiteiros.
+- **Funções:** nome; não aceita repetida na obra.
+- **Equipamentos:** nome (obrigatório, não repete na obra), próprio ou locado, **"Locado de"** (obrigatório quando é locado) e identificação (placa, série ou patrimônio, opcional).
+
+Cada aba mostra o formulário (só o Engenheiro) e, abaixo, a lista do que já existe. Erro aparece embaixo do campo, na hora de salvar.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Mudança de 24/10/2026 (decisão do engenheiro), vale sobre o que estiver escrito abaixo:**
 > - O menu **Serviços passou a se chamar Orçamento**. É nele que entra o orçamento da obra em Excel (Fonte, Código, Item, Descrição, Unidade, Quantidade, C. Unitário, BDI por linha, P. Unitário, P. Total), com **aditivo de quantidade** e **item novo** incluídos pelo app. A EAP do Planejamento é montada a partir do Orçamento e enxerga toda mudança feita nele.
-> - O cadastro de **Responsáveis (e de funções) saiu de Serviços e foi para o Diário**, na aba "Responsáveis e funções". Só o engenheiro cadastra.
+> - O cadastro de **Responsáveis (e de funções) saiu de Serviços**. Desde 26/10/2026 ele mora só no módulo **Cadastro** (abas Responsáveis — onde também entram os empreiteiros —, Funções e Equipamentos); o Diário, o Kanban e a medição de empreiteiros só escolhem da lista. Só o engenheiro cadastra; a diretoria vê.
 > - **O MS Project fica de fora por enquanto.** Crítico é só marcado à mão; as datas de início e fim são lançadas na EAP, nos itens; as de etapa e subetapa saem sozinhas dos itens (início mais cedo, fim mais tarde).
 
 > Especificação dos dados e das permissões. Lido na etapa de criar o banco no Supabase.
@@ -346,6 +346,34 @@ Para que serve: o planejado do mês por serviço (a meta interna) e o medido no 
 
 ---
 
+## Tabelas da medição de empreiteiros (desde 26/10/2026)
+
+Para que servem: o contrato de cada empreiteiro (Kanban), o escopo dele (itens do Orçamento, com quantidade e preço do
+empreiteiro) e os boletins de medição. Só Engenheiro e Diretoria leem (têm R$); só o Engenheiro grava. Todas com `obra_id`.
+
+**`contratos_empreiteiro`**
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| responsavel_id | uuid | sim | → responsaveis da mesma obra (empreiteiro ou empresa especializada) |
+| descricao | text | sim | o serviço contratado |
+| status | text | sim | CHECK: `Em elaboração`, `Enviado p/ aprovação`, `Aprovado / Ativo`, `Concluído` |
+| tipo | text | não | CHECK: `Global`, `Por escopo`; vazio até ativar |
+| valor_global | numeric(14,2) | não | só no `Global` |
+| criado_em | timestamptz | sim | |
+
+**`contrato_itens`** (só no `Por escopo`): `id`, `obra_id`, `contrato_id` (→ contratos_empreiteiro), `servico_id` (→ servicos da mesma obra; único por contrato), `quantidade` numeric(14,3) > 0, `preco_unitario` numeric(14,2) > 0 (o preço do empreiteiro, não o do Orçamento). Valor do contrato = soma de TRUNCAR(quantidade × preço, 2).
+
+**`boletins_empreiteiro`**: `id`, `obra_id`, `contrato_id`, `numero` (1, 2, 3… por contrato; único por contrato), `data` (date), `valor` numeric(14,2) (total do boletim), `criado_por` (→ profiles).
+
+**`boletim_linhas`** (só no `Por escopo`): `id`, `obra_id`, `boletim_id`, `contrato_item_id` (→ contrato_itens), `quantidade` numeric(14,3) (a fonte da verdade), `valor` numeric(14,2) = TRUNCAR(quantidade × preço, 2).
+
+**Regras:** ativar exige o valor; concluir exige 100% medido; contrato com boletim não volta para antes de `Aprovado / Ativo` nem muda de tipo; concluído pode ser reaberto (aditivo); no aditivo, nem o valor global nem a quantidade de um item ficam abaixo do já medido, e item medido não sai; nenhum item passa de 100% acumulado.
+
+---
+
 ## Tabela `diarios` (F1)
 
 Para que serve: o diário de cada dia de cada obra.
@@ -376,7 +404,26 @@ Para que serve: as funções de quem trabalha na obra (pedreiro, servente, eletr
 | ativo | boolean | sim | padrão verdadeiro |
 | created_at | timestamptz | sim | automático |
 
-**Regra de negócio:** toda obra nova nasce com as funções padrão (Pedreiro, Servente, Carpinteiro, Armador, Eletricista, Encanador, Pintor, Encarregado, Mestre de obras — `FUNCOES_PADRAO` em `src/lib/diario.js`). O engenheiro cadastra outras pelo próprio diário.
+**Regra de negócio:** toda obra nova nasce com as funções padrão (Pedreiro, Servente, Carpinteiro, Armador, Eletricista, Encanador, Pintor, Encarregado, Mestre de obras — `FUNCOES_PADRAO` em `src/lib/diario.js`). O engenheiro cadastra outras no módulo Cadastro.
+
+---
+
+## Tabela `equipamentos` (desde 26/10/2026)
+
+Para que serve: os equipamentos da obra, próprios ou locados (cadastrados no módulo Cadastro).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| nome | text | sim | único por obra (sem diferenciar maiúscula) |
+| propriedade | text | sim | CHECK: `Próprio`, `Locado` (`PROPRIEDADES_EQUIPAMENTO` em `src/lib/obras.js`) |
+| fornecedor | text | não | obrigatório quando `propriedade = 'Locado'` (CHECK) |
+| identificacao | text | não | placa, série ou patrimônio |
+| ativo | boolean | sim | padrão verdadeiro |
+| created_at | timestamptz | sim | automático |
+
+**Permissões:** ver, Engenheiro e Diretoria, nas obras delas (`minhas_obras()`); criar e desativar, só o Engenheiro; apagar, ninguém. `grant select, insert, update` só para `authenticated`.
 
 ---
 
@@ -547,7 +594,7 @@ Leem quem é da obra (Equipe sem as colunas de valor e sem `orcamentos`). Só o 
 
 ### `funcoes`
 - **Ver:** Engenheiro, Diretoria e Equipe da obra, nas obras delas.
-- **Criar / desativar:** só o Engenheiro (também pelo diário, no botão "+ Nova função").
+- **Criar / desativar:** só o Engenheiro, no módulo Cadastro.
 - **Apagar:** ninguém.
 - **Apagar:** ninguém. Um lançamento errado é corrigido para zero.
 

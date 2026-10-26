@@ -3,14 +3,14 @@
 // editar, mover de semana e excluir é do engenheiro. No celular, uma semana por vez.
 import { useState } from 'react'
 import { excluirRestricao, moverRestricao, resolverRestricao, salvarRestricao } from '../lib/dados.js'
-import { achatarEap, acumuladoPorServico, aplicarPrazo, ehItem, montarEap } from '../lib/planejamento.js'
+import { achatarEap, acumuladoPorServico, aplicarPrazo, eapTemDatas, ehItem, montarEap } from '../lib/planejamento.js'
 import {
   SEMANAS_PADRAO, SEMANAS_POSSIVEIS, TIPOS_RESTRICAO, VISUAL_DO_TIPO, atividadesDaSemana,
   cartoesDaSemana, restricaoVencida, restricoesNaEap, semanaNoQuadro, semanasDoQuadro, veioDeSemanaPassada,
 } from '../lib/restricoes.js'
 import { podeEditar, podeRegistrarRestricao } from '../lib/perfis.js'
 import { dataHoraCurta, dm, hojeISO } from '../lib/datas.js'
-import { Barra, Icon, Meta, Sheet, avisar } from '../components/index.jsx'
+import { Barra, Icon, Meta, Sheet, Vazio, avisar } from '../components/index.jsx'
 import EscolherItem from '../components/EscolherItem.jsx'
 
 function Campo({ rotulo, erro, children, largo }) {
@@ -50,7 +50,6 @@ function FormRestricao({ inicial, itens, nomeDoGrupo, semanas, sugestoes, podeEx
     <Sheet titulo={r.id ? 'Editar restrição' : 'Nova restrição'} subtitulo="Médio prazo" onFechar={onFechar}>
       <div className="sheet-b">
         <EscolherItem itens={itens} nomeDoGrupo={nomeDoGrupo} escolhido={escolhido} onEscolher={(id) => mudar('servico_id', id)} />
-        {escolhido && <p className="obs" style={{ margin: '4px 0 0', fontSize: 14 }}>{escolhido.descricao}</p>}
         {erros.servico_id && <span className="erro">{erros.servico_id}</span>}
         <div style={{ fontWeight: 600, margin: '14px 0 6px', fontSize: 14 }}>Tipo</div>
         <div className="rest-tipos" role="radiogroup" aria-label="Tipo da restrição">
@@ -125,7 +124,7 @@ function CartaoRestricao({ r, hoje, primeiraSemana, registra, edita, onEditar, o
   )
 }
 
-export default function AbaMedio({ profile, dados, onMudou }) {
+export default function AbaMedio({ profile, dados, onMudou, onIrParaEap }) {
   const hoje = hojeISO()
   const [n, setN] = useState(SEMANAS_PADRAO)
   const [responsavel, setResponsavel] = useState('')
@@ -134,6 +133,16 @@ export default function AbaMedio({ profile, dados, onMudou }) {
   const [form, setForm] = useState(null) // dados iniciais do formulário, ou null
   const registra = podeRegistrarRestricao(profile.role)
   const edita = podeEditar(profile.role)
+
+  if (!eapTemDatas(dados.servicos)) {
+    return (
+      <div className="view">
+        <Vazio titulo="Ainda não há semanas para planejar"
+          texto="O quadro das próximas semanas sai das datas de início e fim dos itens da EAP. Lance as datas e as semanas aparecem aqui."
+          acao="Lançar datas na EAP" onAcao={onIrParaEap} />
+      </div>
+    )
+  }
 
   const acumulado = acumuladoPorServico(dados.lancamentos)
   const raizes = aplicarPrazo(montarEap({ servicos: dados.servicos, grupos: dados.grupos, acumulado }), { hoje, cal: dados.calendario })

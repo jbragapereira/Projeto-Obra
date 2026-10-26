@@ -6,7 +6,7 @@ import {
   entrar, definirObraAtual, listarMinhasObras, listarServicos, listarLancamentos, listarDiarios,
   listarResponsaveis, listarMedicoes, listarFuncoes, listarGrupos, salvarDatasEap, salvarDiario,
   listarAditivos, buscarDadosOrcamento, buscarCalendario, salvarCalendario, listarRestricoes, salvarRestricao, resolverRestricao, moverRestricao, excluirRestricao,
-  listarSemanaAtividades, listarSubtarefas, criarMedicao, listarItensMedicao, salvarQtdPlanejada, iniciarMedicao, descongelarMedicao, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
+  listarSemanaAtividades, listarSubtarefas, listarContratosEmpreiteiro, listarEquipamentos, salvarEquipamento, salvarContratoEmpreiteiro, moverContratoEmpreiteiro, salvarValorDoContrato, salvarBoletimEmpreiteiro, criarMedicao, listarItensMedicao, salvarQtdPlanejada, iniciarMedicao, descongelarMedicao, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
 } from '../src/lib/dados.js'
 import { addDias, hojeISO } from '../src/lib/datas.js'
 import { segundaDaSemana } from '../src/lib/datas.js'
@@ -22,7 +22,7 @@ const soDaObra = (lista, obraId) => lista.length > 0 && lista.every((r) => r.obr
 
 // 1. Os dados de exemplo: toda tabela de lançamento tem obra_id válido, e coerente.
 const obraIds = new Set(mock.obras.map((o) => o.id))
-const tabelas = { servicos: mock.servicos, responsaveis: mock.responsaveis, diarios: mock.diarios, lancamentos: mock.lancamentos, fotos: mock.fotos, medicoes: mock.medicoes, medicaoItens: mock.medicaoItens, membros: mock.membros, funcoes: mock.funcoes, efetivo: mock.efetivo, grupos: mock.grupos, aditivos: mock.aditivos, orcamentos: mock.orcamentos, calendarios: mock.calendarios, restricoes: mock.restricoes, semanaAtividades: mock.semanaAtividades, subtarefas: mock.subtarefas }
+const tabelas = { servicos: mock.servicos, responsaveis: mock.responsaveis, diarios: mock.diarios, lancamentos: mock.lancamentos, fotos: mock.fotos, medicoes: mock.medicoes, medicaoItens: mock.medicaoItens, membros: mock.membros, funcoes: mock.funcoes, efetivo: mock.efetivo, grupos: mock.grupos, aditivos: mock.aditivos, orcamentos: mock.orcamentos, calendarios: mock.calendarios, restricoes: mock.restricoes, semanaAtividades: mock.semanaAtividades, subtarefas: mock.subtarefas, contratosEmpreiteiro: mock.contratosEmpreiteiro, contratoItens: mock.contratoItens, boletinsEmpreiteiro: mock.boletinsEmpreiteiro, boletimLinhas: mock.boletimLinhas, equipamentos: mock.equipamentos }
 for (const [nome, linhas] of Object.entries(tabelas)) {
   conferir(`${nome}: toda linha tem obra_id de uma obra que existe`, linhas.every((r) => obraIds.has(r.obra_id)), true)
 }
@@ -36,6 +36,14 @@ conferir('efetivo, diário, responsável e função são sempre da mesma obra',
 conferir('aditivo e item são sempre da mesma obra', mock.aditivos.every((a) => a.obra_id === servicoObra[a.servico_id]), true)
 conferir('restrição e atividade são sempre da mesma obra', mock.restricoes.every((r) => r.obra_id === servicoObra[r.servico_id]), true)
 conferir('kanban e subtarefa são sempre da mesma obra da atividade', [...mock.semanaAtividades, ...mock.subtarefas].every((r) => r.obra_id === servicoObra[r.servico_id]), true)
+const contratoObra = obraDe(mock.contratosEmpreiteiro)
+const boletimObra = obraDe(mock.boletinsEmpreiteiro)
+conferir('contrato de empreiteiro, empreiteiro, itens, boletins e linhas são sempre da mesma obra', [
+  mock.contratosEmpreiteiro.every((c) => c.obra_id === respObra[c.responsavel_id]),
+  mock.contratoItens.every((i) => i.obra_id === contratoObra[i.contrato_id] && i.obra_id === servicoObra[i.servico_id]),
+  mock.boletinsEmpreiteiro.every((b) => b.obra_id === contratoObra[b.contrato_id]),
+  mock.boletimLinhas.every((l) => l.obra_id === boletimObra[l.boletim_id]),
+], [true, true, true, true])
 conferir('lançamento, diário e serviço são sempre da mesma obra',
   mock.lancamentos.every((l) => l.obra_id === diarioObra[l.diario_id] && l.obra_id === servicoObra[l.servico_id]), true)
 conferir('existem duas obras de exemplo, diferentes', mock.obras.length === 2 && mock.obras[0].nome !== mock.obras[1].nome, true)
@@ -325,6 +333,54 @@ const resumoDoDia = (await listarDiarios()).data.find((d) => d.id === comMemoria
 conferir('a memória não aparece no resumo do dia', JSON.stringify(resumoDoDia).includes('12 barras'), false)
 conferir('o resumo traz o nome da atividade', resumoDoDia.atividades.some((a) => a.descricao === servMem.descricao), true)
 conferir('ninguém lança amanhã', (await salvarDiario({ data: '2999-01-01', clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: 'futuro', itens: [] })).erro !== null, true)
+
+// 17. Medição de empreiteiros: cada obra vê só os seus contratos; só o engenheiro mexe; a equipe não vê.
+await entrar('p-eng'); definirObraAtual('obra-vn')
+const contratosVN = (await listarContratosEmpreiteiro()).data
+conferir('INSS: só contratos desta obra, com valor e medido', [contratosVN.every((c) => c.obra_id === 'obra-vn'), contratosVN.length, contratosVN.find((c) => c.id === 'ce-vn-4')?.valor_total, contratosVN.find((c) => c.id === 'ce-vn-4')?.medido_valor],
+  [true, 5, 1850 * 38 + 980 * 21 + 180 * 70, 46400])
+definirObraAtual('obra-ba')
+conferir('ARRECIFES: só os dela, com Gesso (30.000, 30% medido) e Drywall (30.000, 16.400 medido)', ((l) => [l.every((c) => c.obra_id === 'obra-ba'), l.length, l.find((c) => c.id === 'ce-ba-3')?.pct_medido, l.find((c) => c.id === 'ce-ba-4')?.valor_total, l.find((c) => c.id === 'ce-ba-4')?.medido_valor])((await listarContratosEmpreiteiro()).data), [true, 5, 0.3, 30000, 16400])
+conferir('mão de obra própria não tem contrato de empreiteiro', (await salvarContratoEmpreiteiro({ responsavel_id: 'r-ba-prop', descricao: 'Teste' })).erros?.responsavel_id !== undefined, true)
+conferir('empreiteiro de outra obra é recusado', (await salvarContratoEmpreiteiro({ responsavel_id: 'r-pedra', descricao: 'Teste' })).erros?.responsavel_id !== undefined, true)
+const novoBA = await salvarContratoEmpreiteiro({ responsavel_id: 'r-silva', descricao: 'Drenagem' })
+conferir('novo contrato nasce em elaboração, na obra escolhida', [novoBA.erro, novoBA.data?.status, novoBA.data?.obra_id], [null, 'Em elaboração', 'obra-ba'])
+conferir('ativar direto pela seta é recusado (pede o valor)', [(await moverContratoEmpreiteiro(novoBA.data.id, 'Enviado p/ aprovação')).erro, (await moverContratoEmpreiteiro(novoBA.data.id, 'Aprovado / Ativo')).erro !== null], [null, true])
+conferir('item de outra obra no escopo é recusado', (await salvarValorDoContrato(novoBA.data.id, { tipo: 'Por escopo', itens: [{ servico_id: 's-vn-3.1.4', quantidade: 10, preco_unitario: 5 }] })).erro !== null, true)
+const ativadoBA = await salvarValorDoContrato(novoBA.data.id, { tipo: 'Por escopo', itens: [{ servico_id: 's-ba-3.4.1', quantidade: 100, preco_unitario: 4.5 }] })
+conferir('ativar por escopo com item do Orçamento desta obra', [ativadoBA.erro, ativadoBA.data?.status, ativadoBA.data?.valor_total, mock.contratoItens.filter((i) => i.contrato_id === novoBA.data.id).every((i) => i.obra_id === 'obra-ba')], [null, 'Aprovado / Ativo', 450, true])
+conferir('concluir sem 100% medido é recusado', (await moverContratoEmpreiteiro(novoBA.data.id, 'Concluído')).erro !== null, true)
+definirObraAtual('obra-vn')
+conferir('aditivo não fica abaixo do medido', (await salvarValorDoContrato('ce-vn-3', { tipo: 'Global', valor_global: 5000 })).erro !== null, true)
+conferir('concluído reabre para aditivo', (await moverContratoEmpreiteiro('ce-vn-5', 'Aprovado / Ativo')).data?.status, 'Aprovado / Ativo')
+conferir('contrato de outra obra não se move', (await moverContratoEmpreiteiro('ce-ba-1', 'Enviado p/ aprovação')).erro !== null, true)
+// Boletins: numerados por contrato, na obra escolhida; o escopo grava a quantidade e o R$ sai dela.
+definirObraAtual('obra-ba')
+const drywallAntes = (await listarContratosEmpreiteiro()).data.find((c) => c.id === 'ce-ba-4')
+const placas = drywallAntes.itens.find((i) => i.servico_id === 's-ba-15.10.1')
+const boletim3 = await salvarBoletimEmpreiteiro('ce-ba-4', { data: hojeISO(), linhas: [{ contrato_item_id: placas.id, quantidade: 20 }] })
+conferir('boletim por escopo: nº 3, R$ da quantidade, acumulado e na obra escolhida', [boletim3.erro, boletim3.data?.boletins[0].numero, boletim3.data?.boletins[0].valor, boletim3.data?.medido_valor, mock.boletinsEmpreiteiro.at(-1).obra_id, mock.boletimLinhas.at(-1).obra_id],
+  [null, 3, 1600, 18000, 'obra-ba', 'obra-ba'])
+conferir('boletim que passa de 100% no item é recusado', (await salvarBoletimEmpreiteiro('ce-ba-4', { data: hojeISO(), linhas: [{ contrato_item_id: placas.id, quantidade: 60 }] })).erro !== null, true)
+conferir('item de outro contrato no boletim é recusado', (await salvarBoletimEmpreiteiro('ce-ba-4', { data: hojeISO(), linhas: [{ contrato_item_id: 'ci-vn-4-1', quantidade: 1 }] })).erro !== null, true)
+conferir('boletim global: pelo R$, sem passar de 100%', [(await salvarBoletimEmpreiteiro('ce-ba-3', { data: hojeISO(), valor: 21000 })).data?.pct_medido, (await salvarBoletimEmpreiteiro('ce-ba-3', { data: hojeISO(), valor: 1 })).erro !== null], [1, true])
+conferir('contrato que não está ativo não recebe medição', (await salvarBoletimEmpreiteiro('ce-ba-1', { data: hojeISO(), valor: 10 })).erro !== null, true)
+conferir('boletim com data futura é recusado', (await salvarBoletimEmpreiteiro('ce-ba-4', { data: '2999-01-01', linhas: [{ contrato_item_id: placas.id, quantidade: 1 }] })).erro !== null, true)
+await entrar('p-dir'); definirObraAtual('obra-vn')
+conferir('diretoria não lança boletim', (await salvarBoletimEmpreiteiro('ce-vn-3', { data: hojeISO(), valor: 100 })).erro !== null, true)
+conferir('diretoria vê, mas não cria nem move', [(await listarContratosEmpreiteiro()).erro, (await salvarContratoEmpreiteiro({ responsavel_id: 'r-pedra', descricao: 'x' })).erro !== null, (await moverContratoEmpreiteiro('ce-vn-1', 'Enviado p/ aprovação')).erro !== null], [null, true, true])
+// 18. Cadastro de equipamentos: cada obra vê só os seus; só o engenheiro cadastra.
+await entrar('p-eng'); definirObraAtual('obra-ba')
+conferir('ARRECIFES: só os equipamentos dela', (await listarEquipamentos()).data.map((x) => x.id), ['eq-ba-1'])
+const eqNovo = await salvarEquipamento({ nome: 'Rolo compactador', propriedade: 'Locado', fornecedor: 'Terraplena Nordeste', identificacao: '' })
+conferir('equipamento novo na obra escolhida', [eqNovo.erro, mock.equipamentos.find((x) => x.id === eqNovo.data?.id)?.obra_id], [null, 'obra-ba'])
+conferir('equipamento repetido na mesma obra é recusado', (await salvarEquipamento({ nome: 'rolo compactador', propriedade: 'Próprio' })).erros?.nome !== undefined, true)
+definirObraAtual('obra-vn')
+conferir('o mesmo nome em outra obra pode', (await salvarEquipamento({ nome: 'Rolo compactador', propriedade: 'Próprio' })).erro, null)
+await entrar('p-dir'); definirObraAtual('obra-vn')
+conferir('diretoria vê, mas não cadastra equipamento', [(await listarEquipamentos()).erro, (await salvarEquipamento({ nome: 'Serra', propriedade: 'Próprio' })).erro !== null], [null, true])
+await entrar('p-lucas'); definirObraAtual('obra-vn')
+conferir('equipe da obra não recebe contratos de empreiteiro (têm R$)', (await listarContratosEmpreiteiro()).erro !== null, true)
 
 console.log(`${ok}/${tot} — multi-obra`)
 process.exit(ok === tot ? 0 : 1)

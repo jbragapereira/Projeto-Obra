@@ -38,8 +38,8 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
 - `src/lib/supabase.js` — a conexão (fica `null` até o `.env.local` existir).
 
 1. `if` de negócio dentro de tela vai para `lib`, mesmo com três linhas.
-2. Constante compartilhada tem um dono só: papéis e menus em `perfis.js`; situações de obra em
-   `obras.js`; de medição em `medicao.js`; clima em `diario.js`; situação de serviço em `painel.js`;
+2. Constante compartilhada tem um dono só: papéis e menus em `perfis.js`; situações de obra, tipos de responsável e próprio/locado
+   do equipamento em `obras.js`; de medição em `medicao.js`; de contrato e boletim de empreiteiro em `empreiteiros.js`; clima em `diario.js`; situação de serviço em `painel.js`;
    fontes e origem do item do orçamento em `orcamento.js`; dias úteis e feriados em `calendario.js`;
    situação no prazo do cronograma em `planejamento.js`; tipos de restrição em `restricoes.js`;
    status do kanban, situação de subtarefa e causas em `curtoPrazo.js`.

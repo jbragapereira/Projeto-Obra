@@ -4,7 +4,23 @@ import { validarCronogramaDeMedicoes } from './medicao.js'
 export const SITUACOES_OBRA = ['Em andamento', 'Concluída', 'Parada']
 
 // Texto idêntico ao CHECK de responsaveis.tipo.
-export const TIPOS_RESPONSAVEL = ['Empreiteiro', 'Empresa especializada', 'Mão de obra própria']
+// Os dois primeiros podem ter contrato na medição de empreiteiros; mão de obra própria não.
+export const TIPOS_EMPREITEIRO = ['Empreiteiro', 'Empresa especializada']
+export const TIPOS_RESPONSAVEL = [...TIPOS_EMPREITEIRO, 'Mão de obra própria']
+
+// Equipamento da obra: de quem é (texto idêntico ao CHECK de equipamentos.propriedade).
+export const PROPRIEDADES_EQUIPAMENTO = ['Próprio', 'Locado']
+
+// Erros do cadastro de equipamento ({} = pode salvar). nomesExistentes: os já cadastrados nesta obra.
+export function validarEquipamento({ nome, propriedade, fornecedor }, nomesExistentes = []) {
+  const e = {}
+  const limpo = nome?.trim() ?? ''
+  if (!limpo) e.nome = 'Informe o nome do equipamento.'
+  else if (nomesExistentes.some((n) => n.toLowerCase() === limpo.toLowerCase())) e.nome = `${limpo} já está cadastrado nesta obra.`
+  if (!PROPRIEDADES_EQUIPAMENTO.includes(propriedade)) e.propriedade = 'Escolha se é próprio ou locado.'
+  else if (propriedade === 'Locado' && !fornecedor?.trim()) e.fornecedor = 'Informe de quem é a locação.'
+  return e
+}
 
 export const OBRA_VAZIA = {
   nome: '', codigo: '', endereco: '', cliente: '', numero_contrato: '',

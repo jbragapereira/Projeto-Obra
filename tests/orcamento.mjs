@@ -5,7 +5,7 @@ import {
 } from '../src/lib/orcamento.js'
 import { ITENS_ARRECIFES } from '../src/lib/mockOrcamentoArrecifes.js'
 import { percentual } from '../src/lib/formato.js'
-import { rotuloDoDiario, veCadastrosDoDiario } from '../src/lib/perfis.js'
+import { rotuloDoDiario, veCadastro } from '../src/lib/perfis.js'
 
 let ok = 0
 let tot = 0
@@ -89,7 +89,7 @@ conferir('fonte fora da lista é recusada', Object.keys(validarItemNovo({ ...nov
 conferir('quantidade sem resíduo do ponto flutuante', arredondarQtd(0.1 + 0.2), 0.3)
 // Diário: rótulo da primeira aba e quem vê o cadastro (com o contato) de responsáveis e funções
 conferir('rótulo do Diário por perfil', ['Engenheiro', 'Diretoria', 'Equipe da obra'].map(rotuloDoDiario), ['Diário do dia', 'Diário do dia', 'Lançar o dia'])
-conferir('equipe não vê o cadastro com contatos', ['Engenheiro', 'Diretoria', 'Equipe da obra'].map(veCadastrosDoDiario), [true, true, false])
+conferir('equipe não vê o cadastro com contatos', ['Engenheiro', 'Diretoria', 'Equipe da obra'].map(veCadastro), [true, true, false])
 
 console.log(`${ok}/${tot} — orçamento`)
 process.exit(ok === tot ? 0 : 1)

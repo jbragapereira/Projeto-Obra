@@ -17,10 +17,10 @@ export const podeAtualizarSemana = (role) => podeLancar(role)
 // Médio prazo: engenheiro e equipe criam e resolvem restrições; editar, mover e excluir é do engenheiro.
 export const podeRegistrarRestricao = (role) => podeLancar(role)
 
-// Diário: a equipe vê a primeira aba como "Lançar o dia"; o cadastro de responsáveis e funções
-// (com o contato de cada um) é do engenheiro e da diretoria.
+// Diário: a equipe vê a aba como "Lançar o dia".
 export const rotuloDoDiario = (role) => (podeLancar(role) && role !== 'Engenheiro' ? 'Lançar o dia' : 'Diário do dia')
-export const veCadastrosDoDiario = (role) => podeVerValores(role)
+// Cadastro (responsáveis com contato, funções, equipamentos): engenheiro e diretoria; só o engenheiro grava.
+export const veCadastro = (role) => podeVerValores(role)
 
 // id = tela; rotulo = menu lateral; curto = barra inferior; fase2 = ainda não construída;
 // secundario = fica em "Mais" (celular) e no fim do menu lateral, fora do limite de 6 itens.
@@ -28,6 +28,8 @@ const PAINEL = { id: 'painel', rotulo: 'Início', curto: 'Início', icone: 'pain
 const ORCAMENTO = { id: 'orcamento', rotulo: 'Orçamento', curto: 'Orçamento', icone: 'servicos' }
 const PLANEJAMENTO = { id: 'planejamento', rotulo: 'Planejamento', curto: 'Planejar', icone: 'planejamento' }
 const MEDICAO = { id: 'medicao', rotulo: 'Medição cliente', curto: 'Med. cliente', icone: 'medicao' }
+const EMPREITEIROS = { id: 'empreiteiros', rotulo: 'Medição empreiteiros', curto: 'Empreiteiros', icone: 'ferramenta' }
+const CADASTRO = { id: 'cadastro', rotulo: 'Cadastro', curto: 'Cadastro', icone: 'perfil' }
 const RECADOS = { id: 'recados', rotulo: 'Recados', curto: 'Recados', icone: 'recados', fase2: true, secundario: true }
 const PERFIL = { id: 'perfil', rotulo: 'Meu perfil', curto: 'Perfil', icone: 'perfil' }
 
@@ -35,14 +37,14 @@ export const MENUS = {
   Engenheiro: [
     PAINEL,
     { id: 'diario', rotulo: 'Diário', curto: 'Diário', icone: 'diario' },
-    ORCAMENTO, PLANEJAMENTO, MEDICAO,
+    ORCAMENTO, PLANEJAMENTO, MEDICAO, EMPREITEIROS, CADASTRO,
     { id: 'ajustes', rotulo: 'Ajustes', curto: 'Ajustes', icone: 'ajustes' },
     RECADOS,
   ],
   Diretoria: [
     PAINEL,
     { id: 'diario', rotulo: 'Diário', curto: 'Diário', icone: 'diario' },
-    ORCAMENTO, PLANEJAMENTO, MEDICAO, PERFIL, RECADOS,
+    ORCAMENTO, PLANEJAMENTO, MEDICAO, EMPREITEIROS, CADASTRO, PERFIL, RECADOS,
   ],
   'Equipe da obra': [
     { id: 'diario', rotulo: 'Lançar o dia', curto: 'Lançar', icone: 'diario' },

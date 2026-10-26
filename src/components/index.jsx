@@ -137,7 +137,7 @@ export function Vazio({ icone = 'planilha', titulo, texto, acao, onAcao }) {
       <div className="ico"><Icon nome={icone} tamanho={40} /></div>
       <h2>{titulo}</h2>
       <p>{texto}</p>
-      {acao && <button className="btn primary" onClick={onAcao}>＋ {acao}</button>}
+      {acao && onAcao && <button className="btn primary" onClick={onAcao}>＋ {acao}</button>}
     </section>
   )
 }
@@ -175,7 +175,8 @@ export function VoltarAoTopo({ aPartirDe = 300 }) {
 }
 
 /* ── Folha que sobe de baixo (celular) ou abre ao lado (computador) ── */
-export function Sheet({ titulo, subtitulo, topo, onFechar, children }) {
+// cheia: ocupa a tela toda (formulário grande, como o escopo do contrato do empreiteiro); sem ela, painel lateral.
+export function Sheet({ titulo, subtitulo, topo, onFechar, cheia = false, children }) {
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onFechar() }
     window.addEventListener('keydown', esc)
@@ -184,7 +185,7 @@ export function Sheet({ titulo, subtitulo, topo, onFechar, children }) {
   return (
     <>
       <div className="scrim" onClick={onFechar} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={titulo}>
+      <div className={`sheet${cheia ? ' cheia' : ''}`} role="dialog" aria-modal="true" aria-label={titulo}>
         <div className="sheet-h">
           <div>
             {subtitulo && <div className="m">{subtitulo}</div>}

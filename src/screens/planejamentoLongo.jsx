@@ -100,7 +100,7 @@ export default function AbaLongo({ dados, onIrParaEap }) {
       {itensSemDatas > 0 && (
         <div className="crono-aviso">
           <span>{itensSemDatas} {itensSemDatas === 1 ? 'item sem datas não aparece' : 'itens sem datas não aparecem'} no cronograma.</span>
-          <button className="btn ghost" onClick={onIrParaEap}>Lançar datas na EAP</button>
+          {onIrParaEap && <button className="btn ghost" onClick={onIrParaEap}>Lançar datas na EAP</button>}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 // Planejamento: EAP montada pelos códigos dos serviços (src/lib/planejamento.js).
-import { compararCodigos, proximoCodigo, montarEap, achatarEap, progressoDoGrupo, codigoValido, validarDatas, aplicarPrazo, situacaoNoPrazo, colunasDoCronograma, ehItem, folhasDe } from '../src/lib/planejamento.js'
+import { eapTemDatas, compararCodigos, proximoCodigo, montarEap, achatarEap, progressoDoGrupo, codigoValido, validarDatas, aplicarPrazo, situacaoNoPrazo, colunasDoCronograma, ehItem, folhasDe } from '../src/lib/planejamento.js'
 import { CALENDARIO_PADRAO } from '../src/lib/calendario.js'
 
 let ok = 0
@@ -90,6 +90,8 @@ conferir('ehItem só para a folha', [ehItem(g4), ehItem(folhasDe(g4)[0])], [fals
 // Colunas
 conferir('semanas começam na segunda', colunasDoCronograma({ inicio: '2026-10-28', fim: '2026-11-20', escala: 'semana' }).map((c) => c.inicio), ['2026-10-26', '2026-11-02', '2026-11-09', '2026-11-16'])
 conferir('meses do dia 1 ao último dia', colunasDoCronograma({ inicio: '2026-11-15', fim: '2027-01-03', escala: 'mes' }).map((c) => [c.rotulo, c.fim]), [['nov/26', '2026-11-30'], ['dez/26', '2026-12-31'], ['jan/27', '2027-01-31']])
+
+conferir('EAP sem datas: o planejamento não desenha período', [eapTemDatas([]), eapTemDatas([{ ativo: true, data_inicio_planejada: null, data_fim_planejada: null }]), eapTemDatas([{ ativo: true, data_inicio_planejada: '2026-10-26', data_fim_planejada: null }]), eapTemDatas([{ ativo: false, data_inicio_planejada: '2026-10-26', data_fim_planejada: '2026-10-30' }]), eapTemDatas([{ ativo: true, data_inicio_planejada: '2026-10-26', data_fim_planejada: '2026-10-30' }])], [false, false, false, false, true])
 
 console.log(`${ok}/${tot} — planejamento (EAP e cronograma)`)
 process.exit(ok === tot ? 0 : 1)

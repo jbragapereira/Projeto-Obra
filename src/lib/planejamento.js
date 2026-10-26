@@ -61,6 +61,9 @@ export function acumuladoPorServico(lancamentos, ate = null) {
 
 // Item = folha da árvore (o serviço sem filhos). Só ele tem data lançada.
 export const ehItem = (no) => no.tipo === 'servico' && !no.filhos.length
+// A EAP já tem alguma data? Sem nenhum item ativo com início e fim, o planejamento (Longo, Médio e Curto
+// prazo) não desenha período nenhum: só convida a lançar as datas.
+export const eapTemDatas = (servicos) => servicos.some((s) => s.ativo !== false && !!s.data_inicio_planejada && !!s.data_fim_planejada)
 export const folhasDe = (no) => (ehItem(no) ? [no] : no.filhos.flatMap(folhasDe))
 // Peso de uma folha nas médias do grupo: o valor vigente (quem vê valores), ou nada (média simples).
 const valorDaFolha = (f) => (typeof f.servico.preco_unitario === 'number' ? f.servico.preco_unitario * f.servico.qtd_contratada : undefined)

@@ -26,3 +26,6 @@ export const percentual = (v) =>
   `${((v ?? 0) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
 
 export const pct = (parte, total) => (total ? Math.round((parte / total) * 100) : 0)
+
+// "54,6%": % de 0 a 1 com uma casa, sempre para baixo (100% só quando chegou mesmo a 100%).
+export const pctParaBaixo = (x) => `${(Math.floor((x ?? 0) * 1000 + 1e-9) / 10).toLocaleString('pt-BR')}%`

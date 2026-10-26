@@ -95,6 +95,9 @@ h1, h2 { font-family: var(--display); font-stretch: 85%; font-weight: 700; lette
 .tab[aria-selected="true"] { color: #fff; border-bottom-color: var(--brand) }
 .tab .n { display: inline-block; min-width: 22px; margin-left: 6px; padding: 1px 6px; border-radius: var(--r-tag); background: #4A5A63; color: #fff; text-align: center; font-size: 13px }
 .tab.red .n { background: var(--red-d) }
+/* Abas dentro da área clara da tela (colunas do Kanban e semanas no celular): texto escuro, não o branco da faixa. */
+.view .tabs .tab { color: var(--slate) }
+.view .tabs .tab:hover, .view .tabs .tab[aria-selected="true"] { color: var(--ink) }
 
 /* ── Cartões ── */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card) }
@@ -569,7 +572,6 @@ tr.arquivado, li.arquivado { opacity: .6 }
 .efetivo-linha .erro { grid-area: erro; font-size: 13px; color: var(--red-d); font-weight: 600 }
 .efetivo-linha.com-erro { box-shadow: inset 3px 0 0 var(--red); padding-left: 10px }
 .efetivo .btns > .btn { flex: 1 1 140px; min-height: 44px; font-size: 14px; padding: 0 var(--s3) }
-.cadastro-rapido { padding: var(--s3); border-radius: var(--r-btn); background: var(--brand-tint); display: grid; gap: var(--s2) }
 .resumo { margin-top: 6px; font-size: 14px; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
 .miniaturas { display: flex; gap: 6px; margin-top: var(--s2); flex-wrap: wrap }
 .miniaturas img, .mini-foto { width: 52px; height: 52px; border-radius: var(--r-tag); object-fit: cover; border: 1px solid var(--line) }
@@ -691,6 +693,10 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
   .only-wide { display: block }
   .only-narrow { display: none }
   .sheet { left: auto; top: 0; bottom: 0; width: 460px; max-height: none; border-radius: 0; animation-name: entrar-lado }
+  .sheet.cheia { left: 0; width: auto; animation-name: aparecer }
+  .emp-linha { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; column-gap: var(--s4) }
+  .emp-linha > .emp-linha-item, .emp-linha > .obs, .emp-linha > .erro { grid-column: 1 }
+  .emp-linha > .emp-linha-nums { grid-column: 2; grid-row: 1 / span 3 }
   .send { bottom: 0 }
   .toast { bottom: 28px }
 }
@@ -730,3 +736,54 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
 /* Diário: a meta do cartão vem da medição do período. */
 .svc-meta { font-size: 14px }
 .svc-meta b { font-size: 15px }
+
+/* Medição de empreiteiros: o Kanban usa as colunas do Curto prazo (.curto-*); aqui, o card e o cadastro do valor. */
+.emp-card-emp { font-size: 12.5px; font-weight: 700; color: var(--slate); margin-bottom: 2px }
+.emp-card-valor { font-weight: 700; margin-top: 6px }
+.emp-card-saldo b { color: var(--ink) }
+.emp-escopo { display: grid; gap: var(--s3); margin-top: 12px }
+.emp-linha { border: 1px solid var(--line); border-radius: var(--r-btn); padding: 10px; display: grid; gap: 6px }
+.emp-linha-item { display: flex; gap: var(--s2); align-items: flex-end }
+.emp-linha-item .escolher { flex: 1; min-width: 0 }
+.emp-linha-item .remover { width: 40px; height: 40px; flex: none; border-radius: var(--r-btn); border: 1.5px solid #C3CDD2; background: #fff; font-size: 14px }
+.emp-linha-nums { display: flex; flex-wrap: wrap; gap: var(--s2) }
+.emp-linha-nums .field { flex: 1 1 120px }
+.emp-total-linha { min-height: 44px; display: flex; align-items: center }
+.emp-total { margin-top: 14px; font-size: 16px }
+.emp-total b { font-size: 18px }
+
+/* Sheet em tela cheia: cobre a tela toda e centraliza o conteúdo largo. */
+.sheet.cheia { top: 0; max-height: none; border-radius: 0 }
+.sheet.cheia .sheet-b { width: 100%; max-width: 1100px; margin: 0 auto }
+
+/* Ficha de medição do empreiteiro. No celular, cada linha do boletim é um cartão empilhado; a partir de 900px,
+   vira linha de tabela (item, quantidade, %, R$, acumulado). */
+.emp-abrir-ficha { width: 100%; margin-top: 8px; min-height: 40px }
+.emp-ficha-cab { display: flex; gap: var(--s3); justify-content: space-between; align-items: flex-start; flex-wrap: wrap }
+.emp-ficha-t { font-size: 20px; margin: 2px 0 6px }
+.emp-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s3); margin: var(--s3) 0 var(--s2) }
+.emp-resumo .lbl { font-size: 13px; color: var(--slate) }
+.emp-resumo .v { font-size: 20px; font-weight: 700 }
+.emp-boletim { border: 1.5px solid var(--brand) }
+.emp-boletim-cab { display: flex; gap: var(--s3); justify-content: space-between; align-items: flex-end; flex-wrap: wrap }
+.emp-boletim-cab h3 { margin: 0; font-size: 18px }
+.emp-data { flex: 0 1 200px }
+.emp-med-linhas { display: grid; gap: var(--s2); margin-top: var(--s3) }
+.emp-med-linha { display: grid; gap: var(--s2); padding: 10px; border: 1px solid var(--line); border-radius: var(--r-btn); background: var(--card) }
+.emp-med-linha.passou { border-color: var(--red); background: #FDF1F0 }
+.emp-med-titulos { display: none }
+.emp-med-item { display: grid; gap: 2px; min-width: 0 }
+.emp-med-item b { font-size: 14px; line-height: 1.3 }
+.emp-med-item .obs { font-size: 12.5px }
+.emp-med-acum { min-height: 44px; display: flex; align-items: center }
+.emp-boletim-rodape { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin: var(--s3) 0; font-size: 15px }
+.emp-item-resumo { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: var(--r-btn) }
+.emp-item-nums { display: flex; flex-wrap: wrap; gap: var(--s3); font-size: 14px }
+.emp-historico { list-style: none; margin: 0; padding: 0 }
+.emp-historico li { display: grid; grid-template-columns: 1fr auto auto; gap: var(--s3); padding: 10px 0; border-bottom: 1px solid var(--line) }
+@media (min-width: 900px) {
+  .emp-med-linha { grid-template-columns: minmax(0, 2.4fr) repeat(3, minmax(0, 1fr)) minmax(0, .7fr); align-items: end }
+  .emp-med-titulos { display: grid; padding: 0 10px; border: 0; background: none; font-size: 13px; font-weight: 600; color: var(--slate) }
+  .emp-med-linhas.escopo .emp-med-linha .field > span { display: none }
+  .emp-med-erro { grid-column: 1 / -1 }
+}
