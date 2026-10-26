@@ -6,7 +6,7 @@ import {
   entrar, definirObraAtual, listarMinhasObras, listarServicos, listarLancamentos, listarDiarios,
   listarResponsaveis, listarMedicoes, listarFuncoes, listarGrupos, salvarDatasEap, salvarDiario,
   listarAditivos, buscarDadosOrcamento, buscarCalendario, salvarCalendario, listarRestricoes, salvarRestricao, resolverRestricao, moverRestricao, excluirRestricao,
-  listarSemanaAtividades, listarSubtarefas, mudarStatusAtividade, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
+  listarSemanaAtividades, listarSubtarefas, criarMedicao, listarItensMedicao, salvarQtdPlanejada, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
 } from '../src/lib/dados.js'
 import { addDias, hojeISO } from '../src/lib/datas.js'
 import { segundaDaSemana } from '../src/lib/datas.js'
@@ -42,6 +42,46 @@ conferir('existem duas obras de exemplo, diferentes', mock.obras.length === 2 &&
 
 // 2. A camada de dados só devolve a obra escolhida.
 await entrar('p-eng')
+// A ARRECIFES começa zerada nos dados de exemplo: o teste lança um diário nela (tapume 2.1.7, 260 m²,
+// com efetivo), para as duas obras terem dados e um vazamento aparecer.
+definirObraAtual('obra-ba')
+const tapumeBA = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '2.1.7')
+const respBAInicio = mock.responsaveis.find((r) => r.obra_id === 'obra-ba')
+const funcaoBAInicio = mock.funcoes.find((x) => x.obra_id === 'obra-ba')
+const inicioBA = await salvarDiario({ data: addDias(hojeISO(), -3), clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '',
+  efetivo: [{ responsavel_id: respBAInicio.id, funcao_id: funcaoBAInicio.id, quantidade: 4 }],
+  itens: [{ servico_id: tapumeBA.id, quantidade: 260, responsavel_id: respBAInicio.id, concluido: true }] })
+conferir('diário de preparo lançado na ARRECIFES', inicioBA.erro, null)
+// Medição 1 da ARRECIFES nasce sozinha pela EAP do mês vigente e segue a EAP enquanto está em planejamento.
+const mesBA = (dia) => hojeISO().slice(0, 8) + dia
+conferir('sem datas na EAP, não há medição e ela não se cria à mão', [(await listarMedicoes()).data.length, (await criarMedicao()).erro !== null], [0, true])
+const placaBA = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '2.1.1')
+await salvarDatasEap([{ id: placaBA.id, inicio: mesBA('01'), fim: mesBA('02') }])
+const med1 = (await listarMedicoes()).data[0]
+const itensMed1 = async () => (await listarItensMedicao(med1.id)).data
+conferir('a placa de obra com datas no mês cria a Medição 1, no mês vigente, só com ela',
+  [med1.numero, med1.data_inicio, med1.obra_id, (await itensMed1()).map((i) => [i.servico_id, i.obra_id, i.qtd_planejada])],
+  [1, mesBA('01'), 'obra-ba', [[placaBA.id, 'obra-ba', placaBA.qtd_orcada]]])
+const escavacaoBA = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '3.4.1')
+await salvarDatasEap([{ id: escavacaoBA.id, inicio: mesBA('03'), fim: mesBA('10') }])
+conferir('outro item com datas no mês entra sozinho na Medição 1', (await itensMed1()).map((i) => i.servico_id).sort(), [placaBA.id, escavacaoBA.id].sort())
+const itemPlaca = (await itensMed1()).find((i) => i.servico_id === placaBA.id)
+await salvarQtdPlanejada(itemPlaca.id, 3)
+await salvarDatasEap([{ id: placaBA.id, inicio: mesBA('01'), fim: mesBA('05') }])
+conferir('quantidade ajustada à mão não muda com a EAP', (await itensMed1()).find((i) => i.servico_id === placaBA.id).qtd_planejada, 3)
+await salvarDatasEap([{ id: escavacaoBA.id, inicio: null, fim: null }])
+conferir('item que perde as datas sai da Medição 1', (await itensMed1()).map((i) => i.servico_id), [placaBA.id])
+// O que o Diário executa dentro do mês não encolhe a meta do próprio mês.
+await salvarDatasEap([{ id: escavacaoBA.id, inicio: mesBA('01'), fim: mesBA('02') }])
+const qtdEscavacao = () => itensMed1().then((l) => l.find((i) => i.servico_id === escavacaoBA.id)?.qtd_planejada)
+const metaEscavacao = await qtdEscavacao()
+await salvarDiario({ data: mesBA('01'), clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '', efetivo: [],
+  itens: [{ servico_id: escavacaoBA.id, quantidade: 100, responsavel_id: 'r-silva', concluido: false }] })
+conferir('execução no próprio mês não muda a meta da medição', [metaEscavacao, await qtdEscavacao()], [escavacaoBA.qtd_orcada, escavacaoBA.qtd_orcada])
+const respDoINSS = mock.responsaveis.find((r) => r.obra_id === 'obra-vn')
+conferir('"Quem executou" de outra obra é recusado no diário', (await salvarDiario({ data: mesBA('01'), clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '', efetivo: [],
+  itens: [{ servico_id: escavacaoBA.id, quantidade: 1, responsavel_id: respDoINSS.id, concluido: false }] })).erro !== null, true)
+await salvarDatasEap([{ id: escavacaoBA.id, inicio: null, fim: null }])
 for (const obra of mock.obras) {
   definirObraAtual(obra.id)
   conferir(`${obra.codigo}: serviços só desta obra`, soDaObra((await listarServicos()).data, obra.id), true)
@@ -196,6 +236,10 @@ conferir('equipe move para "Em andamento" na obra escolhida', [(await mudarStatu
   mock.semanaAtividades.find((x) => x.servico_id === piso.id && x.semana === semanaAtual)?.obra_id], [null, 'obra-ba'])
 conferir('"não realizado" sem causa é recusado', (await mudarStatusAtividade({ semana: semanaAtual, servico_id: piso.id, status: 'Não realizado' })).erro !== null, true)
 conferir('"não realizado" com causa passa', (await mudarStatusAtividade({ semana: semanaAtual, servico_id: piso.id, status: 'Não realizado', causa: 'Clima' })).data?.causa, 'Clima')
+const respVN = mock.responsaveis.find((r) => r.obra_id === 'obra-vn')
+conferir('equipe escolhe o responsável do cartão na obra escolhida', [(await definirResponsavelDaSemana({ semana: semanaAtual, servico_id: piso.id, responsavel_id: 'r-silva' })).erro,
+  mock.semanaAtividades.find((x) => x.servico_id === piso.id && x.semana === semanaAtual)?.responsavel_id], [null, 'r-silva'])
+conferir('responsável de outra obra no cartão é recusado', (await definirResponsavelDaSemana({ semana: semanaAtual, servico_id: piso.id, responsavel_id: respVN.id })).erro !== null, true)
 conferir('equipe não tira atividade da semana', (await tirarDaSemana({ semana: semanaAtual, servico_id: piso.id, fora: true })).erro !== null, true)
 const sub = await salvarSubtarefa({ semana: semanaAtual, servico_id: piso.id, texto: 'Assentar trecho A' })
 conferir('subtarefa criada na obra escolhida', [sub.erro, mock.subtarefas.find((x) => x.id === sub.data?.id)?.obra_id], [null, 'obra-ba'])
@@ -209,15 +253,20 @@ definirObraAtual('obra-ba')
 conferir('engenheiro tira da semana', (await tirarDaSemana({ semana: semanaAtual, servico_id: piso.id, fora: true })).data?.fora, true)
 conferir('engenheiro exclui subtarefa', (await excluirSubtarefa(sub.data.id)).erro, null)
 await entrar('p-dir'); definirObraAtual('obra-ba')
+conferir('diretoria não escolhe responsável', (await definirResponsavelDaSemana({ semana: semanaAtual, servico_id: piso.id, responsavel_id: 'r-silva' })).erro !== null, true)
 conferir('diretoria só vê o curto prazo', (await mudarStatusAtividade({ semana: semanaAtual, servico_id: piso.id, status: 'Concluído' })).erro !== null, true)
 
 // 16. Diário → Kanban: produção lançada faz a atividade andar na semana, na obra escolhida.
 await entrar('p-eng'); definirObraAtual('obra-ba')
 const demolicao = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '3.1.4')
+// A EAP da ARRECIFES começa sem datas: o engenheiro lança o período da demolição cobrindo esta semana.
+await salvarDatasEap([{ id: demolicao.id, inicio: addDias(segundaDaSemana(hojeISO()), -7), fim: addDias(segundaDaSemana(hojeISO()), 13) }])
 const regDemolicao = () => mock.semanaAtividades.find((x) => x.servico_id === demolicao.id && x.semana === segundaDaSemana(hojeISO()))
 conferir('antes do diário, a demolição não foi mexida no Kanban', regDemolicao()?.status ?? 'A fazer', 'A fazer')
 await salvarDiario({ data: hojeISO(), clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '', efetivo: [], itens: [{ servico_id: demolicao.id, quantidade: 5, responsavel_id: demolicao.responsavel_id, concluido: false }] })
 conferir('com produção no diário, vai para Em andamento (na obra escolhida)', [regDemolicao()?.status, regDemolicao()?.obra_id], ['Em andamento', 'obra-ba'])
+await salvarDiario({ data: hojeISO(), clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '', efetivo: [], itens: [{ servico_id: demolicao.id, quantidade: 5, responsavel_id: 'r-ba-prop', concluido: false }] })
+conferir('quem executou no diário vira o responsável do cartão na semana', regDemolicao()?.responsavel_id, 'r-ba-prop')
 const semDatas = mock.servicos.find((s) => s.obra_id === 'obra-ba' && s.codigo === '17.5.3')
 await salvarDiario({ data: hojeISO(), clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '', efetivo: [], itens: [{ servico_id: semDatas.id, quantidade: 1, responsavel_id: null, concluido: false }] })
 conferir('item não planejado na semana não entra no Kanban pelo diário', mock.semanaAtividades.some((x) => x.servico_id === semDatas.id), false)

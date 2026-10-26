@@ -24,7 +24,7 @@ export const veCadastrosDoDiario = (role) => podeVerValores(role)
 
 // id = tela; rotulo = menu lateral; curto = barra inferior; fase2 = ainda não construída;
 // secundario = fica em "Mais" (celular) e no fim do menu lateral, fora do limite de 6 itens.
-const PAINEL = { id: 'painel', rotulo: 'Painel do mês', curto: 'Painel', icone: 'painel' }
+const PAINEL = { id: 'painel', rotulo: 'Início', curto: 'Início', icone: 'painel' }
 const ORCAMENTO = { id: 'orcamento', rotulo: 'Orçamento', curto: 'Orçamento', icone: 'servicos' }
 const PLANEJAMENTO = { id: 'planejamento', rotulo: 'Planejamento', curto: 'Planejar', icone: 'planejamento' }
 const MEDICAO = { id: 'medicao', rotulo: 'Medição', curto: 'Medição', icone: 'medicao' }

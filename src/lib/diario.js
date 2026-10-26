@@ -119,13 +119,9 @@ export function feitoNoMesComODia({ executadoNoMes, quantidade, dia, medicao }) 
   return executadoNoMes + (dentro ? (quantidade || 0) : 0)
 }
 
-// O item fica Concluído sozinho quando a quantidade do dia cobre o saldo.
+// O item fica Concluído sozinho quando a quantidade do dia cobre o saldo. Não há marcação à mão no
+// cartão: a situação que o cartão mostra é a do Kanban (Curto prazo).
 export const concluiPeloSaldo = ({ quantidade, saldo }) => saldo > 0 && quantidade >= saldo - FOLGA
-
-// Ao mudar a quantidade: o Concluído acompanha o saldo, a menos que a pessoa
-// tenha marcado ou desmarcado à mão (aí a escolha dela vale).
-export const concluidoAoMudarQuantidade = ({ quantidade, saldo, atual, manual }) =>
-  (manual ? atual : concluiPeloSaldo({ quantidade, saldo }))
 
 /* ── Cartões de produção do dia ──
    Cada cartão é um item do orçamento. O diário de um dia abre só com os cartões do que está

@@ -3,7 +3,7 @@ import { validarObra, aceitaLancamento, OBRA_VAZIA } from '../src/lib/obras.js'
 import { congelarMeta, bateuMeta, resumoMetas, podeIniciar } from '../src/lib/medicao.js'
 import {
   podeCorrigir, podeLancarData, validarEfetivo, totalEfetivo, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, efetivoParaComecar,
-  efetivoPorFuncao, concluidoAoMudarQuantidade, cartoesDoDia, ordemDosCartoes, atrasadaNoDia, escolherNoCartao, tirarCartao, itensParaCartao, planejadosNoDia, porQueNaoLanca, climaComChuva, acimaDoSaldo,
+  efetivoPorFuncao, cartoesDoDia, ordemDosCartoes, atrasadaNoDia, escolherNoCartao, tirarCartao, itensParaCartao, planejadosNoDia, porQueNaoLanca, climaComChuva, acimaDoSaldo,
 } from '../src/lib/diario.js'
 
 let ok = 0
@@ -86,11 +86,6 @@ conferir('sem diário antes, começa vazio', efetivoParaComecar(diarios, '2026-1
 conferir('efetivo por função soma os responsáveis', efetivoPorFuncao([{ funcao: 'Servente', quantidade: 2 }, { funcao: 'Pedreiro', quantidade: 4 }, { funcao: 'Servente', quantidade: 3 }]),
   [{ funcao: 'Servente', quantidade: 5 }, { funcao: 'Pedreiro', quantidade: 4 }])
 
-// Concluído: acompanha o saldo, mas a escolha à mão vale
-conferir('sem escolha à mão, acompanha o saldo', concluidoAoMudarQuantidade({ quantidade: 90, saldo: 90, atual: false, manual: false }), true)
-conferir('sem escolha à mão, desmarca abaixo do saldo', concluidoAoMudarQuantidade({ quantidade: 60, saldo: 90, atual: true, manual: false }), false)
-conferir('marcado à mão abaixo do saldo continua marcado', concluidoAoMudarQuantidade({ quantidade: 60, saldo: 90, atual: true, manual: true }), true)
-conferir('desmarcado à mão continua desmarcado mesmo cobrindo o saldo', concluidoAoMudarQuantidade({ quantidade: 90, saldo: 90, atual: false, manual: true }), false)
 conferir('acima do saldo avisa', acimaDoSaldo({ quantidade: 90.5, saldo: 90 }), true)
 conferir('igual ao saldo não avisa', acimaDoSaldo({ quantidade: 90, saldo: 90 }), false)
 

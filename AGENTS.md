@@ -50,7 +50,9 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
 ## Dados de exemplo
 
 `src/lib/mockData.js`, com `USAR_MOCK = true`: duas obras diferentes (INSS com o sinal em
-risco, ARRECIFES JORDÃO ALTO de pé), datas relativas a hoje. As mudanças feitas no app valem até
+risco, ARRECIFES JORDÃO ALTO de pé), datas relativas a hoje. A EAP da ARRECIFES começa **sem datas e sem nada
+executado no Diário** (o engenheiro lança os dados reais), e por isso ela não tem Kanban, diário nem medição de exemplo (a Medição 1 nasce no app, pela EAP)
+(teste que precise de produção nela lança o próprio diário); o INSS tem datas em todos os itens. As mudanças feitas no app valem até
 recarregar a página. O login é de exemplo (escolhe-se a pessoa) até o banco existir.
 
 ## Régua de verificação

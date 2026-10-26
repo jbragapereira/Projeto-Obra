@@ -2,13 +2,14 @@
 // realizado), as subtarefas de cada atividade e o PPC. A lista nasce pela regra (cruza a semana ou
 // está atrasada); o engenheiro pode tirar. Engenheiro e equipe movem; a diretoria só vê.
 import { useState } from 'react'
-import { excluirSubtarefa, mudarStatusAtividade, mudarSubtarefa, salvarSubtarefa, tirarDaSemana } from '../lib/dados.js'
+import { definirResponsavelDaSemana, excluirSubtarefa, mudarStatusAtividade, mudarSubtarefa, salvarResponsavel, salvarSubtarefa, tirarDaSemana } from '../lib/dados.js'
 import { achatarEap, acumuladoPorServico, aplicarPrazo, ehItem, montarEap } from '../lib/planejamento.js'
 import {
   CAUSAS, CAUSA_OUTRA, COLUNAS_KANBAN, SITUACAO_SUBTAREFA, STATUS_SEMANA, acoesDoStatus, atividadesDaSemanaCurta, causasMaisFrequentes, ppc, realPorItem,
-  semanasAnteriores, textoDaCausa, validarCausa,
+  responsavelNaSemana, semanasAnteriores, textoDaCausa, validarCausa,
 } from '../lib/curtoPrazo.js'
 import { atividadeLiberada } from '../lib/restricoes.js'
+import { TIPOS_RESPONSAVEL } from '../lib/obras.js'
 import { podeAtualizarSemana, podeEditar } from '../lib/perfis.js'
 import { addDias, dm, hojeISO, segundaDaSemana } from '../lib/datas.js'
 import { Barra, Icon, Sheet, avisar } from '../components/index.jsx'
@@ -37,6 +38,37 @@ function FormCausa({ titulo, onSalvar, onFechar }) {
         {erro && <span className="erro">{erro}</span>}
         <div className="btns" style={{ marginTop: 14 }}>
           <button className="btn primary" onClick={() => { setTocado(true); if (!validarCausa({ causa, causa_texto: texto })) onSalvar(causa, texto) }}>Salvar como não realizado</button>
+          <button className="btn ghost" onClick={onFechar}>Cancelar</button>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
+// Atalho para cadastrar responsável sem ir ao Diário (o mesmo cadastro da aba "Responsáveis e funções").
+function FormResponsavel({ onSalvo, onFechar }) {
+  const [novo, setNovo] = useState({ nome: '', tipo: TIPOS_RESPONSAVEL[0], contato: '' })
+  const [salvando, setSalvando] = useState(false)
+  async function salvar() {
+    setSalvando(true)
+    const r = await salvarResponsavel(novo)
+    setSalvando(false)
+    if (r.erro) { avisar(r.erro); return }
+    avisar(`${r.data.nome} cadastrado.`)
+    onSalvo()
+  }
+  return (
+    <Sheet titulo="Novo responsável" subtitulo="Aparece na lista de todos os cartões desta obra" onFechar={onFechar}>
+      <div className="sheet-b">
+        <div className="form-grid">
+          <label className="field"><span>Nome</span><input className="ipt" value={novo.nome} autoFocus placeholder="Ex.: Construtora Alfa" onChange={(e) => setNovo({ ...novo, nome: e.target.value })} /></label>
+          <label className="field"><span>Tipo</span>
+            <select className="ipt" value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value })}>{TIPOS_RESPONSAVEL.map((t) => <option key={t}>{t}</option>)}</select>
+          </label>
+          <label className="field"><span>Contato</span><input className="ipt" value={novo.contato} placeholder="Telefone ou e-mail" onChange={(e) => setNovo({ ...novo, contato: e.target.value })} /></label>
+        </div>
+        <div className="btns" style={{ marginTop: 14 }}>
+          <button className="btn primary" onClick={salvar} disabled={salvando || !novo.nome.trim()}>{salvando ? 'Salvando…' : 'Cadastrar responsável'}</button>
           <button className="btn ghost" onClick={onFechar}>Cancelar</button>
         </div>
       </div>
@@ -84,7 +116,7 @@ function Subtarefas({ semana, servicoId, lista, atualiza, onCausa, onMudou }) {
   )
 }
 
-function Cartao({ a, semana, nomeResp, subtarefas, comRestricao, atualiza, edita, onCausa, onMudou }) {
+function Cartao({ a, semana, nomeResp, responsaveis, registros, lancamentos, subtarefas, comRestricao, atualiza, edita, onCausa, onMudou }) {
   const s = a.no.servico
   const mover = async (status) => {
     const r = await mudarStatusAtividade({ semana, servico_id: s.id, status })
@@ -98,6 +130,12 @@ function Cartao({ a, semana, nomeResp, subtarefas, comRestricao, atualiza, edita
     if (r.erro) { avisar(r.erro); return }
     onMudou()
   }
+  const responsavel = responsavelNaSemana({ registros, lancamentos, servicoId: s.id, semana, padrao: s.responsavel_id })
+  const escolher = async (responsavel_id) => {
+    const r = await definirResponsavelDaSemana({ semana, servico_id: s.id, responsavel_id })
+    if (r.erro) { avisar(r.erro); return }
+    onMudou()
+  }
   return (
     <article className="curto-card">
       <div className="curto-card-t" title={a.no.nome}><span className="cod">{a.no.codigo}</span> {a.no.nome}</div>
@@ -105,7 +143,18 @@ function Cartao({ a, semana, nomeResp, subtarefas, comRestricao, atualiza, edita
         {a.atrasada && <span className="pill red">Atrasada</span>}
         {comRestricao && <span className="pill amber">Com restrição</span>}
       </div>
-      <div className="curto-info">{nomeResp[s.responsavel_id] ?? 'Sem responsável'}; {dm(a.no.inicio)} a {dm(a.no.fim)}</div>
+      {atualiza ? (
+        <label className="field curto-resp"><span>Responsável</span>
+          <select className="ipt" value={responsavel ?? ''} onChange={(e) => escolher(e.target.value)}
+            aria-label={`Responsável por ${a.no.codigo} nesta semana`}>
+            {!responsavel && <option value="">Escolha o responsável</option>}
+            {/* Responsável desativado continua aparecendo como ele mesmo, sem virar o primeiro da lista. */}
+            {responsavel && !responsaveis.some((r) => r.id === responsavel) && <option value={responsavel} disabled>{nomeResp[responsavel] ?? 'Responsável'} (inativo)</option>}
+            {responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+          </select>
+        </label>
+      ) : <div className="curto-info">{nomeResp[responsavel] ?? 'Sem responsável'}</div>}
+      <div className="curto-info">Período na EAP: {dm(a.no.inicio)} a {dm(a.no.fim)}</div>
       <Barra feito={pctDe(a.no.real)} />
       <div className="curto-info">Real no Diário: {pctDe(a.no.real)}%</div>
       {a.status === STATUS_SEMANA.naoRealizado && <p className="curto-causa">Causa: {textoDaCausa(a)}</p>}
@@ -131,6 +180,7 @@ export default function AbaCurto({ profile, dados, onMudou }) {
   const [inicio, setInicio] = useState(atual)
   const [coluna, setColuna] = useState(0) // coluna aberta no celular
   const [causaDe, setCausaDe] = useState(null) // { titulo, salvar(causa, texto) }
+  const [novoResp, setNovoResp] = useState(false) // atalho: cadastrar responsável
   const atualiza = podeAtualizarSemana(profile.role)
   const edita = podeEditar(profile.role)
 
@@ -145,6 +195,7 @@ export default function AbaCurto({ profile, dados, onMudou }) {
   const historico = semanasAnteriores(atual, SEMANAS_NO_GRAFICO).map((seg) => ({ seg, ...ppc(daSemana(seg).lista) }))
   const causas = causasMaisFrequentes({ registros: dados.semanaAtividades, subtarefas: dados.subtarefas, desde: historico[0].seg, ate: atual }).slice(0, 5)
   const nomeResp = Object.fromEntries(dados.responsaveis.map((r) => [r.id, r.nome]))
+  const responsaveisAtivos = dados.responsaveis.filter((r) => r.ativo)
   const subtarefasDe = (servicoId) => dados.subtarefas.filter((s) => s.semana === inicio && s.servico_id === servicoId)
   const naColuna = (status) => lista.filter((a) => a.status === status)
   const quando = { [atual]: 'Esta semana', [addDias(atual, -7)]: 'Semana passada', [addDias(atual, 7)]: 'Próxima semana' }[inicio] ?? `Semana de ${dm(inicio)}`
@@ -174,6 +225,7 @@ export default function AbaCurto({ profile, dados, onMudou }) {
           </div>
           <button className="btn ghost" aria-label="Semana seguinte" onClick={() => setInicio(addDias(inicio, 7))}>▶</button>
           {inicio !== atual && <button className="btn ghost" onClick={() => setInicio(atual)}>Hoje</button>}
+          {edita && <button className="btn ghost" onClick={() => setNovoResp(true)}>＋ Novo responsável</button>}
         </div>
 
         <section className="card card-b curto-ppc" aria-label="PPC da semana">
@@ -218,7 +270,7 @@ export default function AbaCurto({ profile, dados, onMudou }) {
             <header className="curto-col-h"><span>{c}</span><span className="n">{naColuna(c).length}</span></header>
             <div className="curto-col-b">
               {naColuna(c).map((a) => (
-                <Cartao key={a.no.codigo} a={a} semana={inicio} nomeResp={nomeResp} subtarefas={subtarefasDe(a.no.servico.id)}
+                <Cartao key={a.no.codigo} a={a} semana={inicio} nomeResp={nomeResp} responsaveis={responsaveisAtivos} registros={dados.semanaAtividades} lancamentos={dados.lancamentos} subtarefas={subtarefasDe(a.no.servico.id)}
                   comRestricao={!atividadeLiberada(a.no.servico.id, dados.restricoes)} atualiza={atualiza} edita={edita}
                   onCausa={pedirCausa} onMudou={onMudou} />
               ))}
@@ -244,6 +296,7 @@ export default function AbaCurto({ profile, dados, onMudou }) {
         </details>
       )}
 
+      {novoResp && <FormResponsavel onSalvo={() => { setNovoResp(false); onMudou() }} onFechar={() => setNovoResp(false)} />}
       {causaDe && <FormCausa titulo={causaDe.titulo} onSalvar={salvarCausa} onFechar={() => setCausaDe(null)} />}
     </div>
   )

@@ -7,14 +7,14 @@ import {
   listarGrupos, listarLancamentos, listarSemanaAtividades, listarResponsaveis, listarServicos, salvarDiario, salvarFuncao, salvarResponsavel,
 } from '../lib/dados.js'
 import {
-  CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluidoAoMudarQuantidade, diarioTemConteudo, efetivoParaComecar, efetivoPorFuncao,
+  CLIMAS, acimaDoSaldo, atrasadaNoDia, cartoesDoDia, climaComChuva, ordemDosCartoes, concluiPeloSaldo, diarioTemConteudo, efetivoParaComecar, efetivoPorFuncao,
   escolherNoCartao, itemTemConteudo, itensParaCartao, planejadosNoDia, tirarCartao,
   feitoNoMesComODia, podeCorrigir, podeLancarData, porQueNaoLanca, primeiroDiaPermitido, saldoDoItem, saldoRestante, temPrazoDeCorrecao,
   totalEfetivo, ultimoDiaDeCorrecao, validarEfetivo,
 } from '../lib/diario.js'
 import { analisarServico } from '../lib/painel.js'
 import { achatarEap, acumuladoPorServico, ehItem, montarEap } from '../lib/planejamento.js'
-import { COR_STATUS_SEMANA, statusNaSemana } from '../lib/curtoPrazo.js'
+import { COR_STATUS_SEMANA, responsavelNaSemana, statusNaSemana } from '../lib/curtoPrazo.js'
 import { podeEditar, podeLancar, rotuloDoDiario, veCadastrosDoDiario } from '../lib/perfis.js'
 import { TIPOS_RESPONSAVEL, aceitaLancamento } from '../lib/obras.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
@@ -104,8 +104,10 @@ function formularioDe(dados, dia, diario, planejados = []) {
   for (const s of dados.servicos) {
     const l = daqui.find((x) => x.servico_id === s.id)
     itens[s.id] = {
-      quantidade: l?.quantidade ?? 0, responsavel_id: l?.responsavel_id ?? s.responsavel_id, concluido: l?.concluido ?? false,
-      concluidoManual: false, memoria_calculo: l?.memoria_calculo ?? '', fotos: [],
+      quantidade: l?.quantidade ?? 0, concluido: l?.concluido ?? false,
+      // Quem executou = o responsável do cartão do Kanban na semana (mesmo com lançamento já feito no dia).
+      responsavel_id: responsavelNaSemana({ registros: dados.semanaAtividades, lancamentos: dados.lancamentos, servicoId: s.id, semana: segundaDaSemana(dia), lancado: l?.responsavel_id, padrao: s.responsavel_id }),
+      memoria_calculo: l?.memoria_calculo ?? '', fotos: [],
     }
   }
   return {
@@ -302,7 +304,7 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
   const limparItem = (id) => {
     f.itens[id].fotos.forEach((foto) => URL.revokeObjectURL(foto.url_previa))
     const s = data.servicos.find((x) => x.id === id)
-    return { quantidade: 0, responsavel_id: s?.responsavel_id ?? null, concluido: false, concluidoManual: false, memoria_calculo: '', fotos: [] }
+    return { quantidade: 0, responsavel_id: s ? responsavelNaSemana({ registros: data.semanaAtividades, lancamentos: data.lancamentos, servicoId: id, semana: segundaDaSemana(f.data), padrao: s.responsavel_id }) : null, concluido: false, memoria_calculo: '', fotos: [] }
   }
   function mexerNoCartao(indice, novoId) {
     const atual = f.cartoes[indice]
@@ -473,10 +475,8 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
             // A situação é a do Kanban da semana do dia (Curto prazo); o período, o da EAP.
             const status = statusNaSemana({ registros: data.semanaAtividades, semana: segundaDaSemana(dia), servicoId: s.id })
             const atrasada = atrasadaNoDia({ servico: s, acumulado: a.acumulado, concluido: a.concluido, dia })
-            // Quantidade nova: o Concluído acompanha sozinho o saldo do item.
-            const mudarQuantidade = (q) => atualizarItem(s.id, {
-              quantidade: q, concluido: concluidoAoMudarQuantidade({ quantidade: q, saldo, atual: it.concluido, manual: it.concluidoManual }),
-            })
+            // Quantidade nova: o item conclui sozinho quando a quantidade cobre o saldo (sem marcação à mão).
+            const mudarQuantidade = (q) => atualizarItem(s.id, { quantidade: q, concluido: concluiPeloSaldo({ quantidade: q, saldo }) })
             return (
               <section key={s.id} className={`card svc ${it.quantidade > 0 ? 'has' : ''}`}>
                 {escolha}
@@ -517,11 +517,6 @@ function DiarioDoDia({ profile, obra, versaoCadastro }) {
                       {data.responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
                     </select>
                   </label>
-                  <button className={`btn svc-concluido ${it.concluido ? 'on' : ''}`} aria-pressed={it.concluido}
-                    title="Fica marcado sozinho quando a quantidade do dia cobre o saldo do item; marcado ou desmarcado à mão, a sua escolha vale"
-                    onClick={() => atualizarItem(s.id, { concluido: !it.concluido, concluidoManual: true })}>
-                    {it.concluido ? <Icon nome="check" tamanho={18} /> : <span className="caixa" aria-hidden="true" />} Concluído
-                  </button>
                 </div>
                 <div className="svc-row svc-fotos">
                   {[['camera', 'Tirar foto', true], ['galeria', 'Da galeria', false]].map(([chave, rotulo, pelaCamera]) => (

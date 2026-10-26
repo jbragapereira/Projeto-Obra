@@ -129,6 +129,9 @@ A última obra aberta fica primeiro. Obras encerradas não aparecem, a não ser 
 
 ## Tela: Painel do mês (F1)
 
+No menu, esta tela se chama **Início** (desde 25/10/2026).
+
+
 **Quem acessa:** Engenheiro, Diretoria, Equipe da obra (sem R$).
 **Chega aqui por:** item de menu Painel; é a tela inicial do Engenheiro e da Diretoria.
 
@@ -200,7 +203,7 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 2. Botão grande **Lançar o dia** quando ainda não existe diário hoje.
 3. **O diário do dia**, pensado para o dedo no canteiro (botões grandes, pouca digitação):
    - Data (hoje, pode voltar para ontem), clima da manhã e clima da tarde (4 botões cada), ocorrências (texto livre).
-   - **Produção do dia:** primeiro os serviços do planejamento do mês; os outros por uma busca pelo código ou pela descrição. Em cada serviço: o campo de quantidade executada hoje (com a unidade ao lado), quem executou (vem preenchido com o responsável do serviço e pode ser trocado), a caixinha **Concluído** e o botão de foto.
+   - **Produção do dia:** primeiro os serviços do planejamento do mês; os outros por uma busca pelo código ou pela descrição. Em cada serviço: o campo de quantidade executada hoje (com a unidade ao lado), quem executou (vem preenchido com o responsável do cartão do Kanban na semana e pode ser trocado) e o botão de foto. Sem caixa de Concluído (desde 25/10/2026).
    - **Fotos do dia:** tirar ou escolher fotos, cada uma ligada a um serviço ou ao dia em geral.
 4. Botão **Enviar**.
 
@@ -224,10 +227,9 @@ Primeiro `Parado`, depois `Atrasado`, `Atenção`, `Em dia` e `Concluído`. Dent
 - **Tirar foto:** abre a câmera; a foto aparece em miniatura no serviço.
 - **Enviar:** salva o diário, os lançamentos e as fotos. Mostra "Diário de 23/10 enviado" e volta para a lista.
 - **Histórico:** os dias anteriores aparecem em cartões, do mais novo para o mais antigo: data por extenso, etiqueta do clima, total do efetivo, quantos serviços e fotos, as **atividades do dia — o nome de cada serviço que teve produção (os cartões), com a quantidade**, ocorrências em vermelho e miniaturas das fotos (até 4, com "+N"). Tocar no cartão abre aquele dia.
-- **Cartões de produção (desde 24/10/2026):** o dia novo já abre com **um cartão para cada atividade planejada na EAP para aquele dia** (o período do item inclui o dia) **e as atrasadas** (deveriam ter terminado e não terminaram); item terminado no Diário ou concluído em outro dia fica de fora. É a mesma regra do Kanban do Curto prazo, para um dia só. **Não há cartão vazio** (desde 25/10/2026): o diário tem só os cartões do planejado na EAP; atividade fora do planejado entra lançando as datas dela na EAP. Dia sem nada planejado mostra o aviso "Nenhuma atividade planejada na EAP para este dia". No topo de cada cartão, o campo **"Item do orçamento"** com a **setinha ▾** permite trocar o item (escolhido errado); digitar filtra pelo código ou pela descrição. Escolhido o item, o cartão traz código, descrição, unidade, a **situação no Kanban da semana** (A fazer, Em andamento, Concluído, Não realizado; a mesma do Curto prazo), "Atrasada" quando já devia ter terminado, o **período na EAP** ("Período na EAP: dd/mm/aaaa a dd/mm/aaaa", ou "Sem datas na EAP"), feito no mês, saldo do item, quantidade, memória de cálculo, quem executou, Concluído e fotos. Não aparecem na lista os itens concluídos em outro dia nem os que já estão em outro cartão do dia. Trocar o item ou tirar (✕) um cartão com lançamento pergunta antes, porque apaga o lançamento. **Enviar o diário faz o Kanban andar:** item com produção que estava "A fazer" vai para "Em andamento", e item concluído no diário vai para "Concluído" (nunca volta; não mexe em "Não realizado" nem em atividade tirada da semana). Na correção, os cartões abrem com os itens já lançados naquele dia e, junto, as atividades planejadas na EAP para o dia que ainda não estavam lá (sem repetir). O ✕ tira um cartão que não vai ser usado; trocar de dia e voltar recria os cartões. Cartões compactos: 1 por linha no celular, 3 no notebook e 4 em tela larga.
-- **Quantidade do serviço:** cada cartão mostra o **feito no mês** ("Feito X de Y no mês", com Y = a meta do item na **Medição** atual; item sem meta na Medição mostra "Feito X no mês (sem meta na Medição)" — a meta do mês vem da Medição, não da EAP) e o **saldo do item** (contratado − acumulado), os dois **em tempo real** enquanto a quantidade é digitada, com o valor de antes entre parênteses ("Feito 42,5 m de 120 m no mês (era 30 m)"). A quantidade de um dia fora do período da medição não entra no feito do mês. No planejamento da Medição, o R$ de cada linha e a meta em montagem também mudam enquanto se digita. O botão **"Concluído"** (antes "Marcar concluído") fica marcado sozinho quando a quantidade do dia cobre o saldo, e pode ser desmarcado. Quantidade acima do saldo mostra o aviso "Acima do saldo do item", sem bloquear.
+- **Cartões de produção (desde 24/10/2026):** o dia novo já abre com **um cartão para cada atividade planejada na EAP para aquele dia** (o período do item inclui o dia) **e as atrasadas** (deveriam ter terminado e não terminaram); item terminado no Diário ou concluído em outro dia fica de fora. É a mesma regra do Kanban do Curto prazo, para um dia só. **Não há cartão vazio** (desde 25/10/2026): o diário tem só os cartões do planejado na EAP; atividade fora do planejado entra lançando as datas dela na EAP. Dia sem nada planejado mostra o aviso "Nenhuma atividade planejada na EAP para este dia". No topo de cada cartão, o campo **"Item do orçamento"** com a **setinha ▾** permite trocar o item (escolhido errado); digitar filtra pelo código ou pela descrição. Escolhido o item, o cartão traz código, descrição, unidade, a **situação no Kanban da semana** (A fazer, Em andamento, Concluído, Não realizado; a mesma do Curto prazo), "Atrasada" quando já devia ter terminado, o **período na EAP** ("Período na EAP: dd/mm/aaaa a dd/mm/aaaa", ou "Sem datas na EAP"), feito no mês, saldo do item, quantidade, memória de cálculo, quem executou (sugere o responsável do cartão do Kanban na semana) e fotos. Não há marcação de Concluído à mão (desde 25/10/2026): o item conclui sozinho quando a quantidade cobre o saldo. Não aparecem na lista os itens concluídos em outro dia nem os que já estão em outro cartão do dia. Trocar o item ou tirar (✕) um cartão com lançamento pergunta antes, porque apaga o lançamento. **Enviar o diário faz o Kanban andar:** item com produção que estava "A fazer" vai para "Em andamento", e item concluído no diário vai para "Concluído" (nunca volta; não mexe em "Não realizado" nem em atividade tirada da semana). Na correção, os cartões abrem com os itens já lançados naquele dia e, junto, as atividades planejadas na EAP para o dia que ainda não estavam lá (sem repetir). O ✕ tira um cartão que não vai ser usado; trocar de dia e voltar recria os cartões. Cartões compactos: 1 por linha no celular, 3 no notebook e 4 em tela larga.
+- **Quantidade do serviço:** cada cartão mostra o **feito no mês** ("Feito X de Y no mês", com Y = a meta do item na **Medição** atual; item sem meta na Medição mostra "Feito X no mês (sem meta na Medição)" — a meta do mês vem da Medição, não da EAP) e o **saldo do item** (contratado − acumulado), os dois **em tempo real** enquanto a quantidade é digitada, com o valor de antes entre parênteses ("Feito 42,5 m de 120 m no mês (era 30 m)"). A quantidade de um dia fora do período da medição não entra no feito do mês. No planejamento da Medição, o R$ de cada linha e a meta em montagem também mudam enquanto se digita. Não há botão de Concluído (desde 25/10/2026): o item conclui sozinho quando a quantidade do dia cobre o saldo. Quantidade acima do saldo mostra o aviso "Acima do saldo do item", sem bloquear.
 - **Efetivo de um dia novo** já começa com o efetivo do último diário anterior, para só ajustar. Linha deixada em branco é ignorada no envio.
-- **Concluído à mão vale:** se a pessoa marcar ou desmarcar o Concluído, mudar a quantidade depois não muda a escolha dela.
 - **Trocar de dia** com um lançamento ainda não enviado pede confirmação antes de descartar; durante o preparo de uma foto, o dia não pode ser trocado.
 - **Efetivo compacto:** no celular, responsável numa linha e função, pessoas e ✕ na de baixo; em tela larga, tudo numa linha. Nada passa da largura da tela.
 - **Enviar:** precisa de alguma coisa do dia: produção, efetivo, memória de cálculo ou ocorrências (dia de chuva sem produção também é diário).
@@ -304,11 +306,13 @@ Tocar numa linha abre o detalhe (datas, dias, avanço, quantidade, valor para qu
 cedo** entre os itens de dentro, e o fim é o **fim mais tarde** — em todos os níveis (o item puxa a
 subetapa, que puxa a etapa). Grupo só com itens sem data fica "Sem datas".
 
-**Editar datas (só o Engenheiro):** "Editar datas" abre a árvore inteira com **Início e Fim em cada item**
-(etapa e subetapa não têm campo; o período delas muda na hora, enquanto se digita). Uma barra fixa no
-topo mostra "N item(ns) com data não salva", **Salvar datas** (grava tudo de uma vez) e **Cancelar**
-(descarta, com confirmação). **Fim antes do início** (ou só uma data) deixa a linha vermelha e impede
-salvar. No celular, os dois campos ficam embaixo do item; no computador, numa coluna à direita.
+**Lançar datas (só o Engenheiro), desde 25/10/2026:** não há mais o botão "Editar datas". **Tocar num item** abre
+os campos **Início e Fim no próprio item** (ao lado, no computador; logo abaixo, no celular), com o botão
+**Salvar** do item e ✕ para fechar. Dá para abrir vários itens em sequência (2.1.1, 2.1.2, 2.1.3…). Enquanto
+houver data digitada e não salva, aparece um **botão flutuante** "N datas não salvas · Salvar · Descartar"
+que grava todas de uma vez; a linha fechada com data não salva mostra "não salva". O período de etapa e
+subetapa muda na hora. **Fim antes do início** (ou só uma data) mostra o erro no item e impede salvar. O
+botão "i" do item abre o detalhe.
 
 ---
 
@@ -332,17 +336,29 @@ real são médias dos itens com datas, ponderadas pelo valor (simples para quem 
 
 ---
 
+**Previsão de faturamento pela EAP (desde 25/10/2026; só Engenheiro e Diretoria):** na tela **Início** (depois do
+avanço da medição, antes da lista de serviços), em toda obra. Desde 25/10/2026 ele não aparece mais no Longo prazo.
+O valor vigente de cada item (P. Total do Orçamento) é espalhado pelos **dias úteis** do período dele na EAP
+(calendário da obra) e somado por mês. Mostra: o total previsto com datas e quanto isso é do orçamento vigente;
+o previsto e o realizado deste mês; o mês de maior previsão; o valor e a quantidade de itens ainda sem datas
+(com "lançar datas"). Gráfico de barras por mês: **Previsto (EAP)** em turquesa ao lado do **Realizado
+(Diário)** em roxo (quantidade lançada × P. Unit.), com o mês atual destacado e o valor escrito só no mês
+atual e no de maior previsão; passar o mouse mostra os números do mês. "Ver a tabela mês a mês": previsto,
+previsto acumulado, % acumulado e realizado. A Equipe da obra não vê (não recebe preços).
+
+---
+
 ## Tela: Planejamento — aba Médio prazo (F1, desde 24/10/2026)
 
 **Quem acessa:** Engenheiro e Equipe da obra **criam e resolvem** restrições; **editar, mover de semana
 e excluir é só do Engenheiro**; a Diretoria só vê.
 
 **O que mostra:** um quadro com **uma coluna por semana** (segunda a domingo), começando na semana de
-hoje; **3, 4 (padrão), 5 ou 6 semanas**. Cada coluna: datas, "N atividades", "N liberadas" e "N restrições
+hoje; **3 (padrão, desde 25/10/2026), 4, 5 ou 6 semanas**. Cada coluna: datas, "N atividades", "N liberadas" e "N restrições
 abertas". **Toda atividade prevista na semana é um cartão** (desde 25/10/2026), como num Kanban, em ordem de
 código: código e nome, **Liberada** (borda verde, sem restrição aberta) ou **Com restrição** (borda âmbar),
 o período na EAP, a barra do real no Diário, **as restrições dela dentro do cartão** e "＋ Restrição".
-Atividade com restrição na semana mas fora do período na EAP também aparece, marcada "Fora do período na EAP".
+Atividade com restrição na semana mas fora do período na EAP também aparece, marcada "Fora do período na EAP"; item sem datas na EAP nunca vira cartão.
 - **Cartão da restrição:** tipo com cor e ícone (**Material, Mão de obra, Método, Equipamento,
   Projeto, Segurança, Logística**), descrição, atividade (código e nome), responsável e prazo (vermelho
   e "vencido" quando passou sem resolver). Botões: **Resolver** / Reabrir (guarda quem e quando),
@@ -370,7 +386,7 @@ atividade da semana é só do Engenheiro**; a Diretoria só vê.
   raiz**: Material, Mão de obra, Projeto, Método, Equipamento, Segurança, Logística, Clima ou Outra
   (com texto).
 - **Cartão:** código e nome, "Atrasada" (deveria ter terminado), "Com restrição" (restrição aberta
-  no Médio prazo), responsável, datas e a barra do real no Diário. **Subtarefas** (checklist): incluir,
+  no Médio prazo), **responsável** (engenheiro e equipe escolhem numa lista quem resolve e executa na semana; o Diário atualiza com quem executou, vale a última ação; desde 25/10/2026), datas e a barra do real no Diário. **Subtarefas** (checklist): incluir,
   marcar feita, marcar não realizada (com causa) e excluir; o cartão mostra "X de Y".
 - **Quem entra na semana (automático):** o item da EAP cujo período cruza a semana, ou que já
   deveria ter terminado e não terminou (atrasada); item terminado no Diário sai. O que já foi mexido
@@ -397,7 +413,9 @@ O previsto do Longo prazo e os "dias úteis" da EAP contam por ele.
 **O que aparece**
 Lista dos períodos de medição da obra, do mais novo para o mais antigo: número, período, situação, R$ planejado, R$ medido, % e, nas fechadas, a etiqueta **"bateu a meta"** ou **"não bateu"**. No fim da lista, o resumo: "Bateu a meta em 7 de 12 medições".
 
-Ao abrir um período: a lista dos serviços planejados com qtd planejada, preço unitário da medição, R$ planejado e, depois de fechada, qtd medida e R$ medido.
+Ao abrir um período: a **medição fatiada, na estrutura do Orçamento** (desde 25/10/2026): só os grupos e subgrupos que têm item na medição. Colunas do Orçamento: Item, Fonte, Referência, Descrição, Und, Quant. (vigente), P. Unit. e P. Total (truncado, como a planilha); colunas da medição: Qtd do mês e R$ do mês (e, depois de fechada, Qtd medida). Cada grupo soma o P. Total e o R$ do mês; no pé, o total da medição. Cada item mostra também o período na EAP.
+
+**A medição segue a EAP sozinha** (desde 25/10/2026): a **Medição 1 é criada sozinha** quando o primeiro item ganha início e fim na EAP dentro do mês vigente, e o período dela é esse mês (do dia 1 ao último dia). Enquanto está em `Planejando`, todo item que ganha datas no período entra sozinho, o que perde as datas (ou sai do período) sai, e a Qtd do mês = qtd vigente × dias úteis do item dentro do período ÷ dias úteis do item, truncada em 2 casas e limitada ao saldo (item já executado todo fica de fora). O engenheiro pode ajustar a Qtd do mês; ajustada à mão, ela não muda mais com a EAP. Ao iniciar, a lista acompanha a EAP uma última vez e a meta congela. Medição sem item não inicia.
 
 **Campos e informações**
 
@@ -411,7 +429,7 @@ Ao abrir um período: a lista dos serviços planejados com qtd planejada, preço
 | Qtd medida (por serviço, F2) | número | sim ao fechar | vem preenchida com a qtd executada no período |
 
 **Ações**
-- **Nova medição:** pede número e período e cria em `Planejando`.
+- **Nova medição:** a partir da Medição 2, cria a próxima (número e período automáticos, continuando do fim da anterior) em `Planejando`, já seguindo a EAP do período. A Medição 1 não tem botão: nasce pela EAP.
 - **Planejar o mês:** escolhe os serviços e a quantidade de cada um; também dá para importar do Excel (código + quantidade).
 - **Iniciar medição:** passa para `Em andamento`. Nesse momento **a meta fica congelada** (quantidade e preço unitário de cada serviço). Mudanças depois disso ficam registradas, mas a comparação usa a meta do início.
 - **Fechar medição (F2):** confere as quantidades medidas, grava os totais e se bateu a meta. Depois de fechada, não muda mais.

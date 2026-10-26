@@ -15,7 +15,7 @@ export const VISUAL_DO_TIPO = {
   Logística: { cor: 't-logistica', icone: 'logistica' },
 }
 export const SEMANAS_POSSIVEIS = [3, 4, 5, 6]
-export const SEMANAS_PADRAO = 4
+export const SEMANAS_PADRAO = 3
 
 // As N semanas do quadro, começando na semana de hoje: [{ inicio (segunda), fim (domingo), rotulo }].
 export const semanasDoQuadro = (hoje, n) =>
@@ -39,22 +39,31 @@ export const restricaoVencida = (r, hoje) => !r.resolvida && !!r.prazo && r.praz
 export const atividadeLiberada = (servicoId, restricoes) => !restricoes.some((r) => r.servico_id === servicoId && !r.resolvida)
 
 // Os cartões de uma coluna do quadro: um por atividade — as previstas na semana pela EAP e as que
-// têm restrição nesta semana (mesmo fora do período, marcadas "prevista: false") —, cada um com as
-// suas restrições, em ordem de código. atividades: folhas da EAP (atividadesDaSemana);
-// restricoesDaSemana: as que caem nesta coluna; servicoDe: { id: serviço }; todas: todas as da obra.
-export function cartoesDaSemana({ atividades, restricoesDaSemana, servicoDe, todas }) {
+// têm restrição nesta semana (fora do período, marcadas "prevista: false") —, cada um com as suas
+// restrições, em ordem de código. O quadro sai só da EAP alimentada: item sem datas na EAP não vira
+// cartão, nem com restrição. atividades: folhas da EAP na semana (atividadesDaSemana); itensComDatas:
+// todas as folhas da EAP com início e fim; restricoesDaSemana: as desta coluna; todas: todas da obra.
+export function cartoesDaSemana({ atividades, itensComDatas, restricoesDaSemana, todas }) {
   const cartoes = new Map(atividades.map((no) => [no.servico.id, { servico: no.servico, no, prevista: true, restricoes: [] }]))
+  const naEap = new Map(itensComDatas.map((no) => [no.servico.id, no]))
   for (const r of restricoesDaSemana) {
     if (!cartoes.has(r.servico_id)) {
-      const servico = servicoDe[r.servico_id]
-      if (!servico) continue
-      cartoes.set(r.servico_id, { servico, no: null, prevista: false, restricoes: [] })
+      const no = naEap.get(r.servico_id)
+      if (!no) continue
+      cartoes.set(r.servico_id, { servico: no.servico, no, prevista: false, restricoes: [] })
     }
     cartoes.get(r.servico_id).restricoes.push(r)
   }
   return [...cartoes.values()]
     .map((c) => ({ ...c, liberada: atividadeLiberada(c.servico.id, todas) }))
     .sort((a, b) => compararCodigos(a.servico.codigo, b.servico.codigo))
+}
+
+// As restrições que o quadro mostra e conta: só as de atividade com datas na EAP (as outras não viram
+// cartão, então também não entram nas contagens). itensComDatas: folhas da EAP com início e fim.
+export const restricoesNaEap = (restricoes, itensComDatas) => {
+  const naEap = new Set(itensComDatas.map((no) => no.servico.id))
+  return restricoes.filter((r) => naEap.has(r.servico_id))
 }
 
 // Mover de semana pelas setas: uma semana para trás (-1) ou para a frente (+1).

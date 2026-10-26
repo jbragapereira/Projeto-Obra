@@ -15,7 +15,7 @@ import { congelarMeta } from './medicao.js'
 import { FUNCOES_PADRAO } from './diario.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, precoUnitario } from './orcamento.js'
 import { CALENDARIO_PADRAO } from './calendario.js'
-import { CAUSAS, STATUS_SEMANA, SITUACAO_SUBTAREFA } from './curtoPrazo.js'
+import { STATUS_SEMANA, SITUACAO_SUBTAREFA } from './curtoPrazo.js'
 import { GRUPOS_ARRECIFES, ITENS_ARRECIFES, ORCAMENTO_ARRECIFES } from './mockOrcamentoArrecifes.js'
 
 // Vire para false quando o banco estiver ligado.
@@ -31,9 +31,9 @@ export const obras = [
     numero_contrato: '045/2026', data_inicio: d(-120), data_entrega: d(143), situacao: 'Em andamento',
   },
   {
-    id: 'obra-ba', nome: 'ARRECIFES JORDÃO ALTO', codigo: 'AJA-112',
+    id: 'obra-ba', nome: 'ARRECIFES JORDÃO ALTO', codigo: 'CT01',
     endereco: 'Praça Presidente Kennedy, Jordão Alto, Recife', cliente: 'Secretaria de Educação (exemplo)',
-    numero_contrato: '112/2026', data_inicio: d(-40), data_entrega: d(250), situacao: 'Em andamento',
+    numero_contrato: 'CT01', data_inicio: d(-40), data_entrega: '2027-08-14', situacao: 'Em andamento',
   },
 ]
 
@@ -91,13 +91,15 @@ const VN = [
 ]
 
 // ARRECIFES: o orçamento real (mockOrcamentoArrecifes.js) e, para alguns itens, o que a obra já fez.
+// A ARRECIFES começa zerada: EAP sem datas e nada executado no Diário (o engenheiro lança os dados
+// reais). Por isso ela não tem Kanban, diário nem medição de exemplo (plan fica 0).
 const BA = [
-  { codigo: '2.1.7', resp: 'r-silva', ini: -38, fim: -30, critico: false, plan: 0, anterior: 0, periodo: [], antigo: [[-35, 130], [-32, 130]], concluidoNo: -32 },
-  { codigo: '3.3.1', resp: 'r-ba-prop', ini: -22, fim: -18, critico: false, plan: 805.52, anterior: 0, periodo: [[-21, 805.52]], concluidoNo: -21 },
-  { codigo: '3.4.1', resp: 'r-silva', ini: -20, fim: 12, critico: true, plan: 900, anterior: 0, periodo: [[-18, 150], [-14, 200], [-10, 180], [-7, 160], [-3, 120], [0, 90]] },
-  { codigo: '3.1.4', resp: 'r-silva', ini: -17, fim: 5, critico: true, plan: 79.75, anterior: 0, periodo: [[-16, 20], [-12, 18]] },
-  { codigo: '3.5.3', resp: 'r-ba-prop', ini: -8, fim: 40, critico: false, plan: 250, anterior: 0, periodo: [[-6, 40], [-2, 35]] },
-  { codigo: '2.4.1', resp: 'r-ba-prop', ini: -25, fim: 200, critico: false, plan: 20, anterior: 0, periodo: [[-21, 1], [-20, 1], [-14, 1], [-7, 1], [-1, 1]] },
+  { codigo: '2.1.7', resp: 'r-silva', critico: false, plan: 0, anterior: 0, periodo: [] },
+  { codigo: '3.3.1', resp: 'r-ba-prop', critico: false, plan: 0, anterior: 0, periodo: [] },
+  { codigo: '3.4.1', resp: 'r-silva', critico: true, plan: 0, anterior: 0, periodo: [] },
+  { codigo: '3.1.4', resp: 'r-silva', critico: true, plan: 0, anterior: 0, periodo: [] },
+  { codigo: '3.5.3', resp: 'r-ba-prop', critico: false, plan: 0, anterior: 0, periodo: [] },
+  { codigo: '2.4.1', resp: 'r-ba-prop', critico: false, plan: 0, anterior: 0, periodo: [] },
 ]
 
 const AUTOR = { 'obra-vn': 'p-lucas', 'obra-ba': 'p-marcos' }
@@ -162,7 +164,10 @@ function montarObra(obraId, itens, specs) {
   const brutos = []
   for (const s of specs) {
     const servico = servicos.find((x) => x.obra_id === obraId && x.codigo === s.codigo)
-    Object.assign(servico, { responsavel_id: s.resp, data_inicio_planejada: d(s.ini), data_fim_planejada: d(s.fim), critico: s.critico })
+    Object.assign(servico, {
+      responsavel_id: s.resp, critico: s.critico,
+      data_inicio_planejada: s.ini != null ? d(s.ini) : null, data_fim_planejada: s.fim != null ? d(s.fim) : null,
+    })
     Object.assign(s, { id: servico.id, unidade: servico.unidade, preco: servico.preco_unitario })
     const anteriores = s.anterior ? [-60, -50, -40, -30].map((n) => [n, s.anterior / 4]) : []
     for (const [n, q] of [...anteriores, ...(s.antigo ?? []), ...s.periodo]) {
@@ -232,9 +237,8 @@ montarMedicoes('obra-vn', montarObra('obra-vn', ITENS_VN, VN), [
   { ini: -84, fim: -54, plan: 182000, medido: 186400 },
   { ini: -53, fim: -23, plan: 210000, medido: 193200 },
 ])
-montarMedicoes('obra-ba', montarObra('obra-ba', ITENS_ARRECIFES, BA), [
-  { ini: -53, fim: -23, plan: 38000, medido: 39500 },
-])
+// A ARRECIFES não tem medição de exemplo: a Medição 1 nasce no app, pela EAP do mês vigente.
+montarObra('obra-ba', ITENS_ARRECIFES, BA)
 
 // Uma ocorrência de exemplo no INSS.
 const diaChuva = diarios.find((x) => x.obra_id === 'obra-vn' && x.data === d(-9))
@@ -265,8 +269,6 @@ restricoes.push(
   restricao('rs-vn-3', 'obra-vn', 's-vn-6.1.3', 'Projeto', 'Revisão do projeto elétrico do 2º pavimento', 2, 10, 'Elétrica Ponto Certo'),
   restricao('rs-vn-4', 'obra-vn', 's-vn-3.1.4', 'Equipamento', 'Andaime para a fachada norte', 0, -1, 'Construtora Pedra Firme',
     { resolvida: true, resolvida_em: `${d(-1)}T16:20:00`, resolvida_por: 'p-lucas' }),
-  restricao('rs-ba-1', 'obra-ba', 's-ba-3.4.1', 'Equipamento', 'Trator de esteiras em manutenção', 0, 2, 'Empreiteira Silva & Filhos'),
-  restricao('rs-ba-2', 'obra-ba', 's-ba-3.5.3', 'Projeto', 'Paginação do piso intertravado não aprovada pela fiscalização', 1, 5, 'Engenheiro'),
 )
 
 // Curto prazo de exemplo: 7 semanas passadas (para o gráfico do PPC) e a semana atual com movimento.
@@ -292,7 +294,6 @@ for (const obraId of ['obra-vn', 'obra-ba']) {
 semanaAtividades.push(
   { id: 'sa-vn-agora-1', obra_id: 'obra-vn', semana: semana(0), servico_id: 's-vn-4.2.1', status: STATUS_SEMANA.andamento, causa: null, causa_texto: '', fora: false, atualizado_por: 'p-lucas', atualizado_em: `${d(-1)}T09:00:00` },
   { id: 'sa-vn-agora-2', obra_id: 'obra-vn', semana: semana(0), servico_id: 's-vn-3.2.2', status: STATUS_SEMANA.concluido, causa: null, causa_texto: '', fora: false, atualizado_por: 'p-lucas', atualizado_em: `${d(-1)}T16:30:00` },
-  { id: 'sa-ba-agora-1', obra_id: 'obra-ba', semana: semana(0), servico_id: 's-ba-3.4.1', status: STATUS_SEMANA.andamento, causa: null, causa_texto: '', fora: false, atualizado_por: 'p-marcos', atualizado_em: `${d(-1)}T10:00:00` },
 )
 const subtarefa = (id, obraId, servico, texto, situacao, causa = null) => ({
   id, obra_id: obraId, semana: semana(0), servico_id: servico, texto, situacao, causa, causa_texto: '', criado_por: 'p-eng',
@@ -301,6 +302,5 @@ subtarefas.push(
   subtarefa('st-vn-1', 'obra-vn', 's-vn-4.2.1', 'Chapisco das paredes do 2º pavimento', SITUACAO_SUBTAREFA.feita),
   subtarefa('st-vn-2', 'obra-vn', 's-vn-4.2.1', 'Reboco da circulação', SITUACAO_SUBTAREFA.pendente),
   subtarefa('st-vn-3', 'obra-vn', 's-vn-4.2.1', 'Reboco das salas 201 a 204', SITUACAO_SUBTAREFA.pendente),
-  subtarefa('st-ba-1', 'obra-ba', 's-ba-3.4.1', 'Corte do platô da quadra', SITUACAO_SUBTAREFA.naoRealizada, CAUSAS[4]),
 )
 

@@ -1,15 +1,16 @@
 // Painel do mês — a tela de toda manhã. As contas vêm prontas de lib/painel.js.
 import { useState } from 'react'
-import { buscarMedicaoAtual, juntar, listarItensMedicao, listarLancamentos, listarResponsaveis, listarServicos, listarDiarios } from '../lib/dados.js'
+import { buscarCalendario, buscarMedicaoAtual, juntar, listarItensMedicao, listarLancamentos, listarResponsaveis, listarServicos, listarDiarios } from '../lib/dados.js'
 import { COR_SITUACAO, FILTROS_PAINEL, analisarServico, ordenarPainel, sinalEntrega, totaisDoMes } from '../lib/painel.js'
 import { podeVerValores, podeEditar } from '../lib/perfis.js'
 import { brl, pct, qtd } from '../lib/formato.js'
 import { diasEntre, dm, dmy, hojeISO } from '../lib/datas.js'
 import { Barra, Carregando, Critico, Dinheiro, ErroCarga, Faixa, Meta, Pill, Vazio, useDados, avisar } from '../components/index.jsx'
 import ServicoDetalhe from './servicoDetalhe.jsx'
+import PrevisaoMensal from './previsaoMensal.jsx'
 
 async function carregar() {
-  const r = await juntar({ servicos: listarServicos(), lancamentos: listarLancamentos(), medicao: buscarMedicaoAtual(), responsaveis: listarResponsaveis(), diarios: listarDiarios() })
+  const r = await juntar({ servicos: listarServicos(), lancamentos: listarLancamentos(), medicao: buscarMedicaoAtual(), responsaveis: listarResponsaveis(), diarios: listarDiarios(), calendario: buscarCalendario() })
   if (r.erro || !r.data.medicao) return r
   const itens = await listarItensMedicao(r.data.medicao.id)
   if (itens.erro) return itens
@@ -33,7 +34,7 @@ export default function Painel({ profile, obra, goto }) {
     return (
       <div className="view">
         <Vazio titulo="Esta obra ainda não tem serviços"
-          texto="Importe a planilha contratual e o painel passa a mostrar, toda manhã, o que está andando e o que parou."
+          texto="Importe a planilha contratual e a tela Início passa a mostrar, toda manhã, o que está andando e o que parou."
           acao={podeEditar(profile.role) ? 'Ir para Orçamento' : null} onAcao={() => goto('orcamento')} />
       </div>
     )
@@ -56,6 +57,8 @@ export default function Painel({ profile, obra, goto }) {
   const diarioHoje = diarios.find((x) => x.data === hoje)
   const curto = (id) => (nomeResp[id] ?? '—').replace(/^(Construtora|Empreiteira) /, '')
   const alternar = (f) => setFiltro((atual) => (atual === f ? 'todos' : f))
+  // Previsão de faturamento pela EAP: só quem vê valores.
+  const previsao = comValores && <PrevisaoMensal dados={{ servicos, lancamentos, calendario: data.calendario }} hoje={hoje} onIrParaEap={() => goto('planejamento')} />
 
   return (
     <>
@@ -80,9 +83,12 @@ export default function Painel({ profile, obra, goto }) {
         </section>
 
         {!medicao ? (
+          <>
           <Vazio icone="medicao" titulo="Nenhuma medição em andamento"
             texto="O painel compara o executado com a meta do mês. Monte e inicie a medição do mês para ele começar a mostrar os números."
             acao={podeEditar(profile.role) ? 'Ir para Medição' : null} onAcao={() => goto('medicao')} />
+          {previsao}
+          </>
         ) : (
           <>
             {comValores ? (
@@ -110,6 +116,8 @@ export default function Painel({ profile, obra, goto }) {
                 <div className="scale"><span>{dm(medicao.data_inicio)}</span><span>{feito < decorrido ? 'abaixo do ritmo do mês' : 'no ritmo do mês'}</span><span>{dm(medicao.data_fim)}</span></div>
               </section>
             )}
+
+            {previsao}
 
             <section className="card">
               <div className="card-h">

@@ -1,6 +1,6 @@
 // Curto prazo: quem entra na semana, PPC e causas (src/lib/curtoPrazo.js).
 import { atividadesDaSemanaCurta, causasMaisFrequentes, ppc, regraDaSemana, semanasAnteriores, statusAposLancamento, statusNaSemana, validarCausa } from '../src/lib/curtoPrazo.js'
-import { CAUSAS, CAUSA_OUTRA, acoesDoStatus, causaParaGravar, planejadaNaSemana, realPorItem, textoDaCausa } from '../src/lib/curtoPrazo.js'
+import { CAUSAS, CAUSA_OUTRA, acoesDoStatus, causaParaGravar, planejadaNaSemana, realPorItem, responsavelNaSemana, textoDaCausa } from '../src/lib/curtoPrazo.js'
 
 let ok = 0
 let tot = 0
@@ -58,6 +58,19 @@ conferir('causas mais frequentes', causasMaisFrequentes({
   subtarefas: [{ semana: '2026-10-19', situacao: 'Não realizada', causa: 'Material' }],
   desde: '2026-10-01',
 }), [{ causa: 'Material', n: 2 }, { causa: 'Clima', n: 1 }])
+
+// Responsável no cartão: quem executou no Diário na semana (o mais recente); sem lançamento, o do item.
+const lancsResp = [
+  { servico_id: 's1', data: '2026-10-19', responsavel_id: 'r-a' },
+  { servico_id: 's1', data: '2026-10-22', responsavel_id: 'r-b' },
+  { servico_id: 's1', data: '2026-10-27', responsavel_id: 'r-c' },
+  { servico_id: 's2', data: '2026-10-20', responsavel_id: 'r-d' },
+]
+conferir('responsável do cartão é quem executou por último na semana', responsavelNaSemana({ lancamentos: lancsResp, servicoId: 's1', semana: '2026-10-19', padrao: 'r-item' }), 'r-b')
+conferir('o escolhido no cartão da semana vale primeiro', responsavelNaSemana({ registros: [{ semana: '2026-10-19', servico_id: 's1', responsavel_id: 'r-x' }, { semana: '2026-10-26', servico_id: 's1', responsavel_id: 'r-y' }], lancamentos: lancsResp, servicoId: 's1', semana: '2026-10-19', padrao: 'r-item' }), 'r-x')
+conferir('o do Kanban manda mesmo sobre o já lançado no dia', responsavelNaSemana({ registros: [{ semana: '2026-10-19', servico_id: 's1', responsavel_id: 'r-x' }], lancamentos: lancsResp, servicoId: 's1', semana: '2026-10-19', lancado: 'r-a', padrao: 'r-item' }), 'r-x')
+conferir('sem escolha no Kanban, fica o já lançado no dia', responsavelNaSemana({ registros: [], lancamentos: lancsResp, servicoId: 's1', semana: '2026-10-19', lancado: 'r-a', padrao: 'r-item' }), 'r-a')
+conferir('sem lançamento na semana, fica o responsável do item', responsavelNaSemana({ lancamentos: lancsResp, servicoId: 's1', semana: '2026-11-02', padrao: 'r-item' }), 'r-item')
 
 console.log(`${ok}/${tot} — curto prazo (kanban e PPC)`)
 process.exit(ok === tot ? 0 : 1)

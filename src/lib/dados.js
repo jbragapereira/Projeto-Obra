@@ -12,11 +12,11 @@
 // Toda função devolve { data, erro }.
 // ============================================================
 import * as mock from './mockData.js'
-import { addDias, dataHoraLocal, hojeISO, segundaDaSemana } from './datas.js'
+import { dataHoraLocal, hojeISO, segundaDaSemana } from './datas.js'
 import { podeAtualizarSemana, podeEditar, podeLancar, podePlanejar, podeRegistrarRestricao, podeVerValores, veTodasAsObras } from './perfis.js'
 import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
-import { congelarMeta, podeIniciar } from './medicao.js'
+import { congelarMeta, itensPelaEap, mesVigente, periodoDaProxima, podeIniciar, reconciliarItens } from './medicao.js'
 import { aceitaLancamento, validarObra } from './obras.js'
 import { CALENDARIO_PADRAO, validarCalendario } from './calendario.js'
 import { moverSemana, validarRestricao } from './restricoes.js'
@@ -173,10 +173,12 @@ export function salvarAditivo(a) {
   const campos = { numero: a.numero.trim(), data: a.data, quantidade, motivo: a.motivo.trim() }
   if (atual) {
     Object.assign(atual, campos, { alterado_por: sessao.id, alterado_em: dataHoraLocal(new Date()) })
+    acompanharEap()
     return ok(copia(atual))
   }
   const novo = { id: novoId('ad'), obra_id: obraAtual, servico_id: s.id, ...campos, criado_por: sessao.id, alterado_por: null, alterado_em: null }
   mock.aditivos.push(novo)
+  acompanharEap()
   return ok(copia(novo))
 }
 
@@ -189,6 +191,7 @@ export function excluirAditivo(aditivoId) {
   const motivo = podeExcluirAditivo({ aditivo, vigenteAtual: comVigente(s).qtd_contratada, acumulado: acumuladoDo(s.id) })
   if (motivo) return falha(motivo)
   mock.aditivos.splice(mock.aditivos.indexOf(aditivo), 1)
+  acompanharEap()
   return ok(copia(aditivo))
 }
 
@@ -215,6 +218,7 @@ export function salvarItemNovo(i) {
   if (atual) {
     Object.assign(atual, campos, { alterado_por: sessao.id, alterado_em: dataHoraLocal(new Date()) })
     if (mudouGrupo) atual.codigo = proximoCodigo(i.grupo, codigosOcupados(atual.id))
+    acompanharEap()
     return ok(copia(semValores(comVigente(atual))))
   }
   const novo = {
@@ -223,6 +227,7 @@ export function salvarItemNovo(i) {
     critico: false, critico_origem: CRITICO_A_MAO, ativo: true, alterado_por: null, alterado_em: null,
   }
   mock.servicos.push(novo)
+  acompanharEap()
   return ok(copia(semValores(comVigente(novo))))
 }
 
@@ -242,6 +247,7 @@ export function excluirItemNovo(servicoId) {
     for (let k = lista.length - 1; k >= 0; k--) if (lista[k].obra_id === obraAtual && lista[k].servico_id === servicoId) lista.splice(k, 1)
   }
   mock.servicos.splice(mock.servicos.indexOf(item), 1)
+  acompanharEap()
   return ok(copia(semValores(item)))
 }
 
@@ -288,6 +294,7 @@ export function salvarDatasEap(mudancas) {
   })
   if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira as datas marcadas.', erros })
   for (const { m, item } of alvos) Object.assign(item, { data_inicio_planejada: m.inicio || null, data_fim_planejada: m.fim || null })
+  acompanharEap()
   return ok({ salvas: mudancas.length })
 }
 
@@ -298,6 +305,7 @@ export function arquivarServico(servicoId, arquivar) {
   if (!s) return falha('Serviço não encontrado nesta obra.')
   if (s.origem !== ORIGENS_ITEM.novo) return falha('Só item novo é arquivado. Item da planilha muda por aditivo.')
   s.ativo = !arquivar
+  acompanharEap()
   return ok(copia(semValores(comVigente(s))))
 }
 
@@ -388,7 +396,7 @@ export function listarSubtarefas() {
 function registroDaSemana(semana, servicoId) {
   let r = daObra(mock.semanaAtividades).find((x) => x.semana === semana && x.servico_id === servicoId)
   if (!r) {
-    r = { id: novoId('sa'), obra_id: obraAtual, semana, servico_id: servicoId, status: STATUS_SEMANA.aFazer, causa: null, causa_texto: '', fora: false }
+    r = { id: novoId('sa'), obra_id: obraAtual, semana, servico_id: servicoId, status: STATUS_SEMANA.aFazer, causa: null, causa_texto: '', fora: false, responsavel_id: null }
     mock.semanaAtividades.push(r)
   }
   return r
@@ -408,6 +416,17 @@ export function mudarStatusAtividade({ semana, servico_id, status, causa, causa_
     status, ...causaParaGravar({ naoRealizado, causa, causa_texto }),
     atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()),
   })
+  return ok(copia(r))
+}
+
+// Escolher no cartão do Kanban quem resolve e executa a atividade na semana (engenheiro e equipe).
+export function definirResponsavelDaSemana({ semana, servico_id, responsavel_id }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeAtualizarSemana(sessao.role)) return falha('Seu perfil não atualiza a semana.')
+  if (!daObra(mock.servicos).some((s) => s.id === servico_id)) return falha('Atividade não encontrada nesta obra.')
+  if (!daObra(mock.responsaveis).some((r) => r.id === responsavel_id && r.ativo)) return falha('Escolha um responsável desta obra.')
+  const r = registroDaSemana(semana, servico_id)
+  Object.assign(r, { responsavel_id, atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
   return ok(copia(r))
 }
 
@@ -563,6 +582,8 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
   const servicosDaObra = new Set(daObra(mock.servicos).map((s) => s.id))
   const comFoto = itens.filter((i) => i.fotos?.length)
   if ([...comProducao, ...comFoto].some((i) => !servicosDaObra.has(i.servico_id))) return falha('Há serviço de outra obra no lançamento.')
+  // "Quem executou" vai também para o cartão do Kanban: só responsável desta obra.
+  if (comProducao.some((i) => i.responsavel_id && !responsaveisDaObra.has(i.responsavel_id))) return falha('Há responsável de outra obra em "Quem executou".')
   const fotosEnviadas = comFoto.flatMap((i) => i.fotos)
   if (fotosEnviadas.some((f) => !cabeNoLimite(f.tamanho_bytes))) return falha(`Há foto acima de ${LIMITE_FOTO_TEXTO}. Ela precisa ser comprimida antes de enviar.`)
   const origemGps = Object.values(ORIGENS_GPS)
@@ -619,6 +640,10 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
     const noKanban = !!reg || planejadaNaSemana({ servico, real: servico.qtd_contratada > 0 ? antes / servico.qtd_contratada : 0, semana })
     const novo = noKanban && statusAposLancamento({ atual: reg?.status ?? STATUS_SEMANA.aFazer, fora: !!reg?.fora, quantidade: campos.quantidade, concluido: campos.concluido })
     if (novo) Object.assign(registroDaSemana(semana, i.servico_id), { status: novo, causa: null, causa_texto: '', atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
+    // Quem executou no Diário passa a ser o responsável do cartão na semana (vale a última ação).
+    if (noKanban && campos.quantidade > 0 && campos.responsavel_id && reg?.responsavel_id !== campos.responsavel_id) {
+      Object.assign(registroDaSemana(semana, i.servico_id), { responsavel_id: campos.responsavel_id, atualizado_por: sessao.id, atualizado_em: dataHoraLocal(new Date()) })
+    }
   }
   // Foto pode ir mesmo em serviço sem produção no dia (ex.: registrar que está parado).
   for (const i of comFoto) {
@@ -634,6 +659,7 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
       })
     }
   }
+  acompanharEap()
   return ok(copia(diario))
 }
 
@@ -655,27 +681,72 @@ export function listarItensMedicao(medicaoId) {
   return ok(copia(daObra(mock.medicaoItens).filter((i) => i.medicao_id === medicaoId).map(semValores)))
 }
 
+// Próximas medições (a 2, a 3…): continuam do fim da anterior. A Medição 1 nasce sozinha pela EAP.
 export function criarMedicao() {
   const e = checar(); if (e) return falha(e)
   if (!podeEditar(sessao.role)) return falha('Só o engenheiro cria medições.')
   const daObraAtual = daObra(mock.medicoes)
   if (daObraAtual.some((m) => m.status === 'Planejando')) return falha('Já existe uma medição em planejamento.')
   const ultima = [...daObraAtual].sort((a, b) => b.numero - a.numero)[0]
-  const inicio = ultima ? addDias(ultima.data_fim, 1) : hojeISO()
+  if (!ultima) return falha('A Medição 1 é criada sozinha quando um item da EAP ganha datas no mês vigente.')
+  return ok(copia(novaMedicao(periodoDaProxima(ultima.data_fim), ultima.numero + 1)))
+}
+
+function novaMedicao(periodo, numero) {
   const nova = {
-    id: novoId('med'), obra_id: obraAtual, numero: (ultima?.numero ?? 0) + 1,
-    data_inicio: inicio, data_fim: addDias(inicio, 30), status: 'Planejando',
+    id: novoId('med'), obra_id: obraAtual, numero,
+    data_inicio: periodo.inicio, data_fim: periodo.fim, status: 'Planejando',
     valor_planejado: null, valor_medido: null, meta_batida: null, fechada_em: null,
   }
   mock.medicoes.push(nova)
-  const concluidos = new Set(daObra(mock.lancamentos).filter((l) => l.concluido).map((l) => l.servico_id))
-  for (const s of daObra(mock.servicos).filter((x) => x.ativo && !concluidos.has(x.id))) {
+  sincronizarPelaEap(nova)
+  return nova
+}
+
+// Os itens da EAP com período dentro do da medição, e a quantidade prevista (regra em medicao.js).
+function itensDaEapNoPeriodo(periodo) {
+  const servicos = daObra(mock.servicos).map(comVigente)
+  // Saldo pelo executado ANTES do período: o que o Diário lança no próprio mês não encolhe a meta dele.
+  const dataDoDiario = Object.fromEntries(daObra(mock.diarios).map((x) => [x.id, x.data]))
+  const acumulado = {}
+  for (const l of daObra(mock.lancamentos)) {
+    if (dataDoDiario[l.diario_id] < periodo.inicio) acumulado[l.servico_id] = (acumulado[l.servico_id] ?? 0) + l.quantidade
+  }
+  const cal = daObra(mock.calendarios)[0] ?? CALENDARIO_PADRAO
+  const preco = Object.fromEntries(servicos.map((s) => [s.id, s.preco_unitario]))
+  return itensPelaEap({ servicos, periodo, cal, acumulado }).map((i) => ({ ...i, preco_unitario: preco[i.servico_id] }))
+}
+
+// A Medição 1 nasce no primeiro item da EAP com datas no mês vigente (dia 1 ao último dia do mês).
+function garantirMedicao1() {
+  if (daObra(mock.medicoes).length) return
+  const periodo = mesVigente(hojeISO())
+  if (itensDaEapNoPeriodo(periodo).length) novaMedicao(periodo, 1)
+}
+
+// Medição em planejamento segue a EAP (regra em reconciliarItens): entra o item que ganhou datas no
+// período, sai o que saiu dele, e a quantidade acompanha as datas, menos a ajustada à mão.
+function sincronizarPelaEap(med) {
+  if (med.status !== 'Planejando') return
+  const atuais = daObra(mock.medicaoItens).filter((i) => i.medicao_id === med.id)
+  const { sair, entrar, mudar } = reconciliarItens(atuais, itensDaEapNoPeriodo({ inicio: med.data_inicio, fim: med.data_fim }))
+  for (let k = mock.medicaoItens.length - 1; k >= 0; k--) {
+    if (mock.medicaoItens[k].obra_id === obraAtual && sair.includes(mock.medicaoItens[k].id)) mock.medicaoItens.splice(k, 1)
+  }
+  for (const m of mudar) Object.assign(atuais.find((i) => i.id === m.id), m)
+  for (const n of entrar) {
     mock.medicaoItens.push({
-      id: novoId('item'), obra_id: obraAtual, medicao_id: nova.id, servico_id: s.id,
-      qtd_planejada: 0, qtd_planejada_inicial: null, preco_unitario: s.preco_unitario, qtd_medida: null,
+      id: novoId('item'), obra_id: obraAtual, medicao_id: med.id, servico_id: n.servico_id,
+      qtd_planejada: n.qtd_planejada, qtd_planejada_inicial: null, preco_unitario: n.preco_unitario, qtd_medida: null, ajustada: false,
     })
   }
-  return ok(copia(nova))
+}
+
+// Toda gravação que muda datas da EAP, quantidade vigente, preço ou executado chama isto no fim: nasce a
+// Medição 1 (se é o primeiro item com datas no mês) e a medição em planejamento acompanha a EAP.
+function acompanharEap() {
+  garantirMedicao1()
+  daObra(mock.medicoes).forEach(sincronizarPelaEap)
 }
 
 export function salvarQtdPlanejada(itemId, quantidade) {
@@ -685,7 +756,8 @@ export function salvarQtdPlanejada(itemId, quantidade) {
   if (!item) return falha('Item não encontrado nesta obra.')
   const med = mock.medicoes.find((m) => m.id === item.medicao_id)
   if (med.status === 'Fechada') return falha('Medição fechada não muda mais.')
-  item.qtd_planejada = Math.max(0, Number(quantidade) || 0)
+  // Ajustada à mão: a EAP não reescreve mais essa quantidade.
+  Object.assign(item, { qtd_planejada: Math.max(0, Number(quantidade) || 0), ajustada: true })
   return ok(copia(item))
 }
 
@@ -695,7 +767,9 @@ export function iniciarMedicao(medicaoId) {
   const lista = daObra(mock.medicoes)
   if (!podeIniciar(lista, medicaoId)) return falha('Só dá para iniciar uma medição em planejamento, sem outra em andamento.')
   const med = lista.find((m) => m.id === medicaoId)
+  sincronizarPelaEap(med)
   const itens = daObra(mock.medicaoItens).filter((i) => i.medicao_id === medicaoId)
+  if (!itens.length) return falha('A medição não tem item: lance as datas na EAP.')
   const preco = Object.fromEntries(daObra(mock.servicos).map((s) => [s.id, s.preco_unitario]))
   const { itens: congelados, valor_planejado } = congelarMeta(itens, preco)
   congelados.forEach((c) => Object.assign(itens.find((i) => i.id === c.id), c))

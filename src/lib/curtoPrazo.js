@@ -25,6 +25,22 @@ export function statusAposLancamento({ atual, fora, quantidade, concluido }) {
   return null
 }
 
+// Responsável da atividade na semana: o do cartão do Kanban e o "Quem executou" do cartão do Diário são
+// sempre o mesmo. 1) o escolhido no cartão do Kanban, gravado no registro da semana (o Diário também grava
+//    ali quem executou, e vale a última ação) — manda até sobre o que já estava lançado no dia;
+// 2) sem registro, o já lançado neste diário (lancado); 3) quem executou no Diário por último na semana;
+// 4) o do item (padrao). registros: semana_atividades; lancamentos: [{ servico_id, data, responsavel_id }].
+export function responsavelNaSemana({ registros = [], lancamentos, servicoId, semana, lancado, padrao }) {
+  const escolhido = registros.find((r) => r.semana === semana && r.servico_id === servicoId)?.responsavel_id
+  if (escolhido) return escolhido
+  if (lancado) return lancado
+  const fim = addDias(semana, 6)
+  const ultimo = lancamentos
+    .filter((l) => l.servico_id === servicoId && l.responsavel_id && l.data >= semana && l.data <= fim)
+    .reduce((u, l) => (!u || l.data >= u.data ? l : u), null)
+  return ultimo?.responsavel_id ?? padrao ?? null
+}
+
 // Situação da subtarefa (texto idêntico ao CHECK de subtarefas.situacao).
 export const SITUACAO_SUBTAREFA = { pendente: 'Pendente', feita: 'Feita', naoRealizada: 'Não realizada' }
 // Causa raiz do que não foi realizado (texto idêntico ao CHECK). "Outra" pede o texto.

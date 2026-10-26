@@ -1,7 +1,8 @@
 // Aba EAP do Planejamento: a árvore do Orçamento (etapa › subgrupo › item) com o avanço do Diário
 // e as datas planejadas. Itens e grupos vêm do Orçamento; aqui o engenheiro só lança as datas dos
-// ITENS, todas de uma vez, no modo "Editar datas". Etapa e subetapa não recebem data: a EAP
-// calcula pelos itens de dentro (início mais cedo, fim mais tarde) e atualiza enquanto se digita.
+// ITENS: tocar no item abre os campos de data nele, com Salvar; o botão flutuante salva todos de uma
+// vez. Etapa e subetapa não recebem data: a EAP calcula pelos itens de dentro (início mais cedo, fim
+// mais tarde) e atualiza enquanto se digita.
 import { useState } from 'react'
 import { salvarDatasEap } from '../lib/dados.js'
 import { achatarEap, acumuladoPorServico, ehItem, montarEap, paiDoCodigo, validarDatas } from '../lib/planejamento.js'
@@ -46,7 +47,7 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
   const [soSemDatas, setSoSemDatas] = useState(false)
   const [mostrarArquivados, setMostrarArquivados] = useState(false)
   const [detalhe, setDetalhe] = useState(null)
-  const [editando, setEditando] = useState(false)
+  const [emEdicao, setEmEdicao] = useState(new Set()) // itens com os campos de data abertos
   const [rascunho, setRascunho] = useState({}) // id do item → { inicio, fim }, só o que foi mexido
   const [errosSalvos, setErrosSalvos] = useState({})
   const [salvando, setSalvando] = useState(false)
@@ -56,11 +57,9 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
   // As datas que estão no banco, por item (para saber o que mudou).
   const original = Object.fromEntries(dados.servicos.map((s) => [s.id, { inicio: s.data_inicio_planejada ?? '', fim: s.data_fim_planejada ?? '' }]))
   const valorDe = (id) => rascunho[id] ?? original[id] ?? { inicio: '', fim: '' }
-  const mudancas = Object.entries(rascunho)
-    .filter(([id, v]) => v.inicio !== original[id]?.inicio || v.fim !== original[id]?.fim)
-    .map(([id, v]) => ({ id, inicio: v.inicio, fim: v.fim }))
+  const mudou = (id) => !!rascunho[id] && (rascunho[id].inicio !== original[id]?.inicio || rascunho[id].fim !== original[id]?.fim)
+  const mudancas = Object.keys(rascunho).filter(mudou).map((id) => ({ id, ...rascunho[id] }))
   const erroDe = (id) => (rascunho[id] ? validarDatas(rascunho[id]) : null) ?? errosSalvos[id] ?? null
-  const comErro = mudancas.some((m) => validarDatas(m))
 
   // A árvore já com o rascunho: as datas de etapa e subetapa acompanham a digitação.
   const servicos = dados.servicos.map((s) => {
@@ -89,25 +88,28 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
   }
   const linhas = filtrando ? todos.filter((n) => bate.has(n.codigo)) : achatarEap(raizes, fechados)
   const alternar = (codigo) => setFechados((f) => { const n = new Set(f); if (n.has(codigo)) n.delete(codigo); else n.add(codigo); return n })
+  const alternarEdicao = (id) => setEmEdicao((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const mudar = (id, campo, valor) => {
     setRascunho((r) => ({ ...r, [id]: { ...(r[id] ?? original[id] ?? { inicio: '', fim: '' }), [campo]: valor } }))
     setErrosSalvos((e) => { const n = { ...e }; delete n[id]; return n })
   }
-  const comecarEdicao = () => { setEditando(true); setFechados(new Set()); setDetalhe(null) }
-  const cancelar = () => {
-    if (mudancas.length && !window.confirm(`Descartar ${mudancas.length} alteração(ões) de data que não foram salvas?`)) return
-    setRascunho({}); setErrosSalvos({}); setEditando(false)
-  }
-  async function salvar() {
-    if (comErro) { avisar('Confira as datas marcadas em vermelho.'); return }
+  // Grava uma lista de itens (um só, pelo Salvar do item; ou todos, pelo botão flutuante).
+  async function gravar(lista) {
+    if (lista.some((m) => validarDatas(m))) { avisar('Confira as datas marcadas em vermelho.'); return }
     setSalvando(true)
-    const r = await salvarDatasEap(mudancas)
+    const r = await salvarDatasEap(lista)
     setSalvando(false)
     if (r.erro) { setErrosSalvos(r.erros ?? {}); avisar(r.erro); return }
-    avisar(`${r.data.salvas} item(ns) com datas salvas.`)
-    setRascunho({}); setEditando(false)
+    avisar(lista.length === 1 ? 'Datas salvas.' : `${r.data.salvas} itens com datas salvas.`)
+    const salvos = new Set(lista.map((m) => m.id))
+    setRascunho((rs) => Object.fromEntries(Object.entries(rs).filter(([id]) => !salvos.has(id))))
+    setEmEdicao((s) => new Set([...s].filter((id) => !salvos.has(id))))
     onMudou()
+  }
+  const descartar = () => {
+    if (!window.confirm(`Descartar ${mudancas.length} data(s) que não foram salvas?`)) return
+    setRascunho({}); setErrosSalvos({}); setEmEdicao(new Set())
   }
 
   if (!dados.servicos.length) {
@@ -121,23 +123,12 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
 
   return (
     <div className="view">
-      {editando ? (
-        <div className="eap-edicao" role="region" aria-label="Edição das datas">
-          <span className="eap-edicao-t">{mudancas.length ? `${mudancas.length} item(ns) com data não salva` : 'Preencha início e fim nos itens'}</span>
-          <div className="btns">
-            <button className="btn primary" onClick={salvar} disabled={salvando || !mudancas.length}>{salvando ? 'Salvando…' : 'Salvar datas'}</button>
-            <button className="btn ghost" onClick={cancelar}>Cancelar</button>
-          </div>
-        </div>
-      ) : (
-        <div className="btns">
-          {edita && <button className="btn dark" onClick={comecarEdicao}>Editar datas</button>}
-          <button className="btn" onClick={() => goto('orcamento')}>Ir para o Orçamento</button>
-        </div>
-      )}
+      <div className="btns">
+        <button className="btn" onClick={() => goto('orcamento')}>Ir para o Orçamento</button>
+      </div>
       <p className="obs" style={{ fontSize: 14, margin: 0 }}>
-        {editando
-          ? 'As datas de etapa e subetapa saem sozinhas: o início mais cedo e o fim mais tarde dos itens de dentro.'
+        {edita
+          ? 'Toque num item para lançar o início e o fim. As datas de etapa e subetapa saem sozinhas dos itens de dentro.'
           : 'Itens e grupos vêm do Orçamento. Aqui ficam as datas dos itens e o avanço lançado no Diário.'}
       </p>
 
@@ -156,20 +147,25 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
           <span className="rotulo">{itens.length} itens em {codigosDeGrupo.length} grupos; {semDatas ? `${semDatas} sem datas` : 'todos com datas'}</span>
         </div>
         {!linhas.length ? <div className="empty" style={{ padding: 24 }}><p>{soSemDatas ? 'Todos os itens já têm datas.' : 'Nada encontrado com essa busca.'}</p></div> : (
-          <ul className={`rows eap${editando ? ' editando' : ''}`}>
+          <ul className="rows eap">
             {linhas.map((n) => {
               const item = ehItem(n)
               const aberto = filtrando || !fechados.has(n.codigo)
-              const v = item ? valorDe(n.servico.id) : null
-              const erro = editando && item ? erroDe(n.servico.id) : null
+              const id = n.servico?.id
+              const editando = item && edita && emEdicao.has(id)
+              const v = item ? valorDe(id) : null
+              const erro = editando ? erroDe(id) : null
+              const pendente = item && mudou(id)
               const dias = diasUteisEntre(n.inicio, n.fim, dados.calendario)
-              const Corpo = editando ? 'div' : 'button'
+              // Engenheiro: tocar no item abre (ou fecha) as datas dele. Os outros: abre o detalhe.
+              const tocar = item && edita ? () => alternarEdicao(id) : () => setDetalhe(n)
               return (
-                <li key={n.codigo} className={`eap-no ${item ? '' : 'eap-grupo'} ${n.arquivado ? 'arquivado' : ''} ${erro ? 'com-erro' : ''}`} style={{ '--nivel': n.nivel - 1 }}>
+                <li key={n.codigo} className={`eap-no ${item ? '' : 'eap-grupo'} ${n.arquivado ? 'arquivado' : ''} ${erro ? 'com-erro' : ''} ${editando ? 'em-edicao' : ''}`} style={{ '--nivel': n.nivel - 1 }}>
                   {!item
                     ? <button className="eap-seta" aria-expanded={aberto} aria-label={`${aberto ? 'Fechar' : 'Abrir'} ${n.nome}`} onClick={() => alternar(n.codigo)} disabled={filtrando}>{aberto ? '▾' : '▸'}</button>
                     : <span className="eap-seta" aria-hidden="true" />}
-                  <Corpo className="eap-corpo" {...(editando ? {} : { onClick: () => setDetalhe(n) })}>
+                  <button className="eap-corpo" onClick={tocar} aria-expanded={item && edita ? editando : undefined}
+                    title={item && edita ? (editando ? 'Fechar as datas deste item' : 'Lançar as datas deste item') : undefined}>
                     <span className="eap-linha1">
                       <span className="cod">{n.codigo}</span>
                       <span className="eap-nome">{n.nome}</span>
@@ -181,25 +177,31 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
                       {item && nomeResp[n.servico.responsavel_id]}
                     </Meta>
                     <Barra feito={pct(n.progresso, 1)} />
-                  </Corpo>
+                  </button>
                   <div className="eap-datas">
-                    {editando && item ? (
-                      <>
+                    {editando ? (
+                      <div className="eap-editor">
                         <label className="eap-data"><span>Início</span>
-                          <input className="ipt" type="date" value={v.inicio} aria-invalid={!!erro} aria-label={`Início de ${n.codigo}`} onChange={(e) => mudar(n.servico.id, 'inicio', e.target.value)} />
+                          <input className="ipt" type="date" value={v.inicio} aria-invalid={!!erro} aria-label={`Início de ${n.codigo}`} onChange={(e) => mudar(id, 'inicio', e.target.value)} />
                         </label>
                         <label className="eap-data"><span>Fim</span>
-                          <input className="ipt" type="date" value={v.fim} min={v.inicio || undefined} aria-invalid={!!erro} aria-label={`Fim de ${n.codigo}`} onChange={(e) => mudar(n.servico.id, 'fim', e.target.value)} />
+                          <input className="ipt" type="date" value={v.fim} min={v.inicio || undefined} aria-invalid={!!erro} aria-label={`Fim de ${n.codigo}`} onChange={(e) => mudar(id, 'fim', e.target.value)} />
                         </label>
-                      </>
+                        <button className="btn primary eap-salvar" disabled={salvando || !pendente} onClick={() => gravar([{ id, ...v }])}>Salvar</button>
+                        <button className="btn ghost eap-fechar" aria-label={`Fechar as datas de ${n.codigo}`} onClick={() => alternarEdicao(id)}>✕</button>
+                      </div>
                     ) : (
                       <span className={`eap-periodo${item ? '' : ' calculado'}${!n.inicio && !n.fim ? ' vazio' : ''}`}>
                         {periodo(n.inicio, n.fim)}
-                        {dias != null && <small>{dias} {dias === 1 ? 'dia útil' : 'dias úteis'}{!item && editando ? ', pelos itens' : ''}</small>}
+                        {dias != null && <small>{dias} {dias === 1 ? 'dia útil' : 'dias úteis'}{!item ? ', pelos itens' : ''}</small>}
+                        {pendente && <small className="eap-pendente">não salva</small>}
                       </span>
                     )}
                   </div>
                   <span className="eap-pct">{pct(n.progresso, 1)}%</span>
+                  {item && edita && (
+                    <button className="eap-info" aria-label={`Detalhes de ${n.codigo}`} title="Detalhes" onClick={() => setDetalhe(n)}>i</button>
+                  )}
                   {erro && <div className="eap-avisos"><span className="erro">{erro}</span></div>}
                 </li>
               )
@@ -207,6 +209,15 @@ export default function AbaEap({ profile, dados, onMudou, goto }) {
           </ul>
         )}
       </section>
+
+      {/* Botão flutuante: aparece quando há data digitada e não salva, e grava todas de uma vez. */}
+      {mudancas.length > 0 && (
+        <div className="eap-flutuante" role="region" aria-label="Datas não salvas">
+          <span>{mudancas.length} {mudancas.length === 1 ? 'data não salva' : 'datas não salvas'}</span>
+          <button className="btn primary" disabled={salvando} onClick={() => gravar(mudancas)}>{salvando ? 'Salvando…' : 'Salvar'}</button>
+          <button className="btn ghost" onClick={descartar}>Descartar</button>
+        </div>
+      )}
 
       {detalhe && <Detalhe n={detalhe} responsavel={nomeResp[detalhe.servico?.responsavel_id]} comValores={comValores} cal={dados.calendario} onFechar={() => setDetalhe(null)} />}
     </div>

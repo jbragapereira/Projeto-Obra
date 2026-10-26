@@ -1,6 +1,6 @@
 // Médio prazo: semanas do quadro e restrições (src/lib/restricoes.js).
 import {
-  atividadeLiberada, atividadesDaSemana, moverSemana, restricaoVencida, semanaNoQuadro, semanasDoQuadro, validarRestricao, veioDeSemanaPassada, cartoesDaSemana,
+  atividadeLiberada, atividadesDaSemana, moverSemana, restricaoVencida, semanaNoQuadro, semanasDoQuadro, validarRestricao, veioDeSemanaPassada, cartoesDaSemana, restricoesNaEap,
 } from '../src/lib/restricoes.js'
 import { segundaDaSemana } from '../src/lib/datas.js'
 
@@ -40,14 +40,21 @@ conferir('mover de semana', [moverSemana('2026-10-19', 1), moverSemana('2026-10-
 
 // Cartões de uma coluna: as atividades previstas e as que têm restrição na semana, em ordem de código.
 const sv = (id, codigo) => ({ id, codigo })
+const noS1 = { servico: sv('s1', '2.1.1') }
+const noS2 = { servico: sv('s2', '3.4.1') }
+const noS9 = { servico: sv('s9', '1.1.1') }
 const col = cartoesDaSemana({
-  atividades: [{ servico: sv('s2', '3.4.1') }, { servico: sv('s1', '2.1.1') }],
-  restricoesDaSemana: [{ servico_id: 's1', resolvida: false }, { servico_id: 's9', resolvida: false }],
-  servicoDe: { s9: sv('s9', '1.1.1') },
-  todas: [{ servico_id: 's1', resolvida: false }, { servico_id: 's9', resolvida: false }],
+  atividades: [noS2, noS1],
+  itensComDatas: [noS1, noS2, noS9],
+  // s7 tem restrição mas não tem datas na EAP: não vira cartão.
+  restricoesDaSemana: [{ servico_id: 's1', resolvida: false }, { servico_id: 's9', resolvida: false }, { servico_id: 's7', resolvida: false }],
+  todas: [{ servico_id: 's1', resolvida: false }, { servico_id: 's9', resolvida: false }, { servico_id: 's7', resolvida: false }],
 })
 conferir('cartões da coluna em ordem, com a restrição dentro, e a de fora do período marcada',
   col.map((c) => [c.servico.codigo, c.prevista, c.restricoes.length, c.liberada]), [['1.1.1', false, 1, false], ['2.1.1', true, 1, false], ['3.4.1', true, 0, true]])
+conferir('o quadro só conta restrição de atividade com datas na EAP', restricoesNaEap([{ id: 'a', servico_id: 's1' }, { id: 'b', servico_id: 's7' }], [noS1, noS2]).map((r) => r.id), ['a'])
+conferir('EAP sem datas, quadro vazio (nem restrição puxa cartão)',
+  cartoesDaSemana({ atividades: [], itensComDatas: [], restricoesDaSemana: [{ servico_id: 's1', resolvida: false }], todas: [] }), [])
 
 const r = { servico_id: 's1', tipo: 'Material', descricao: 'Bloco cerâmico em falta', semana: '2026-10-26', prazo: '2026-10-28', responsavel: 'Compras' }
 conferir('restrição completa passa', validarRestricao(r), {})

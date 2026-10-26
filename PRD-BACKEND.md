@@ -237,6 +237,7 @@ atividade e semana, criada na primeira vez que a atividade é mexida; sem linha 
 | causa | text | não | obrigatória quando `Não realizado`. CHECK: `Material`, `Mão de obra`, `Projeto`, `Método`, `Equipamento`, `Segurança`, `Logística`, `Clima`, `Outra` |
 | causa_texto | text | não | obrigatória quando a causa é `Outra` |
 | fora | boolean | sim | tirada da semana pelo engenheiro (não conta no PPC); padrão falso |
+| responsavel_id | uuid | não | → responsaveis da mesma obra. Quem resolve e executa na semana: escolhido no cartão do Kanban; o Diário grava aqui quem executou (vale a última ação). Vazio: quem executou no Diário na semana, senão o responsável do item (desde 25/10/2026) |
 | atualizado_por | uuid | não | → profiles |
 | atualizado_em | timestamptz | não | |
 
@@ -333,6 +334,7 @@ Para que serve: o planejado do mês por serviço (a meta interna) e o medido no 
 | servico_id | uuid | sim | → servicos da mesma obra |
 | qtd_planejada | numeric(14,3) | sim | **nunca chega à Fiscalização** |
 | qtd_planejada_inicial | numeric(14,3) | não | cópia congelada quando a medição passa para `Em andamento` |
+| ajustada | boolean | sim | padrão falso; verdadeiro quando o engenheiro mudou a qtd do mês à mão (aí a EAP não reescreve mais a quantidade; desde 25/10/2026) |
 | preco_unitario | numeric(14,2) | sim | cópia do preço do serviço quando a medição passa para `Em andamento` |
 | qtd_medida | numeric(14,3) | não | preenchida ao fechar (F2) |
 | created_at | timestamptz | sim | automático |

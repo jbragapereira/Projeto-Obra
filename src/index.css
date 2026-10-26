@@ -322,6 +322,9 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .curto-marcas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px }
 .curto-marcas:empty { display: none }
 .curto-info { font-size: 12.5px; color: var(--slate); margin-top: 4px }
+.curto-resp { margin-top: 8px; flex: none }
+.curto-resp span { font-size: 12.5px }
+.curto-resp .ipt { width: 100%; min-height: 40px; font-size: 14px; padding-left: 8px; padding-right: 8px }
 .curto-card .minibar { margin-top: 6px; height: 6px }
 .curto-causa { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--red-d) }
 .curto-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px }
@@ -348,6 +351,33 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
   .curto-kanban { grid-template-columns: repeat(4, minmax(0, 1fr)) }
   .curto-col { display: block }
 }
+/* Previsão de faturamento pela EAP (topo do Longo prazo): previsto (EAP) × realizado (Diário) por mês.
+   Cores das séries validadas (dataviz): turquesa e roxo; o roxo não é cor de situação. */
+.prev-mes { --c-prev: #00A3B4; --c-real: #7A4FB3 }
+.prev-cab { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s2) var(--s4); align-items: flex-start }
+.prev-t { font-family: var(--display); font-stretch: 90%; font-size: 18px; font-weight: 700; margin: 0 }
+.prev-sub { margin: 2px 0 0; font-size: 13.5px }
+.prev-legenda { display: flex; gap: var(--s4); font-size: 13px; color: var(--slate) }
+.prev-legenda span { display: inline-flex; align-items: center; gap: 6px }
+.prev-legenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block }
+.prev-legenda .l-prev { background: var(--c-prev) } .prev-legenda .l-real { background: var(--c-real) }
+.prev-fatos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s3); margin: var(--s3) 0 }
+.prev-fatos .lbl { font-size: 13px; font-weight: 600; color: var(--slate) }
+.prev-fatos .v { font-family: var(--display); font-stretch: 85%; font-size: 22px; font-weight: 700 }
+.prev-fatos .obs { font-size: 12.5px }
+.prev-grafico { overflow-x: auto; border-top: 1px solid var(--line); padding-top: var(--s3) }
+.prev-barras { display: grid; grid-template-columns: repeat(var(--meses), minmax(56px, 1fr)); gap: 6px; align-items: end; min-height: 230px; border-bottom: 1px solid #C3CDD2 }
+.prev-mes-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 230px; justify-content: flex-end; position: relative; cursor: default }
+.prev-mes-col.atual { background: linear-gradient(to top, var(--brand-tint), transparent); border-radius: 4px 4px 0 0 }
+.prev-par { display: flex; align-items: flex-end; gap: 2px; height: 196px; padding-top: 26px; width: 100%; justify-content: center } /* a faixa de cima é do valor escrito sobre a barra mais alta */
+.prev-barra { position: relative; width: 40%; max-width: 22px; min-height: 0; border-radius: 4px 4px 0 0 }
+.prev-barra.p { background: var(--c-prev) } .prev-barra.r { background: var(--c-real) }
+.prev-barra b { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: 11.5px; font-weight: 700; color: var(--ink); white-space: nowrap }
+.prev-rot { font-size: 12px; color: var(--slate); display: flex; flex-direction: column; align-items: center; line-height: 1.1; padding-bottom: 2px }
+.prev-rot small { font-weight: 700; color: var(--ink) }
+.prev-tabela { margin-top: var(--s3) }
+.prev-tabela summary { cursor: pointer; font-weight: 600; color: var(--brand-d); min-height: 40px; display: flex; align-items: center }
+.prev-tabela tr.atual td { font-weight: 700; background: var(--brand-tint) }
 /* Calendário da obra (Ajustes) */
 .cal .chips { grid-template-columns: repeat(7, minmax(0, 1fr)) }
 .cal-ano { margin-top: var(--s2) }
@@ -363,7 +393,6 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .btn { min-height: 48px; padding: 0 var(--s4); border-radius: var(--r-btn); font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); border: 1.5px solid var(--ink); background: #fff; text-align: center }
 .btn:hover { background: #F2F4F5 }
 .btn.on { background: var(--ok); border-color: var(--ok); color: #fff }
-.btn .caixa { width: 18px; height: 18px; border: 2px solid currentColor; border-radius: 3px; flex: none }
 .svc .memoria { margin-top: var(--s2) }
 .svc .memoria > span { font-size: 13px }
 .svc .memoria textarea { min-height: 48px; font-size: 14px; field-sizing: content; max-height: 160px }
@@ -404,7 +433,6 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .svc-row .field > span { font-size: 13px }
 .svc-row .field .ipt { min-height: 44px; font-size: 14px }
 .svc-row .btn { min-height: 44px; padding: 0 var(--s3); font-size: 14px; gap: 6px }
-.svc-concluido { flex: 0 1 auto }
 .svc-fotos .btn { flex: 1 1 0 }
 /* Campo "Item do orçamento": a lista abre por cima dos outros cartões */
 .escolher { position: relative }
@@ -447,12 +475,23 @@ textarea.ipt { padding: var(--s3); min-height: 96px; resize: vertical }
 .eap-data { display: flex; flex-direction: column; gap: 2px; flex: 1 1 0; min-width: 0; max-width: 180px }
 .eap-data > span { font-size: 12px; font-weight: 600; color: var(--slate) }
 .eap-data .ipt { min-height: 40px; padding: 0 6px; width: 100%; min-width: 0 }
-.eap.editando .eap-no { padding-top: 8px; padding-bottom: 8px }
-.eap-edicao { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); align-items: center; justify-content: space-between; padding: var(--s3); background: var(--ink); color: #fff; border-radius: var(--r-card) }
-.eap-edicao-t { font-weight: 700 }
-.eap-edicao .btns { flex: 1 1 260px; flex-wrap: nowrap }
-.eap-edicao .btns > .btn { flex: 1 1 0; min-height: 44px }
-.eap-edicao .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.6) }
+.eap-no.em-edicao { background: var(--brand-tint) }
+.eap-corpo[aria-expanded] { cursor: pointer }
+.eap-editor { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: flex-end; width: 100% }
+.eap-editor .eap-salvar { min-height: 40px; padding: 0 var(--s3); flex: 0 0 auto }
+.eap-editor .eap-fechar { min-height: 40px; width: 40px; padding: 0; flex: 0 0 auto }
+.eap-pendente { color: var(--amber-d); font-weight: 700 }
+.eap-info { order: 2; width: 28px; height: 28px; flex: none; border-radius: 50%; border: 1.5px solid #C3CDD2; background: #fff; color: var(--slate); font-weight: 700; font-style: italic; font-family: Georgia, serif; font-size: 14px; cursor: pointer }
+/* Botão flutuante de salvar as datas da EAP: acima da barra de baixo no celular, ao lado do Topo */
+.eap-flutuante { position: fixed; z-index: 31; left: 50%; transform: translateX(-50%); bottom: calc(64px + var(--s4) + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: var(--s2); padding: 8px 8px 8px var(--s4); background: var(--ink); color: #fff; border-radius: 999px; box-shadow: 0 6px 18px rgba(38, 51, 58, .3); font-weight: 700; font-size: 14px; white-space: nowrap }
+.eap-flutuante .btn { min-height: 40px; padding: 0 var(--s3); border-radius: 999px }
+.eap-flutuante .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.55) }
+@media (max-width: 420px) { .eap-flutuante { left: var(--s3); right: 112px; transform: none; justify-content: space-between } .eap-flutuante > span { white-space: normal; line-height: 1.2 } }
+@media (min-width: 900px) {
+  .eap-flutuante { bottom: var(--s6) }
+  .eap-no.em-edicao .eap-datas { width: 470px }
+  .eap-info { order: 0 }
+}
 @media (min-width: 900px) {
   .eap-no { flex-wrap: nowrap }
   .eap-datas { order: 0; flex-basis: auto; flex: none; width: 330px; padding-left: 0; justify-content: flex-end }
@@ -675,3 +714,6 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
   .sinal .big { font-size: 38px }
   .chips { grid-template-columns: repeat(2, 1fr) }
 }
+/* Medição fatiada: as colunas do mês separadas das do Orçamento. */
+.med-tabela .med-fatia { border-left: 1.5px solid var(--ink) }
+.med-tabela thead tr:first-child th { font-size: 12.5px; color: var(--slate); padding-bottom: 2px }

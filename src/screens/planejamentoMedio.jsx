@@ -6,7 +6,7 @@ import { excluirRestricao, moverRestricao, resolverRestricao, salvarRestricao } 
 import { achatarEap, acumuladoPorServico, aplicarPrazo, ehItem, montarEap } from '../lib/planejamento.js'
 import {
   SEMANAS_PADRAO, SEMANAS_POSSIVEIS, TIPOS_RESTRICAO, VISUAL_DO_TIPO, atividadesDaSemana,
-  cartoesDaSemana, restricaoVencida, semanaNoQuadro, semanasDoQuadro, veioDeSemanaPassada,
+  cartoesDaSemana, restricaoVencida, restricoesNaEap, semanaNoQuadro, semanasDoQuadro, veioDeSemanaPassada,
 } from '../lib/restricoes.js'
 import { podeEditar, podeRegistrarRestricao } from '../lib/perfis.js'
 import { dataHoraCurta, dm, hojeISO } from '../lib/datas.js'
@@ -138,16 +138,16 @@ export default function AbaMedio({ profile, dados, onMudou }) {
   const acumulado = acumuladoPorServico(dados.lancamentos)
   const raizes = aplicarPrazo(montarEap({ servicos: dados.servicos, grupos: dados.grupos, acumulado }), { hoje, cal: dados.calendario })
   const itens = achatarEap(raizes).filter((x) => ehItem(x) && x.inicio && x.fim)
-  const servicoDe = Object.fromEntries(dados.servicos.map((s) => [s.id, s]))
   const nomeDoGrupo = Object.fromEntries(dados.grupos.map((g) => [g.codigo, g.nome]))
   const semanas = semanasDoQuadro(hoje, n)
   const primeira = semanas[0].inicio
   const ativaReal = Math.min(ativa, n - 1)
 
-  const responsaveis = [...new Set(dados.restricoes.map((r) => r.responsavel))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
+  const doQuadro = restricoesNaEap(dados.restricoes, itens)
+  const responsaveis = [...new Set(doQuadro.map((r) => r.responsavel))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
   const sugestoes = [...new Set([...dados.responsaveis.map((r) => r.nome), ...responsaveis])]
-  const visiveis = dados.restricoes.filter((r) => (mostrarResolvidas || !r.resolvida) && (!responsavel || r.responsavel === responsavel))
-  const abertas = dados.restricoes.filter((r) => !r.resolvida)
+  const visiveis = doQuadro.filter((r) => (mostrarResolvidas || !r.resolvida) && (!responsavel || r.responsavel === responsavel))
+  const abertas = doQuadro.filter((r) => !r.resolvida)
   const vencidas = abertas.filter((r) => restricaoVencida(r, hoje)).length
   const naSemana = (s) => visiveis.filter((r) => semanaNoQuadro(r, primeira) === s.inicio)
   const fechar = () => setForm(null)
@@ -185,7 +185,7 @@ export default function AbaMedio({ profile, dados, onMudou }) {
       <div className="rest-quadro" style={{ '--semanas': n }}>
         {semanas.map((s, i) => {
           const rs = naSemana(s)
-          const todosOsCartoes = cartoesDaSemana({ atividades: atividadesDaSemana(itens, s), restricoesDaSemana: rs, servicoDe, todas: dados.restricoes })
+          const todosOsCartoes = cartoesDaSemana({ atividades: atividadesDaSemana(itens, s), itensComDatas: itens, restricoesDaSemana: rs, todas: dados.restricoes })
           // Com filtro de responsável, ficam só as atividades com restrição dele.
           const cartoes = responsavel ? todosOsCartoes.filter((c) => c.restricoes.length) : todosOsCartoes
           const liberadas = cartoes.filter((c) => c.liberada).length
@@ -201,9 +201,10 @@ export default function AbaMedio({ profile, dados, onMudou }) {
                     <div className="med-ativ-t" title={c.servico.descricao}><span className="cod">{c.servico.codigo}</span> {c.servico.descricao}</div>
                     <div className="med-ativ-m">
                       <span className={`pill ${c.liberada ? 'ok' : 'amber'}`}>{c.liberada ? 'Liberada' : 'Com restrição'}</span>
-                      {c.no ? <span>{dm(c.no.inicio)} a {dm(c.no.fim)}</span> : <span className="obs">Fora do período na EAP</span>}
+                      <span>{dm(c.no.inicio)} a {dm(c.no.fim)}</span>
+                      {!c.prevista && <span className="obs">Fora do período na EAP</span>}
                     </div>
-                    {c.no && <Barra feito={Math.round((c.no.real ?? 0) * 100)} />}
+                    <Barra feito={Math.round((c.no.real ?? 0) * 100)} />
                     {c.restricoes.map((r) => (
                       <CartaoRestricao key={r.id} r={r} hoje={hoje} primeiraSemana={primeira}
                         registra={registra} edita={edita} onEditar={() => setForm({ ...r })} onMudou={onMudou} />
