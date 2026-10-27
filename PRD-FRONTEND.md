@@ -480,6 +480,8 @@ Abas no alto, todas da obra atual:
 
 Cada aba mostra o formulário (só o Engenheiro) e, abaixo, a lista do que já existe. Erro aparece embaixo do campo, na hora de salvar.
 
+**Cancelar um cadastro (desde 26/10/2026):** cada linha tem **"Cancelar"** (só o Engenheiro), que pergunta antes. Cancelar **não apaga**: o cadastro sai das listas de escolha de todo o app (efetivo e produção do Diário, responsável do Curto prazo e do item novo do Orçamento, empreiteiro do contrato, material do pedido, categoria do material), mas o histórico continua com o nome (diários, contratos e pedidos já feitos). Na correção de um lançamento antigo, o cancelado que já estava escolhido aparece marcado "(cancelado)". Os cancelados ficam recolhidos em **"Cancelados (n)"**, no fim de cada lista, com **"Reativar"**. Categoria com material ativo não se cancela (cancele os materiais antes); material só se reativa com a categoria ativa. O nome de um cancelado continua ocupado: para usar de novo, reative.
+
 ---
 
 ## Tela: Materiais (desde 26/10/2026)

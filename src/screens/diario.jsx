@@ -18,6 +18,7 @@ import { COR_STATUS_SEMANA, efeitoDoDiarioNoKanban, responsavelNaSemana } from '
 import { medicaoDoDia, metaDoItem, rotuloDoPeriodo } from '../lib/medicao.js'
 import { podeEditar, podeLancar, rotuloDoDiario } from '../lib/perfis.js'
 import { aceitaLancamento } from '../lib/obras.js'
+import { escolhaInicial, paraEscolher, rotuloNaLista } from '../lib/cadastros.js'
 import { qtd, tamanhoArquivo } from '../lib/formato.js'
 import { dataHoraCurta, dataLonga, dm, dmy, hojeISO, segundaDaSemana } from '../lib/datas.js'
 import { ORIGENS_DATA } from '../lib/fotos.js'
@@ -27,7 +28,7 @@ import { prepararFoto } from '../components/prepararFoto.js'
 // Todas as medições e os itens delas: o cartão mostra a meta da medição do dia do diário.
 const carregar = () => juntar({
   servicos: listarServicos(), lancamentos: listarLancamentos(), responsaveis: listarResponsaveis(),
-  diarios: listarDiarios(), medicoes: listarMedicoes(), itensMedicao: listarItensDasMedicoes(), funcoes: listarFuncoes(), fotos: listarFotos(), grupos: listarGrupos(), semanaAtividades: listarSemanaAtividades(),
+  diarios: listarDiarios(), medicoes: listarMedicoes(), itensMedicao: listarItensDasMedicoes(), funcoes: listarFuncoes({ comCancelados: true }), fotos: listarFotos(), grupos: listarGrupos(), semanaAtividades: listarSemanaAtividades(),
 })
 
 // O que a fiscalização vai conferir em cada foto: data e hora, GPS e endereço.
@@ -100,7 +101,8 @@ function formularioDe(dados, dia, diario, planejados = []) {
     itens[s.id] = {
       quantidade: l?.quantidade ?? 0, concluido: l?.concluido ?? false,
       // Quem executou = o responsável do cartão do Kanban na semana (mesmo com lançamento já feito no dia).
-      responsavel_id: responsavelNaSemana({ registros: dados.semanaAtividades, lancamentos: dados.lancamentos, servicoId: s.id, semana: segundaDaSemana(dia), lancado: l?.responsavel_id, padrao: s.responsavel_id }),
+      // Já lançado fica como foi; a sugestão (Kanban ou padrão do item) só vale se o responsável ainda está ativo.
+      responsavel_id: l?.responsavel_id ?? escolhaInicial(dados.responsaveis, responsavelNaSemana({ registros: dados.semanaAtividades, lancamentos: dados.lancamentos, servicoId: s.id, semana: segundaDaSemana(dia), padrao: s.responsavel_id })),
       memoria_calculo: l?.memoria_calculo ?? '', fotos: [],
     }
   }
@@ -301,7 +303,7 @@ function DiarioDoDia({ profile, obra, goto }) {
   const limparItem = (id) => {
     f.itens[id].fotos.forEach((foto) => URL.revokeObjectURL(foto.url_previa))
     const s = data.servicos.find((x) => x.id === id)
-    return { quantidade: 0, responsavel_id: s ? responsavelNaSemana({ registros: data.semanaAtividades, lancamentos: data.lancamentos, servicoId: id, semana: segundaDaSemana(f.data), padrao: s.responsavel_id }) : null, concluido: false, memoria_calculo: '', fotos: [] }
+    return { quantidade: 0, responsavel_id: s ? escolhaInicial(data.responsaveis, responsavelNaSemana({ registros: data.semanaAtividades, lancamentos: data.lancamentos, servicoId: id, semana: segundaDaSemana(f.data), padrao: s.responsavel_id })) : null, concluido: false, memoria_calculo: '', fotos: [] }
   }
   // Os cartões vêm da EAP; o ✕ tira do dia um cartão que não vai ser usado.
   function tirarCartaoDoDia(indice) {
@@ -365,13 +367,13 @@ function DiarioDoDia({ profile, obra, goto }) {
               <label className="field f-resp"><span>Responsável</span>
                 <select className="ipt" value={l.responsavel_id} aria-invalid={!l.responsavel_id} onChange={(e) => atualizarLinha(i, { responsavel_id: e.target.value })}>
                   <option value="">Escolha…</option>
-                  {data.responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                  {paraEscolher(data.responsaveis, l.responsavel_id).map((r) => <option key={r.id} value={r.id}>{rotuloNaLista(r)}</option>)}
                 </select>
               </label>
               <label className="field f-func"><span>Função</span>
                 <select className="ipt" value={l.funcao_id} aria-invalid={!l.funcao_id} onChange={(e) => atualizarLinha(i, { funcao_id: e.target.value })}>
                   <option value="">Escolha…</option>
-                  {data.funcoes.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                  {paraEscolher(data.funcoes, l.funcao_id).map((x) => <option key={x.id} value={x.id}>{rotuloNaLista(x)}</option>)}
                 </select>
               </label>
               <label className="field f-pess"><span>Pessoas</span>
@@ -456,7 +458,8 @@ function DiarioDoDia({ profile, obra, goto }) {
                 <div className="svc-row">
                   <label className="field"><span>Quem executou</span>
                     <select className="ipt" value={it.responsavel_id ?? ''} onChange={(e) => atualizarItem(s.id, { responsavel_id: e.target.value })}>
-                      {data.responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                      {!it.responsavel_id && <option value="">Escolha…</option>}
+                      {paraEscolher(data.responsaveis, it.responsavel_id).map((r) => <option key={r.id} value={r.id}>{rotuloNaLista(r)}</option>)}
                     </select>
                   </label>
                 </div>

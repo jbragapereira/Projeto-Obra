@@ -2,18 +2,61 @@
 // empreiteiros só escolhem da lista). Abas: Responsáveis (empreiteiro, empresa especializada ou mão de obra
 // própria — o empreiteiro é um responsável, sem aba própria), Funções, Equipamentos e Materiais (o catálogo
 // dos pedidos de material).
-// Engenheiro cadastra; diretoria vê.
+// Engenheiro cadastra, cancela e reativa (cancelar não apaga: sai das listas de escolha, fica no histórico);
+// diretoria vê.
 import { useState } from 'react'
 import {
-  juntar, listarCategoriasMaterial, listarEquipamentos, listarFuncoes, listarMateriais, listarResponsaveis, salvarCategoriaMaterial,
-  salvarEquipamento, salvarFuncao, salvarMaterial, salvarResponsavel,
+  cancelarCadastro, juntar, listarCategoriasMaterial, listarEquipamentos, listarFuncoes, listarMateriais, listarResponsaveis, salvarCategoriaMaterial,
+  reativarCadastro, salvarEquipamento, salvarFuncao, salvarMaterial, salvarResponsavel,
 } from '../lib/dados.js'
+import { separar } from '../lib/cadastros.js'
 import { CORES_CATEGORIA, classeDaCor, validarCategoria, validarMaterial } from '../lib/materiais.js'
 import { podeEditar, veCadastro } from '../lib/perfis.js'
 import { PROPRIEDADES_EQUIPAMENTO, TIPOS_RESPONSAVEL, validarEquipamento } from '../lib/obras.js'
 import { Carregando, ErroCarga, Faixa, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
 
-const carregar = () => juntar({ responsaveis: listarResponsaveis(), funcoes: listarFuncoes(), equipamentos: listarEquipamentos(), materiais: listarMateriais(), categorias: listarCategoriasMaterial() })
+const todos = { comCancelados: true }
+const carregar = () => juntar({
+  responsaveis: listarResponsaveis(), funcoes: listarFuncoes(todos), equipamentos: listarEquipamentos(todos),
+  materiais: listarMateriais(todos), categorias: listarCategoriasMaterial(todos),
+})
+
+async function cancelar(tabela, item, onMudou) {
+  if (!window.confirm(`Cancelar o cadastro de ${item.nome}?\n\nEle sai das listas de escolha, mas continua no histórico. Dá para reativar depois.`)) return
+  const r = await cancelarCadastro(tabela, item.id)
+  if (r.erro) { avisar(r.erro); return }
+  avisar(`${item.nome}: cadastro cancelado.`)
+  onMudou()
+}
+async function reativar(tabela, item, onMudou) {
+  const r = await reativarCadastro(tabela, item.id)
+  if (r.erro) { avisar(r.erro); return }
+  avisar(`${item.nome}: reativado.`)
+  onMudou()
+}
+
+// Botão da linha (só o engenheiro).
+function BotaoCancelar({ tabela, item, edita, onMudou }) {
+  if (!edita) return null
+  return <button className="btn ghost cad-acao" aria-label={`Cancelar o cadastro de ${item.nome}`} onClick={() => cancelar(tabela, item, onMudou)}>Cancelar</button>
+}
+
+// Os cancelados, recolhidos no fim da lista, com Reativar.
+function Cancelados({ tabela, itens, edita, onMudou, detalhe }) {
+  if (!itens.length) return null
+  return (
+    <details className="cad-cancelados">
+      <summary>Cancelados ({itens.length})</summary>
+      <ul className="rows">
+        {itens.map((x) => (
+          <li key={x.id}><div className="row"><div className="main-c">
+            <div className="t">{x.nome}</div>{detalhe?.(x)}
+          </div>{edita && <button className="btn ghost cad-acao" aria-label={`Reativar ${x.nome}`} onClick={() => reativar(tabela, x, onMudou)}>Reativar</button>}</div></li>
+        ))}
+      </ul>
+    </details>
+  )
+}
 const ABAS = [
   { id: 'responsaveis', rotulo: 'Responsáveis' },
   { id: 'funcoes', rotulo: 'Funções' },
@@ -21,7 +64,8 @@ const ABAS = [
   { id: 'materiais', rotulo: 'Materiais' },
 ]
 
-function Responsaveis({ responsaveis, edita, onSalvo }) {
+function Responsaveis({ responsaveis: todosResp, edita, onSalvo }) {
+  const { ativos: responsaveis, cancelados } = separar(todosResp)
   const vazio = { nome: '', tipo: TIPOS_RESPONSAVEL[0], contato: '' }
   const [novo, setNovo] = useState(vazio)
   const [tocado, setTocado] = useState(false)
@@ -64,16 +108,18 @@ function Responsaveis({ responsaveis, edita, onSalvo }) {
             {responsaveis.map((r) => (
               <li key={r.id}><div className="row"><div className="main-c">
                 <div className="t">{r.nome}</div><Meta>{r.tipo}{r.contato}</Meta>
-              </div></div></li>
+              </div><BotaoCancelar tabela="responsaveis" item={r} edita={edita} onMudou={onSalvo} /></div></li>
             ))}
           </ul>
         ) : <div className="empty" style={{ padding: 24 }}><p>Nenhum responsável cadastrado nesta obra.{edita ? ' Cadastre o primeiro acima.' : ''}</p></div>}
+        <Cancelados tabela="responsaveis" itens={cancelados} edita={edita} onMudou={onSalvo} detalhe={(r) => <Meta>{r.tipo}</Meta>} />
       </section>
     </>
   )
 }
 
-function Funcoes({ funcoes, edita, onSalvo }) {
+function Funcoes({ funcoes: todasFuncoes, edita, onSalvo }) {
+  const { ativos: funcoes, cancelados } = separar(todasFuncoes)
   const [nome, setNome] = useState('')
   const [tocado, setTocado] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -103,21 +149,23 @@ function Funcoes({ funcoes, edita, onSalvo }) {
         </div>
       )}
       <ul className="rows">
-        {funcoes.map((f) => <li key={f.id}><div className="row"><div className="main-c"><div className="t">{f.nome}</div></div></div></li>)}
+        {funcoes.map((f) => <li key={f.id}><div className="row"><div className="main-c"><div className="t">{f.nome}</div></div><BotaoCancelar tabela="funcoes" item={f} edita={edita} onMudou={onSalvo} /></div></li>)}
       </ul>
+      <Cancelados tabela="funcoes" itens={cancelados} edita={edita} onMudou={onSalvo} />
     </section>
   )
 }
 
-function Equipamentos({ equipamentos, edita, onSalvo }) {
+function Equipamentos({ equipamentos: todosEq, edita, onSalvo }) {
+  const { ativos: equipamentos, cancelados } = separar(todosEq)
   const vazio = { nome: '', propriedade: PROPRIEDADES_EQUIPAMENTO[0], fornecedor: '', identificacao: '' }
   const [novo, setNovo] = useState(vazio)
   const [tocado, setTocado] = useState(false)
   const [salvando, setSalvando] = useState(false)
-  const erros = tocado ? validarEquipamento(novo, equipamentos.map((x) => x.nome)) : {}
+  const erros = tocado ? validarEquipamento(novo, todosEq.map((x) => x.nome)) : {}
   async function salvar() {
     setTocado(true)
-    if (Object.keys(validarEquipamento(novo, equipamentos.map((x) => x.nome))).length) return
+    if (Object.keys(validarEquipamento(novo, todosEq.map((x) => x.nome))).length) return
     setSalvando(true)
     const r = await salvarEquipamento(novo)
     setSalvando(false)
@@ -160,23 +208,25 @@ function Equipamentos({ equipamentos, edita, onSalvo }) {
             {equipamentos.map((x) => (
               <li key={x.id}><div className="row"><div className="main-c">
                 <div className="t">{x.nome}</div><Meta>{x.propriedade}{x.fornecedor}{x.identificacao}</Meta>
-              </div></div></li>
+              </div><BotaoCancelar tabela="equipamentos" item={x} edita={edita} onMudou={onSalvo} /></div></li>
             ))}
           </ul>
         ) : <div className="empty" style={{ padding: 24 }}><p>Nenhum equipamento cadastrado nesta obra.{edita ? ' Cadastre o primeiro acima.' : ''}</p></div>}
+        <Cancelados tabela="equipamentos" itens={cancelados} edita={edita} onMudou={onSalvo} detalhe={(x) => <Meta>{x.propriedade}{x.fornecedor}</Meta>} />
       </section>
     </>
   )
 }
 
-function Categorias({ categorias, materiais, edita, onSalvo }) {
+function Categorias({ categorias: todasCat, materiais, edita, onSalvo }) {
+  const { ativos: categorias, cancelados } = separar(todasCat)
   const vazio = { nome: '', cor: CORES_CATEGORIA[0] }
   const [nova, setNova] = useState(vazio)
   const [tocado, setTocado] = useState(false)
   const [salvando, setSalvando] = useState(false)
-  const nomes = categorias.map((c) => c.nome)
+  const nomes = todasCat.map((c) => c.nome)
   const erros = tocado ? validarCategoria(nova, nomes) : {}
-  const emUso = (c) => materiais.filter((m) => m.categoria_id === c.id).length
+  const emUso = (c) => materiais.filter((m) => m.ativo && m.categoria_id === c.id).length
   async function salvar() {
     setTocado(true)
     if (Object.keys(validarCategoria(nova, nomes)).length) return
@@ -205,19 +255,26 @@ function Categorias({ categorias, materiais, edita, onSalvo }) {
           <button className="btn primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Cadastrar categoria'}</button>
         </div>
       )}
-      <div className="card-b curto-marcas" style={{ paddingTop: 0 }}>
-        {categorias.map((c) => <span key={c.id} className={`pill ${classeDaCor(c.cor)}`} title={`${emUso(c)} material(is)`}>{c.nome} ({emUso(c)})</span>)}
-      </div>
+      <ul className="rows">
+        {categorias.map((c) => (
+          <li key={c.id}><div className="row"><div className="main-c">
+            <div className="curto-marcas" style={{ marginTop: 0 }}><span className={`pill ${classeDaCor(c.cor)}`}>{c.nome}</span><span className="obs" style={{ fontSize: 13 }}>{emUso(c) === 1 ? '1 material' : `${emUso(c)} materiais`}</span></div>
+          </div><BotaoCancelar tabela="categoriasMaterial" item={c} edita={edita} onMudou={onSalvo} /></div></li>
+        ))}
+      </ul>
+      <Cancelados tabela="categoriasMaterial" itens={cancelados} edita={edita} onMudou={onSalvo} />
     </section>
   )
 }
 
-function Materiais({ materiais, categorias, edita, onSalvo }) {
+function Materiais({ materiais: todosMat, categorias: todasCat, edita, onSalvo }) {
+  const { ativos: materiais, cancelados } = separar(todosMat)
+  const categorias = separar(todasCat).ativos
   const vazio = { nome: '', unidade: '', categoria_id: '' }
   const [novo, setNovo] = useState(vazio)
   const [tocado, setTocado] = useState(false)
   const [salvando, setSalvando] = useState(false)
-  const nomes = materiais.map((m) => m.nome)
+  const nomes = todosMat.map((m) => m.nome)
   const idsCategorias = categorias.map((c) => c.id)
   const erros = tocado ? validarMaterial(novo, nomes, idsCategorias) : {}
   async function salvar() {
@@ -265,10 +322,11 @@ function Materiais({ materiais, categorias, edita, onSalvo }) {
               <li key={m.id}><div className="row"><div className="main-c">
                 <div className="t">{m.nome}</div>
                 <div className="curto-marcas">{m.categoria && <span className={`pill ${classeDaCor(m.cor)}`}>{m.categoria}</span>}<span className="obs" style={{ fontSize: 13 }}>Unidade: {m.unidade}</span></div>
-              </div></div></li>
+              </div><BotaoCancelar tabela="materiais" item={m} edita={edita} onMudou={onSalvo} /></div></li>
             ))}
           </ul>
         ) : <div className="empty" style={{ padding: 24 }}><p>Nenhum material cadastrado nesta obra.{edita ? ' Cadastre o primeiro acima.' : ''}</p></div>}
+        <Cancelados tabela="materiais" itens={cancelados} edita={edita} onMudou={onSalvo} detalhe={(m) => <Meta>{m.categoria}{`Unidade: ${m.unidade}`}</Meta>} />
       </section>
     </>
   )

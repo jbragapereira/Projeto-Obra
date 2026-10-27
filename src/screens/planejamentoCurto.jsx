@@ -10,6 +10,7 @@ import {
 } from '../lib/curtoPrazo.js'
 import { atividadeLiberada } from '../lib/restricoes.js'
 import { podeAtualizarSemana, podeEditar } from '../lib/perfis.js'
+import { paraEscolher, rotuloNaLista } from '../lib/cadastros.js'
 import { addDias, dm, hojeISO, segundaDaSemana } from '../lib/datas.js'
 import { Barra, Icon, Sheet, Vazio, avisar } from '../components/index.jsx'
 
@@ -116,9 +117,7 @@ function Cartao({ a, semana, nomeResp, responsaveis, registros, lancamentos, sub
           <select className="ipt" value={responsavel ?? ''} onChange={(e) => escolher(e.target.value)}
             aria-label={`Responsável por ${a.no.codigo} nesta semana`}>
             {!responsavel && <option value="">Escolha o responsável</option>}
-            {/* Responsável desativado continua aparecendo como ele mesmo, sem virar o primeiro da lista. */}
-            {responsavel && !responsaveis.some((r) => r.id === responsavel) && <option value={responsavel} disabled>{nomeResp[responsavel] ?? 'Responsável'} (inativo)</option>}
-            {responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+            {paraEscolher(responsaveis, responsavel).map((r) => <option key={r.id} value={r.id} disabled={!r.ativo}>{rotuloNaLista(r)}</option>)}
           </select>
         </label>
       ) : <div className="curto-info">{nomeResp[responsavel] ?? 'Sem responsável'}</div>}
@@ -172,7 +171,6 @@ export default function AbaCurto({ profile, dados, onMudou, onIrParaEap }) {
   const historico = semanasAnteriores(atual, SEMANAS_NO_GRAFICO).map((seg) => ({ seg, ...ppc(daSemana(seg).lista) }))
   const causas = causasMaisFrequentes({ registros: dados.semanaAtividades, subtarefas: dados.subtarefas, desde: historico[0].seg, ate: atual }).slice(0, 5)
   const nomeResp = Object.fromEntries(dados.responsaveis.map((r) => [r.id, r.nome]))
-  const responsaveisAtivos = dados.responsaveis.filter((r) => r.ativo)
   const subtarefasDe = (servicoId) => dados.subtarefas.filter((s) => s.semana === inicio && s.servico_id === servicoId)
   const naColuna = (status) => lista.filter((a) => a.status === status)
   const quando = { [atual]: 'Esta semana', [addDias(atual, -7)]: 'Semana passada', [addDias(atual, 7)]: 'Próxima semana' }[inicio] ?? `Semana de ${dm(inicio)}`
@@ -246,7 +244,7 @@ export default function AbaCurto({ profile, dados, onMudou, onIrParaEap }) {
             <header className="curto-col-h"><span>{c}</span><span className="n">{naColuna(c).length}</span></header>
             <div className="curto-col-b">
               {naColuna(c).map((a) => (
-                <Cartao key={a.no.codigo} a={a} semana={inicio} nomeResp={nomeResp} responsaveis={responsaveisAtivos} registros={dados.semanaAtividades} lancamentos={dados.lancamentos} subtarefas={subtarefasDe(a.no.servico.id)}
+                <Cartao key={a.no.codigo} a={a} semana={inicio} nomeResp={nomeResp} responsaveis={dados.responsaveis} registros={dados.semanaAtividades} lancamentos={dados.lancamentos} subtarefas={subtarefasDe(a.no.servico.id)}
                   comRestricao={!atividadeLiberada(a.no.servico.id, dados.restricoes)} atualiza={atualiza} edita={edita}
                   onCausa={pedirCausa} onMudou={onMudou} />
               ))}

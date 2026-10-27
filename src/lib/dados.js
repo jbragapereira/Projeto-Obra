@@ -23,6 +23,7 @@ import { moverSemana, validarRestricao } from './restricoes.js'
 import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, efeitoDoDiarioNoKanban, planejadaNaSemana, validarCausa } from './curtoPrazo.js'
 import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo, zeraAlgumLancamento } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
+import { CADASTROS, aceitaNoRegistro, motivoParaNaoCancelar, motivoParaNaoReativar } from './cadastros.js'
 import { CATALOGO_PADRAO, CATEGORIAS_PADRAO, SOLICITAR, aplicarMovimento, validarCategoria, validarMaterial, validarMovimento, validarPedido } from './materiais.js'
 import { ATIVO, ENVIADO, GLOBAL, POR_ESCOPO, EM_ELABORACAO, globalPorValor, linhaPorQuantidade, medidoDoContrato, motivoParaNaoMover, pctMedido, proximoNumeroDeBoletim, validarBoletim, validarValorDoContrato, valorDoBoletim, valorDoContrato } from './empreiteiros.js'
 
@@ -218,7 +219,9 @@ export function salvarItemNovo(i) {
   if (atual && atual.origem !== ORIGENS_ITEM.novo) return falha('Item da planilha muda só por aditivo.')
   const acumulado = atual ? acumuladoDo(atual.id) : 0
   const erros = validarItemNovo(i, daObra(mock.grupos).map((g) => g.codigo), { minimo: atual ? minimoDoItemNovo({ qtdOrcada: atual.qtd_orcada, vigente: comVigente(atual).qtd_contratada, acumulado }) : 0, acumulado })
-  if (i.responsavel_id && !daObra(mock.responsaveis).some((r) => r.id === i.responsavel_id)) erros.responsavel_id = 'Responsável de outra obra.'
+  const resp = i.responsavel_id ? daObra(mock.responsaveis).find((r) => r.id === i.responsavel_id) : null
+  if (i.responsavel_id && !resp) erros.responsavel_id = 'Responsável de outra obra.'
+  else if (resp && !aceitaNoRegistro(resp, new Set([atual?.responsavel_id]))) erros.responsavel_id = 'Este responsável foi cancelado. Escolha outro.'
   const mudouGrupo = atual && paiDoCodigo(atual.codigo) !== i.grupo
   if (mudouGrupo && acumulado > 0) erros.grupo = 'O item já tem lançamento no Diário: o grupo não muda mais.'
   if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
@@ -512,9 +515,13 @@ export function salvarCalendario({ dias_semana, feriados }) {
 
 /* ── Funções (para o efetivo do diário) ── */
 
-export function listarFuncoes() {
+// Os cadastros devolvem só os ativos (as listas de escolha); o módulo Cadastro e a correção do diário pedem
+// também os cancelados ({ comCancelados: true }).
+const visiveis = (lista, comCancelados) => (comCancelados ? lista : lista.filter((x) => x.ativo))
+
+export function listarFuncoes({ comCancelados = false } = {}) {
   const e = checar(); if (e) return falha(e)
-  return ok(copia(daObra(mock.funcoes).filter((x) => x.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))))
+  return ok(copia(visiveis(daObra(mock.funcoes), comCancelados).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))))
 }
 
 export function salvarFuncao({ nome }) {
@@ -528,9 +535,9 @@ export function salvarFuncao({ nome }) {
   return ok(copia(nova))
 }
 
-export function listarEquipamentos() {
+export function listarEquipamentos({ comCancelados = false } = {}) {
   const e = checar(); if (e) return falha(e)
-  return ok(copia(daObra(mock.equipamentos).filter((x) => x.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))))
+  return ok(copia(visiveis(daObra(mock.equipamentos), comCancelados).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))))
 }
 
 // Equipamento da obra (próprio ou locado). Só o engenheiro cadastra.
@@ -547,6 +554,25 @@ export function salvarEquipamento({ nome, propriedade, fornecedor, identificacao
   return ok(copia(novo))
 }
 
+/* ── Cancelar e reativar cadastros (módulo Cadastro) ── */
+
+// Cancelar não apaga: o cadastro fica com ativo = false, sai das listas de escolha e continua no histórico.
+// Só o engenheiro. tabela: uma de CADASTROS (lib/cadastros.js).
+function mudarSituacaoDoCadastro(tabela, id, ativo) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cancela ou reativa cadastros.')
+  if (!CADASTROS.includes(tabela)) return falha('Cadastro desconhecido.')
+  const item = daObra(mock[tabela]).find((x) => x.id === id)
+  const motivo = ativo
+    ? motivoParaNaoReativar(tabela, item, { categorias: daObra(mock.categoriasMaterial) })
+    : motivoParaNaoCancelar(tabela, item, { materiais: daObra(mock.materiais) })
+  if (motivo) return falha(motivo)
+  item.ativo = ativo
+  return ok(copia(item))
+}
+export const cancelarCadastro = (tabela, id) => mudarSituacaoDoCadastro(tabela, id, false)
+export const reativarCadastro = (tabela, id) => mudarSituacaoDoCadastro(tabela, id, true)
+
 /* ── Materiais: catálogo (aba do Cadastro) e pedidos (Kanban) ── */
 
 const SEM_ACESSO_MATERIAIS = 'Os pedidos de material são do engenheiro, da equipe da obra e da diretoria.'
@@ -554,10 +580,10 @@ const SEM_ACESSO_MATERIAIS = 'Os pedidos de material são do engenheiro, da equi
 const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
 const categoriaDe = () => Object.fromEntries(daObra(mock.categoriasMaterial).map((c) => [c.id, c]))
 
-export function listarCategoriasMaterial() {
+export function listarCategoriasMaterial({ comCancelados = false } = {}) {
   const e = checar(); if (e) return falha(e)
   if (!veMateriais(sessao.role)) return falha(SEM_ACESSO_MATERIAIS)
-  return ok(copia(daObra(mock.categoriasMaterial).filter((c) => c.ativo).sort(porNome)))
+  return ok(copia(visiveis(daObra(mock.categoriasMaterial), comCancelados).sort(porNome)))
 }
 
 // Categoria nova (nome e cor da etiqueta). Só o engenheiro cadastra.
@@ -572,11 +598,11 @@ export function salvarCategoriaMaterial({ nome, cor }) {
 }
 
 // Catálogo da obra, já com o nome e a cor da categoria.
-export function listarMateriais() {
+export function listarMateriais({ comCancelados = false } = {}) {
   const e = checar(); if (e) return falha(e)
   if (!veMateriais(sessao.role)) return falha(SEM_ACESSO_MATERIAIS)
   const cat = categoriaDe()
-  return ok(copia(daObra(mock.materiais).filter((m) => m.ativo).sort(porNome)
+  return ok(copia(visiveis(daObra(mock.materiais), comCancelados).sort(porNome)
     .map((m) => ({ ...m, categoria: cat[m.categoria_id]?.nome ?? '', cor: cat[m.categoria_id]?.cor ?? '' }))))
 }
 
@@ -695,6 +721,15 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
   const funcoesDaObra = new Set(daObra(mock.funcoes).map((x) => x.id))
   if (efetivo.some((l) => !responsaveisDaObra.has(l.responsavel_id) || !funcoesDaObra.has(l.funcao_id))) return falha('Há responsável ou função de outra obra no efetivo.')
   const diarioExistente = daObra(mock.diarios).find((x) => x.data === data)
+  // Cadastro cancelado só entra se já estava neste diário (a correção não obriga a trocar).
+  const jaNoDiario = (campo) => new Set(diarioExistente
+    ? [...daObra(mock.efetivo), ...daObra(mock.lancamentos)].filter((l) => l.diario_id === diarioExistente.id).map((l) => l[campo]) : [])
+  const respDe = Object.fromEntries(daObra(mock.responsaveis).map((r) => [r.id, r]))
+  const funcaoDe = Object.fromEntries(daObra(mock.funcoes).map((x) => [x.id, x]))
+  const respGravados = jaNoDiario('responsavel_id')
+  if (efetivo.some((l) => !aceitaNoRegistro(respDe[l.responsavel_id], respGravados) || !aceitaNoRegistro(funcaoDe[l.funcao_id], jaNoDiario('funcao_id')))) {
+    return falha('Há responsável ou função cancelado no efetivo. Escolha um da lista.')
+  }
   // Na correção, zerar o que estava lançado também é registro (o Kanban e o saldo voltam junto).
   const zeraLancamento = !!diarioExistente && zeraAlgumLancamento({
     lancados: daObra(mock.lancamentos).filter((l) => l.diario_id === diarioExistente.id),
@@ -709,6 +744,7 @@ export function salvarDiario({ data, clima_manha, clima_tarde, ocorrencias, efet
   if ([...comProducao, ...comFoto].some((i) => !servicosDaObra.has(i.servico_id))) return falha('Há serviço de outra obra no lançamento.')
   // "Quem executou" vai também para o cartão do Kanban: só responsável desta obra.
   if (comProducao.some((i) => i.responsavel_id && !responsaveisDaObra.has(i.responsavel_id))) return falha('Há responsável de outra obra em "Quem executou".')
+  if (comProducao.some((i) => i.responsavel_id && !aceitaNoRegistro(respDe[i.responsavel_id], respGravados))) return falha('Há responsável cancelado em "Quem executou". Escolha um da lista.')
   const fotosEnviadas = comFoto.flatMap((i) => i.fotos)
   if (fotosEnviadas.some((f) => !cabeNoLimite(f.tamanho_bytes))) return falha(`Há foto acima de ${LIMITE_FOTO_TEXTO}. Ela precisa ser comprimida antes de enviar.`)
   const origemGps = Object.values(ORIGENS_GPS)

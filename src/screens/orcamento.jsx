@@ -15,6 +15,7 @@ import { podeEditar, podeVerValores } from '../lib/perfis.js'
 import { brlCentavos, percentual, qtd } from '../lib/formato.js'
 import { dataHoraCurta, dmy, hojeISO } from '../lib/datas.js'
 import { saldoDoItem } from '../lib/diario.js'
+import { paraEscolher, rotuloNaLista } from '../lib/cadastros.js'
 import { CampoNumero, Carregando, Critico, ErroCarga, Faixa, Meta, Sheet, Vazio, avisar, useDados } from '../components/index.jsx'
 
 const carregar = () => juntar({
@@ -312,7 +313,7 @@ function FormItemNovo({ inicial, minimo, acumulado, grupos, ocupados, dados, num
           <Campo rotulo="Responsável">
             <select className="ipt" value={i.responsavel_id} onChange={(e) => mudar('responsavel_id', e.target.value)}>
               <option value="">Sem responsável</option>
-              {responsaveis.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+              {paraEscolher(responsaveis, i.responsavel_id).map((r) => <option key={r.id} value={r.id}>{rotuloNaLista(r)}</option>)}
             </select>
           </Campo>
         </div>

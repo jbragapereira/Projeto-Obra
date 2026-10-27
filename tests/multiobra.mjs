@@ -6,7 +6,7 @@ import {
   entrar, definirObraAtual, listarMinhasObras, listarServicos, listarLancamentos, listarDiarios,
   listarResponsaveis, listarMedicoes, listarFuncoes, listarGrupos, salvarDatasEap, salvarDiario,
   listarAditivos, buscarDadosOrcamento, buscarCalendario, salvarCalendario, listarRestricoes, salvarRestricao, resolverRestricao, moverRestricao, excluirRestricao,
-  salvarObra, listarMateriais, salvarMaterial, listarCategoriasMaterial, salvarCategoriaMaterial, listarPedidosMaterial, salvarPedidoMaterial, moverPedidoMaterial,
+  cancelarCadastro, reativarCadastro, salvarObra, listarMateriais, salvarMaterial, listarCategoriasMaterial, salvarCategoriaMaterial, listarPedidosMaterial, salvarPedidoMaterial, moverPedidoMaterial,
   listarSemanaAtividades, listarSubtarefas, listarContratosEmpreiteiro, listarEquipamentos, salvarEquipamento, salvarContratoEmpreiteiro, moverContratoEmpreiteiro, salvarValorDoContrato, salvarBoletimEmpreiteiro, criarMedicao, listarItensMedicao, salvarQtdPlanejada, iniciarMedicao, descongelarMedicao, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
 } from '../src/lib/dados.js'
 import { addDias, hojeISO } from '../src/lib/datas.js'
@@ -417,6 +417,43 @@ await entrar('p-dir'); definirObraAtual('obra-vn')
 conferir('diretoria vê, mas não pede', [(await listarPedidosMaterial()).erro, (await salvarPedidoMaterial({ material_id: 'mat-vn-1', quantidade: 1, frente: 'x', prioridade: 'Normal' })).erro !== null], [null, true])
 await entrar('p-fiscal'); definirObraAtual('obra-vn')
 conferir('fiscalização não vê os pedidos', (await listarPedidosMaterial()).erro !== null, true)
+
+// 20. Cancelar cadastro: só o engenheiro, só na obra escolhida; sai da lista de escolha, fica no histórico.
+await entrar('p-eng'); definirObraAtual('obra-vn')
+const umaFuncao = (await listarFuncoes()).data[0]
+const umResp = mock.responsaveis.find((x) => x.obra_id === 'obra-vn' && mock.efetivo.some((l) => l.responsavel_id === x.id))
+conferir('cadastro de outra obra não se cancela daqui', (await cancelarCadastro('funcoes', mock.funcoes.find((x) => x.obra_id === 'obra-ba').id)).erro !== null, true)
+conferir('categoria com material ativo não se cancela', (await cancelarCadastro('categoriasMaterial', 'cat-vn-1')).erro, 'Cancele antes os 5 materiais desta categoria.')
+conferir('cancelar a função: sai da lista de escolha, aparece com os cancelados', [
+  (await cancelarCadastro('funcoes', umaFuncao.id)).erro,
+  (await listarFuncoes()).data.some((x) => x.id === umaFuncao.id),
+  (await listarFuncoes({ comCancelados: true })).data.find((x) => x.id === umaFuncao.id)?.ativo,
+], [null, false, false])
+conferir('responsável cancelado continua com o nome no histórico do diário', await (async () => {
+  await cancelarCadastro('responsaveis', umResp.id)
+  const diarios = (await listarDiarios()).data
+  return diarios.some((d) => d.efetivo.some((l) => l.responsavel_id === umResp.id && l.responsavel === umResp.nome))
+})(), true)
+conferir('reativar devolve à lista de escolha', [(await reativarCadastro('funcoes', umaFuncao.id)).erro, (await listarFuncoes()).data.some((x) => x.id === umaFuncao.id)], [null, true])
+await reativarCadastro('responsaveis', umResp.id)
+conferir('material cancelado não entra em pedido novo', await (async () => {
+  await cancelarCadastro('materiais', 'mat-vn-12')
+  const r = await salvarPedidoMaterial({ material_id: 'mat-vn-12', quantidade: 1, frente: 'x', prioridade: 'Normal' })
+  await reativarCadastro('materiais', 'mat-vn-12')
+  return r.erros?.material_id !== undefined
+})(), true)
+conferir('diário novo não grava responsável nem função cancelados', await (async () => {
+  const resp = mock.responsaveis.find((x) => x.obra_id === 'obra-vn' && x.ativo)
+  await cancelarCadastro('funcoes', umaFuncao.id)
+  await cancelarCadastro('responsaveis', resp.id)
+  const dia = addDias(hojeISO(), -400)
+  const comFuncao = await salvarDiario({ data: dia, clima_manha: 'Bom', clima_tarde: 'Bom', ocorrencias: '', efetivo: [{ responsavel_id: resp.id, funcao_id: umaFuncao.id, quantidade: 2 }], itens: [] })
+  await reativarCadastro('funcoes', umaFuncao.id)
+  await reativarCadastro('responsaveis', resp.id)
+  return comFuncao.erro
+})(), 'Há responsável ou função cancelado no efetivo. Escolha um da lista.')
+await entrar('p-dir'); definirObraAtual('obra-vn')
+conferir('diretoria não cancela cadastro', (await cancelarCadastro('funcoes', umaFuncao.id)).erro !== null, true)
 
 console.log(`${ok}/${tot} — multi-obra`)
 process.exit(ok === tot ? 0 : 1)

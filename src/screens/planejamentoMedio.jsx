@@ -9,6 +9,7 @@ import {
   cartoesDaSemana, restricaoVencida, restricoesNaEap, semanaNoQuadro, semanasDoQuadro, veioDeSemanaPassada,
 } from '../lib/restricoes.js'
 import { podeEditar, podeRegistrarRestricao } from '../lib/perfis.js'
+import { separar } from '../lib/cadastros.js'
 import { dataHoraCurta, dm, hojeISO } from '../lib/datas.js'
 import { Barra, Icon, Meta, Sheet, Vazio, avisar } from '../components/index.jsx'
 import EscolherItem from '../components/EscolherItem.jsx'
@@ -154,7 +155,7 @@ export default function AbaMedio({ profile, dados, onMudou, onIrParaEap }) {
 
   const doQuadro = restricoesNaEap(dados.restricoes, itens)
   const responsaveis = [...new Set(doQuadro.map((r) => r.responsavel))].sort((a, b) => a.localeCompare(b, 'pt-BR'))
-  const sugestoes = [...new Set([...dados.responsaveis.map((r) => r.nome), ...responsaveis])]
+  const sugestoes = [...new Set([...separar(dados.responsaveis).ativos.map((r) => r.nome), ...responsaveis])]
   const visiveis = doQuadro.filter((r) => (mostrarResolvidas || !r.resolvida) && (!responsavel || r.responsavel === responsavel))
   const abertas = doQuadro.filter((r) => !r.resolvida)
   const vencidas = abertas.filter((r) => restricaoVencida(r, hoje)).length
