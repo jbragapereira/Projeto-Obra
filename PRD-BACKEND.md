@@ -427,6 +427,66 @@ Para que serve: os equipamentos da obra, próprios ou locados (cadastrados no m�
 
 ---
 
+## Tabela `materiais` (desde 26/10/2026)
+
+Para que serve: o catálogo de materiais de cada obra, para os pedidos (cadastrado no módulo Cadastro).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| nome | text | sim | único por obra (sem diferenciar maiúscula) |
+| unidade | text | sim | saco, m³, barra… |
+| categoria_id | uuid | sim | → categorias_material (da mesma obra) |
+| ativo | boolean | sim | padrão verdadeiro |
+| created_at | timestamptz | sim | automático |
+
+**Permissões:** ver, Engenheiro, Diretoria e Equipe da obra, nas obras delas; criar e desativar, só o Engenheiro; apagar, ninguém. Toda obra nova nasce com os 12 materiais comuns.
+
+---
+
+## Tabela `categorias_material` (desde 26/10/2026)
+
+Para que serve: as categorias de material de cada obra, cadastradas pelo engenheiro (Cadastro › Materiais).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| nome | text | sim | único por obra (sem diferenciar maiúscula) |
+| cor | text | sim | CHECK: `Azul`, `Verde`, `Roxo`, `Cinza` (`CORES_CATEGORIA` em `src/lib/materiais.js`) |
+| ativo | boolean | sim | padrão verdadeiro |
+| created_at | timestamptz | sim | automático |
+
+**Permissões:** iguais às de `materiais`. Toda obra nova nasce com Material grosso (Azul), Acabamento (Verde) e Instalações (Verde).
+
+---
+
+## Tabela `pedidos_material` (desde 26/10/2026)
+
+Para que serve: cada pedido/lote de material e por onde ele anda no Kanban (não é estoque).
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| material_id | uuid | sim | → materiais (da mesma obra) |
+| quantidade | numeric(14,3) | sim | > 0 |
+| frente | text | sim | frente de serviço que pediu |
+| prioridade | text | sim | CHECK: `Normal`, `Crítico` |
+| status | text | sim | CHECK: `Solicitar`, `Em cotação`, `Comprado / a caminho`, `No almoxarifado`, `Entregue na frente` (`STATUS_PEDIDO`) |
+| fornecedor | text | não | obrigatório ao comprar |
+| previsao_entrega | date | não | obrigatória ao comprar |
+| historico | jsonb | sim | [{ status, data }] — cada mudança de coluna; dele saem os dias na coluna e o lead time |
+| recebimento | jsonb | não | { qtd_bate_nf, estado_ok, avarias, foto_nf } ao receber; a foto vai para o Storage (até 5 MB) |
+| frente_aplicada | text | não | confirmada ao entregar |
+| criado_por | uuid | sim | → profiles |
+| created_at | timestamptz | sim | automático |
+
+**Permissões:** ver, Engenheiro, Diretoria e Equipe da obra, nas obras delas (`minhas_obras()`); criar e mover, Engenheiro e Equipe da obra; apagar, ninguém. `grant select, insert, update` só para `authenticated`.
+
+---
+
 ## Tabela `efetivo` (F1, desde 24/10/2026)
 
 Para que serve: quantas pessoas de cada função, de cada responsável, trabalharam no dia.

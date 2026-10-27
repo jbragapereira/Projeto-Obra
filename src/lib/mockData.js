@@ -13,6 +13,7 @@
 import { addDias, hojeISO, segundaDaSemana } from './datas.js'
 import { congelarMeta, cronogramaDeMedicoes } from './medicao.js'
 import { FUNCOES_PADRAO } from './diario.js'
+import { CATALOGO_PADRAO, CATEGORIAS_PADRAO } from './materiais.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, precoUnitario } from './orcamento.js'
 import { CALENDARIO_PADRAO } from './calendario.js'
 import { STATUS_SEMANA, SITUACAO_SUBTAREFA } from './curtoPrazo.js'
@@ -156,6 +157,40 @@ export const equipamentos = [
   { id: 'eq-vn-2', obra_id: 'obra-vn', nome: 'Andaime fachadeiro (60 m²)', propriedade: 'Locado', fornecedor: 'Locaforte Andaimes', identificacao: '', ativo: true },
   { id: 'eq-vn-3', obra_id: 'obra-vn', nome: 'Martelete rompedor 10 kg', propriedade: 'Próprio', fornecedor: '', identificacao: 'MR-11', ativo: true },
   { id: 'eq-ba-1', obra_id: 'obra-ba', nome: 'Trator de esteiras 170 HP', propriedade: 'Locado', fornecedor: 'Terraplena Nordeste', identificacao: 'D6-0458', ativo: true },
+]
+// Materiais: as categorias e o catálogo de cada obra (aba Materiais do Cadastro) e os pedidos do Kanban.
+export const categoriasMaterial = ['vn', 'ba'].flatMap((o) => CATEGORIAS_PADRAO.map(([nome, cor], i) => ({
+  id: `cat-${o}-${i + 1}`, obra_id: `obra-${o}`, nome, cor, ativo: true,
+})))
+export const materiais = ['vn', 'ba'].flatMap((o) => CATALOGO_PADRAO.map(([nome, unidade, categoria], i) => ({
+  id: `mat-${o}-${i + 1}`, obra_id: `obra-${o}`, nome, unidade,
+  categoria_id: `cat-${o}-${CATEGORIAS_PADRAO.findIndex(([c]) => c === categoria) + 1}`, ativo: true,
+})))
+// Histórico de um pedido: [status, dias a partir de hoje], na ordem em que aconteceu.
+const hist = (...passos) => passos.map(([status, n]) => ({ status, data: d(n) }))
+const pedido = (id, obra, material, quantidade, frente, prioridade, historico, extra = {}) => ({
+  id, obra_id: `obra-${obra}`, material_id: `mat-${obra}-${material}`, quantidade, frente, prioridade,
+  status: historico[historico.length - 1].status, fornecedor: '', previsao_entrega: '', historico,
+  recebimento: null, frente_aplicada: '', criado_por: 'p-eng', ...extra,
+})
+export const pedidosMaterial = [
+  pedido('pm-vn-1', 'vn', 7, 120, 'Banheiros acessíveis', 'Crítico', hist(['Solicitar', -1])),
+  pedido('pm-vn-2', 'vn', 8, 14, 'Sala de atendimento', 'Normal', hist(['Solicitar', -3])),
+  pedido('pm-vn-3', 'vn', 1, 50, 'Rampa de acesso', 'Normal', hist(['Solicitar', -6], ['Em cotação', -4])),
+  pedido('pm-vn-4', 'vn', 11, 6, 'Quadro elétrico do térreo', 'Crítico', hist(['Solicitar', -5], ['Em cotação', -2])),
+  pedido('pm-vn-5', 'vn', 6, 40, 'Banheiros acessíveis', 'Normal', hist(['Solicitar', -15], ['Em cotação', -12], ['Comprado / a caminho', -9]),
+    { fornecedor: 'Casa do Construtor Recife', previsao_entrega: d(-2) }),
+  pedido('pm-vn-6', 'vn', 10, 12, 'Banheiros acessíveis', 'Normal', hist(['Solicitar', -8], ['Em cotação', -6], ['Comprado / a caminho', -3]),
+    { fornecedor: 'Hidráulica Boa Vista', previsao_entrega: d(2) }),
+  pedido('pm-vn-7', 'vn', 2, 6, 'Rampa de acesso', 'Normal', hist(['Solicitar', -12], ['Em cotação', -10], ['Comprado / a caminho', -8], ['No almoxarifado', -5]),
+    { fornecedor: 'Areial Capibaribe', previsao_entrega: d(-6), recebimento: { qtd_bate_nf: true, estado_ok: true, avarias: '', foto_nf: null } }),
+  pedido('pm-vn-8', 'vn', 9, 30, 'Forro da sala de atendimento', 'Normal', hist(['Solicitar', -14], ['Em cotação', -12], ['Comprado / a caminho', -9], ['No almoxarifado', -4]),
+    { fornecedor: 'Gesso Nordeste', previsao_entrega: d(-5), recebimento: { qtd_bate_nf: true, estado_ok: false, avarias: '3 sacos rasgados na descarga', foto_nf: null } }),
+  pedido('pm-vn-9', 'vn', 4, 2, 'Fachada', 'Normal', hist(['Solicitar', -25], ['Em cotação', -22], ['Comprado / a caminho', -18], ['No almoxarifado', -14], ['Entregue na frente', -10]),
+    { fornecedor: 'Cerâmica Paudalho', previsao_entrega: d(-15), recebimento: { qtd_bate_nf: true, estado_ok: true, avarias: '', foto_nf: null }, frente_aplicada: 'Fachada' }),
+  pedido('pm-ba-1', 'ba', 1, 80, 'Canteiro de obras', 'Normal', hist(['Solicitar', -2])),
+  pedido('pm-ba-2', 'ba', 3, 12, 'Base do reservatório', 'Crítico', hist(['Solicitar', -7], ['Em cotação', -5], ['Comprado / a caminho', -2]),
+    { fornecedor: 'Pedreira Jordão', previsao_entrega: d(3) }),
 ]
 // Medição de empreiteiros: contratos (Kanban), itens do escopo (do Orçamento), boletins e linhas dos boletins.
 export const contratosEmpreiteiro = []

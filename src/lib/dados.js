@@ -13,7 +13,7 @@
 // ============================================================
 import * as mock from './mockData.js'
 import { dataHoraLocal, hojeISO, segundaDaSemana } from './datas.js'
-import { podeAtualizarSemana, podeEditar, podeLancar, podePlanejar, podeRegistrarRestricao, podeVerValores, veTodasAsObras } from './perfis.js'
+import { podeAtualizarSemana, podeEditar, podeLancar, podeMoverPedidos, podePlanejar, podeRegistrarRestricao, podeVerValores, veMateriais, veTodasAsObras } from './perfis.js'
 import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
 import { congelarMeta, cronogramaDeMedicoes, itensPelaEap, mesVigente, periodoDaProxima, podeDescongelar, podeIniciar, reconciliarItens, temCronograma, valorEmMontagem } from './medicao.js'
@@ -23,6 +23,7 @@ import { moverSemana, validarRestricao } from './restricoes.js'
 import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, efeitoDoDiarioNoKanban, planejadaNaSemana, validarCausa } from './curtoPrazo.js'
 import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo, zeraAlgumLancamento } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
+import { CATALOGO_PADRAO, CATEGORIAS_PADRAO, SOLICITAR, aplicarMovimento, validarCategoria, validarMaterial, validarMovimento, validarPedido } from './materiais.js'
 import { ATIVO, ENVIADO, GLOBAL, POR_ESCOPO, EM_ELABORACAO, globalPorValor, linhaPorQuantidade, medidoDoContrato, motivoParaNaoMover, pctMedido, proximoNumeroDeBoletim, validarBoletim, validarValorDoContrato, valorDoBoletim, valorDoContrato } from './empreiteiros.js'
 
 let sessao = null
@@ -119,6 +120,12 @@ export function salvarObra(obra) {
   criarMedicoesDoCronograma(nova)
   FUNCOES_PADRAO.forEach((nome) => mock.funcoes.push({ id: novoId('fn'), obra_id: nova.id, nome, ativo: true }))
   mock.calendarios.push({ id: novoId('cal'), obra_id: nova.id, ...structuredClone(CALENDARIO_PADRAO) })
+  const idCategoria = {}
+  CATEGORIAS_PADRAO.forEach(([nome, cor]) => {
+    idCategoria[nome] = novoId('cat')
+    mock.categoriasMaterial.push({ id: idCategoria[nome], obra_id: nova.id, nome, cor, ativo: true })
+  })
+  CATALOGO_PADRAO.forEach(([nome, unidade, categoria]) => mock.materiais.push({ id: novoId('mat'), obra_id: nova.id, nome, unidade, categoria_id: idCategoria[categoria], ativo: true }))
   // Quem cria a obra passa a ter acesso a ela.
   mock.membros.push({ id: novoId('m'), obra_id: nova.id, profile_id: sessao.id, ativo: true })
   return ok(copia(nova))
@@ -538,6 +545,95 @@ export function salvarEquipamento({ nome, propriedade, fornecedor, identificacao
   }
   mock.equipamentos.push(novo)
   return ok(copia(novo))
+}
+
+/* ── Materiais: catálogo (aba do Cadastro) e pedidos (Kanban) ── */
+
+const SEM_ACESSO_MATERIAIS = 'Os pedidos de material são do engenheiro, da equipe da obra e da diretoria.'
+
+const porNome = (a, b) => a.nome.localeCompare(b.nome, 'pt-BR')
+const categoriaDe = () => Object.fromEntries(daObra(mock.categoriasMaterial).map((c) => [c.id, c]))
+
+export function listarCategoriasMaterial() {
+  const e = checar(); if (e) return falha(e)
+  if (!veMateriais(sessao.role)) return falha(SEM_ACESSO_MATERIAIS)
+  return ok(copia(daObra(mock.categoriasMaterial).filter((c) => c.ativo).sort(porNome)))
+}
+
+// Categoria nova (nome e cor da etiqueta). Só o engenheiro cadastra.
+export function salvarCategoriaMaterial({ nome, cor }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cadastra categorias.')
+  const erros = validarCategoria({ nome, cor }, daObra(mock.categoriasMaterial).map((c) => c.nome))
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const nova = { id: novoId('cat'), obra_id: obraAtual, nome: nome.trim(), cor, ativo: true }
+  mock.categoriasMaterial.push(nova)
+  return ok(copia(nova))
+}
+
+// Catálogo da obra, já com o nome e a cor da categoria.
+export function listarMateriais() {
+  const e = checar(); if (e) return falha(e)
+  if (!veMateriais(sessao.role)) return falha(SEM_ACESSO_MATERIAIS)
+  const cat = categoriaDe()
+  return ok(copia(daObra(mock.materiais).filter((m) => m.ativo).sort(porNome)
+    .map((m) => ({ ...m, categoria: cat[m.categoria_id]?.nome ?? '', cor: cat[m.categoria_id]?.cor ?? '' }))))
+}
+
+// Material do catálogo da obra. Só o engenheiro cadastra.
+export function salvarMaterial({ nome, unidade, categoria_id }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cadastra materiais.')
+  const categorias = daObra(mock.categoriasMaterial).filter((c) => c.ativo).map((c) => c.id)
+  const erros = validarMaterial({ nome, unidade, categoria_id }, daObra(mock.materiais).map((m) => m.nome), categorias)
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const novo = { id: novoId('mat'), obra_id: obraAtual, nome: nome.trim(), unidade: unidade.trim(), categoria_id, ativo: true }
+  mock.materiais.push(novo)
+  return ok(copia(novo))
+}
+
+// Pedidos da obra, já com o nome, a unidade e a categoria (nome e cor) do material.
+export function listarPedidosMaterial() {
+  const e = checar(); if (e) return falha(e)
+  if (!veMateriais(sessao.role)) return falha(SEM_ACESSO_MATERIAIS)
+  const materialDe = Object.fromEntries(daObra(mock.materiais).map((m) => [m.id, m]))
+  const cat = categoriaDe()
+  return ok(copia(daObra(mock.pedidosMaterial).map((p) => {
+    const m = materialDe[p.material_id]
+    const c = cat[m?.categoria_id]
+    return { ...p, material: m?.nome ?? 'Material fora do catálogo', unidade: m?.unidade ?? '', categoria: c?.nome ?? '', cor: c?.cor ?? '' }
+  })))
+}
+
+// Pedido novo: material, quantidade, frente e prioridade. Entra em "Solicitar".
+export function salvarPedidoMaterial({ material_id, quantidade, frente, prioridade }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeMoverPedidos(sessao.role)) return falha('Só o engenheiro e a equipe da obra fazem pedidos de material.')
+  const ativos = daObra(mock.materiais).filter((m) => m.ativo).map((m) => m.id)
+  const erros = validarPedido({ material_id, quantidade, frente, prioridade }, ativos)
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const novo = {
+    id: novoId('pm'), obra_id: obraAtual, material_id, quantidade: Number(quantidade), frente: frente.trim(), prioridade,
+    status: SOLICITAR, fornecedor: '', previsao_entrega: '', historico: [{ status: SOLICITAR, data: hojeISO() }],
+    recebimento: null, frente_aplicada: '', criado_por: sessao.id,
+  }
+  mock.pedidosMaterial.push(novo)
+  return ok(copia(novo))
+}
+
+// Mover o pedido uma coluna. Comprar pede fornecedor e previsão; receber, o checklist (foto da NF já
+// comprimida pela tela); entregar, a frente de aplicação. Cada mudança grava {status, data} no histórico.
+export function moverPedidoMaterial(pedidoId, para, dados = {}) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeMoverPedidos(sessao.role)) return falha('Só o engenheiro e a equipe da obra movem os pedidos.')
+  const k = mock.pedidosMaterial.findIndex((p) => p.id === pedidoId && p.obra_id === obraAtual)
+  if (k < 0) return falha('Pedido não encontrado nesta obra.')
+  const foto = dados.recebimento?.foto_nf
+  if (foto && !cabeNoLimite(foto.tamanho_bytes)) return falha(`A foto da nota passa de ${LIMITE_FOTO_TEXTO}.`)
+  const erros = validarMovimento(mock.pedidosMaterial[k], para, dados)
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: erros.status ?? 'Confira os campos marcados.', erros })
+  mock.pedidosMaterial[k] = aplicarMovimento(mock.pedidosMaterial[k], para, dados, hojeISO())
+  return ok(copia(mock.pedidosMaterial[k]))
 }
 
 /* ── Lançamentos e diário ── */

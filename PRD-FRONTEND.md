@@ -42,9 +42,9 @@ O **seletor de obra** fica no alto de todas as telas, menos no Login e no aviso 
 ```
 Login  →  Conta aguardando liberação
 │
-├── Engenheiro:      Painel do mês · Diário · Orçamento · Planejamento · Medição cliente · Medição empreiteiros · Cadastro · Ajustes · Recados (F2)
-├── Diretoria:       Painel do mês · Diário (aba Fotos ainda não feita) · Orçamento · Planejamento · Medição cliente · Medição empreiteiros · Cadastro · Meu perfil · Recados (F2)
-├── Equipe da obra:  Lançar o dia · Painel do mês · Planejamento · Orçamento (sem R$) · Meu perfil
+├── Engenheiro:      Painel do mês · Diário · Orçamento · Planejamento · Materiais · Medição cliente · Medição empreiteiros · Cadastro · Ajustes · Recados (F2)
+├── Diretoria:       Painel do mês · Diário (aba Fotos ainda não feita) · Orçamento · Planejamento · Materiais · Medição cliente · Medição empreiteiros · Cadastro · Meu perfil · Recados (F2)
+├── Equipe da obra:  Lançar o dia · Painel do mês · Materiais · Planejamento · Orçamento (sem R$) · Meu perfil
 └── Fiscalização:    Avanço por serviço (F2) · Fotos da semana (F2) · Meu perfil
 ```
 
@@ -476,8 +476,27 @@ Abas no alto, todas da obra atual:
 - **Responsáveis:** nome (obrigatório), tipo (Empreiteiro, Empresa especializada ou Mão de obra própria) e contato. **Empreiteiro não tem aba própria** (decisão de 26/10/2026, para não duplicar): é cadastrado aqui como responsável e aparece no efetivo do Diário, no responsável do Curto prazo e no "＋ Novo contrato" da medição de empreiteiros.
 - **Funções:** nome; não aceita repetida na obra.
 - **Equipamentos:** nome (obrigatório, não repete na obra), próprio ou locado, **"Locado de"** (obrigatório quando é locado) e identificação (placa, série ou patrimônio, opcional).
+- **Materiais:** primeiro as **categorias de material** (desde 26/10/2026 o engenheiro cadastra as suas: nome, que não repete na obra, e a cor da etiqueta: azul, verde, roxo ou cinza; vermelho e âmbar ficam para crítico, atrasado e alerta), com a prévia da etiqueta e quantos materiais usam cada uma. Depois o catálogo: nome (obrigatório, não repete na obra), unidade (saco, m³, barra…) e categoria (escolhida da lista). Toda obra nasce com 3 categorias (Material grosso em azul; Acabamento e Instalações em verde) e 12 materiais comuns.
 
 Cada aba mostra o formulário (só o Engenheiro) e, abaixo, a lista do que já existe. Erro aparece embaixo do campo, na hora de salvar.
+
+---
+
+## Tela: Materiais (desde 26/10/2026)
+
+**Quem acessa:** Engenheiro e Equipe da obra (pedem, movem e fazem o checklist; o almoxarife está na equipe), Diretoria (vê). Fiscalização não vê. Nenhum R$ nesta tela.
+**Chega aqui por:** menu **Materiais** (depois de Planejamento; na equipe, depois de Início).
+**Decidido pelo engenheiro em 26/10/2026:** entra agora, mesmo com "controle de estoque do almoxarifado" fora da v1: aqui não é estoque item a item, é o **fluxo do pedido**. O catálogo de materiais fica no Cadastro (aba Materiais).
+
+Cada card é um **pedido/lote** ("50 sacos de cimento") que anda por 5 colunas: **Solicitar → Em cotação → Comprado / a caminho → No almoxarifado → Entregue na frente**. Move por **setas** (sem arrastar), uma coluna por vez; voltar não apaga nada.
+
+- **Contadores no alto:** em cotação, chegam esta semana (previsão até domingo) e **atrasados**.
+- **Card:** material, quantidade com unidade, frente, etiquetas (**Crítico** e **Atrasado** em vermelho; categoria na cor escolhida no Cadastro; **"Recebido com problema"** em âmbar, com as avarias), fornecedor e previsão, **"há X dias nesta coluna"** e, depois de chegar, o **lead time** (dias do pedido ao almoxarifado). Crítico e mais antigo primeiro.
+- **Atrasado:** previsão vencida e ainda em Comprado / a caminho: card com borda e fundo vermelhos.
+- **"＋ Novo pedido"** (menos de 30 segundos): material (do catálogo), quantidade, frente e prioridade (Normal ou Crítico). Entra em Solicitar.
+- **Comprar** pede fornecedor e previsão de entrega (nasce com hoje). **Receber** abre o **checklist**: a quantidade bate com a nota? (sim/não), chegou em perfeito estado? (sim/não), avarias (opcional) e foto da nota (opcional, comprimida até 5 MB, com prévia). Um "não" marca o card com alerta. **Entregar** confirma a frente de aplicação; o card sai do quadro e aparece com **"Ver entregues"**.
+- Cada mudança grava {situação, data} no histórico; é dele que saem os dias na coluna e o lead time. O card muda de coluna na hora (otimista); se a gravação falhar, volta e avisa.
+- **No celular**, uma coluna por vez (abas), como os outros quadros do app; a partir de 900 px, as colunas lado a lado.
 
 ---
 

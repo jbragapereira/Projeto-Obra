@@ -787,3 +787,21 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
   .emp-med-linhas.escopo .emp-med-linha .field > span { display: none }
   .emp-med-erro { grid-column: 1 / -1 }
 }
+
+/* Materiais: Kanban dos pedidos (reaproveita o .curto-*; 4 colunas, 5 com "Ver entregues"). */
+/* Cor da etiqueta de cada categoria de material (o engenheiro escolhe; vermelho e âmbar ficam para alerta). */
+.pill.mat-cor-azul { background: #DCE8F7; color: #1F4F86 }
+.pill.mat-cor-verde { background: var(--ok-tint); color: var(--ok) }
+.pill.mat-cor-roxo { background: #ECE4F6; color: #5B3A8C }
+.pill.mat-cor-cinza { background: #E6EAEC; color: var(--slate) }
+.mat-qtd { font-family: var(--display); font-stretch: 75%; font-size: 20px; font-weight: 700; margin-top: 2px }
+.mat-card.atrasado { border: 2px solid var(--red); background: var(--red-tint) }
+.mat-kanban .m1 .curto-col-h { border-bottom-color: var(--amber) }
+.mat-kanban .m2 .curto-col-h { border-bottom-color: var(--brand) }
+.mat-kanban .m3 .curto-col-h { border-bottom-color: var(--ok) }
+.mat-kanban .m4 .curto-col-h { border-bottom-color: var(--ink) }
+.mat-nf { align-items: center }
+.mat-nf img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--r-btn); border: 1px solid var(--line) }
+@media (min-width: 900px) {
+  .mat-kanban.com-entregues { grid-template-columns: repeat(5, minmax(0, 1fr)) }
+}

@@ -1,18 +1,24 @@
 // Módulo Cadastro: tudo o que a obra cadastra fica aqui, e só aqui (o Diário, o Kanban e a medição de
 // empreiteiros só escolhem da lista). Abas: Responsáveis (empreiteiro, empresa especializada ou mão de obra
-// própria — o empreiteiro é um responsável, sem aba própria), Funções e Equipamentos.
+// própria — o empreiteiro é um responsável, sem aba própria), Funções, Equipamentos e Materiais (o catálogo
+// dos pedidos de material).
 // Engenheiro cadastra; diretoria vê.
 import { useState } from 'react'
-import { juntar, listarEquipamentos, listarFuncoes, listarResponsaveis, salvarEquipamento, salvarFuncao, salvarResponsavel } from '../lib/dados.js'
+import {
+  juntar, listarCategoriasMaterial, listarEquipamentos, listarFuncoes, listarMateriais, listarResponsaveis, salvarCategoriaMaterial,
+  salvarEquipamento, salvarFuncao, salvarMaterial, salvarResponsavel,
+} from '../lib/dados.js'
+import { CORES_CATEGORIA, classeDaCor, validarCategoria, validarMaterial } from '../lib/materiais.js'
 import { podeEditar, veCadastro } from '../lib/perfis.js'
 import { PROPRIEDADES_EQUIPAMENTO, TIPOS_RESPONSAVEL, validarEquipamento } from '../lib/obras.js'
 import { Carregando, ErroCarga, Faixa, Meta, Vazio, avisar, useDados } from '../components/index.jsx'
 
-const carregar = () => juntar({ responsaveis: listarResponsaveis(), funcoes: listarFuncoes(), equipamentos: listarEquipamentos() })
+const carregar = () => juntar({ responsaveis: listarResponsaveis(), funcoes: listarFuncoes(), equipamentos: listarEquipamentos(), materiais: listarMateriais(), categorias: listarCategoriasMaterial() })
 const ABAS = [
   { id: 'responsaveis', rotulo: 'Responsáveis' },
   { id: 'funcoes', rotulo: 'Funções' },
   { id: 'equipamentos', rotulo: 'Equipamentos' },
+  { id: 'materiais', rotulo: 'Materiais' },
 ]
 
 function Responsaveis({ responsaveis, edita, onSalvo }) {
@@ -163,11 +169,116 @@ function Equipamentos({ equipamentos, edita, onSalvo }) {
   )
 }
 
+function Categorias({ categorias, materiais, edita, onSalvo }) {
+  const vazio = { nome: '', cor: CORES_CATEGORIA[0] }
+  const [nova, setNova] = useState(vazio)
+  const [tocado, setTocado] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const nomes = categorias.map((c) => c.nome)
+  const erros = tocado ? validarCategoria(nova, nomes) : {}
+  const emUso = (c) => materiais.filter((m) => m.categoria_id === c.id).length
+  async function salvar() {
+    setTocado(true)
+    if (Object.keys(validarCategoria(nova, nomes)).length) return
+    setSalvando(true)
+    const r = await salvarCategoriaMaterial(nova)
+    setSalvando(false)
+    if (r.erro) { avisar(r.erro); return }
+    avisar(`Categoria ${r.data.nome} cadastrada.`)
+    setNova(vazio)
+    setTocado(false)
+    onSalvo()
+  }
+  return (
+    <section className="card">
+      <div className="card-h"><span className="rotulo">{categorias.length} {categorias.length === 1 ? 'categoria' : 'categorias'} de material</span></div>
+      {edita && (
+        <div className="card-b" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label className="field" style={{ flex: '1 1 220px' }}><span>Nova categoria</span>
+            <input className="ipt" value={nova.nome} aria-invalid={!!erros.nome} placeholder="Ex.: Impermeabilização, Esquadrias" onChange={(e) => setNova({ ...nova, nome: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') salvar() }} />
+            {erros.nome && <span className="erro">{erros.nome}</span>}
+          </label>
+          <label className="field" style={{ flex: '0 1 160px' }}><span>Cor da etiqueta</span>
+            <select className="ipt" value={nova.cor} onChange={(e) => setNova({ ...nova, cor: e.target.value })}>{CORES_CATEGORIA.map((c) => <option key={c}>{c}</option>)}</select>
+          </label>
+          <span className={`pill ${classeDaCor(nova.cor)}`} style={{ alignSelf: 'center' }}>{nova.nome.trim() || 'Prévia'}</span>
+          <button className="btn primary" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Cadastrar categoria'}</button>
+        </div>
+      )}
+      <div className="card-b curto-marcas" style={{ paddingTop: 0 }}>
+        {categorias.map((c) => <span key={c.id} className={`pill ${classeDaCor(c.cor)}`} title={`${emUso(c)} material(is)`}>{c.nome} ({emUso(c)})</span>)}
+      </div>
+    </section>
+  )
+}
+
+function Materiais({ materiais, categorias, edita, onSalvo }) {
+  const vazio = { nome: '', unidade: '', categoria_id: '' }
+  const [novo, setNovo] = useState(vazio)
+  const [tocado, setTocado] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const nomes = materiais.map((m) => m.nome)
+  const idsCategorias = categorias.map((c) => c.id)
+  const erros = tocado ? validarMaterial(novo, nomes, idsCategorias) : {}
+  async function salvar() {
+    setTocado(true)
+    if (Object.keys(validarMaterial(novo, nomes, idsCategorias)).length) return
+    setSalvando(true)
+    const r = await salvarMaterial(novo)
+    setSalvando(false)
+    if (r.erro) { avisar(r.erro); return }
+    avisar(`${r.data.nome} cadastrado.`)
+    setNovo(vazio)
+    setTocado(false)
+    onSalvo()
+  }
+  return (
+    <>
+      {edita && (
+        <section className="card card-b">
+          <div className="sec-t" style={{ padding: '0 0 10px' }}>Novo material</div>
+          <div className="form-grid">
+            <label className="field"><span>Nome</span>
+              <input className="ipt" value={novo.nome} aria-invalid={!!erros.nome} placeholder="Ex.: Cimento CP-II 50 kg" onChange={(e) => setNovo({ ...novo, nome: e.target.value })} />
+              {erros.nome && <span className="erro">{erros.nome}</span>}
+            </label>
+            <label className="field"><span>Unidade</span>
+              <input className="ipt" value={novo.unidade} aria-invalid={!!erros.unidade} placeholder="Ex.: saco, m³, barra" onChange={(e) => setNovo({ ...novo, unidade: e.target.value })} />
+              {erros.unidade && <span className="erro">{erros.unidade}</span>}
+            </label>
+            <label className="field"><span>Categoria</span>
+              <select className="ipt" value={novo.categoria_id} aria-invalid={!!erros.categoria_id} onChange={(e) => setNovo({ ...novo, categoria_id: e.target.value })}>
+                <option value="">Escolha a categoria</option>
+                {categorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+              {erros.categoria_id && <span className="erro">{erros.categoria_id}</span>}
+            </label>
+          </div>
+          <button className="btn primary" style={{ marginTop: 12 }} onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : 'Cadastrar material'}</button>
+        </section>
+      )}
+      <section className="card">
+        <div className="card-h"><span className="rotulo">{materiais.length} {materiais.length === 1 ? 'material' : 'materiais'} nesta obra</span></div>
+        {materiais.length ? (
+          <ul className="rows">
+            {materiais.map((m) => (
+              <li key={m.id}><div className="row"><div className="main-c">
+                <div className="t">{m.nome}</div>
+                <div className="curto-marcas">{m.categoria && <span className={`pill ${classeDaCor(m.cor)}`}>{m.categoria}</span>}<span className="obs" style={{ fontSize: 13 }}>Unidade: {m.unidade}</span></div>
+              </div></div></li>
+            ))}
+          </ul>
+        ) : <div className="empty" style={{ padding: 24 }}><p>Nenhum material cadastrado nesta obra.{edita ? ' Cadastre o primeiro acima.' : ''}</p></div>}
+      </section>
+    </>
+  )
+}
+
 export default function Cadastro({ profile }) {
   const { data, erro, carregando, recarregar } = useDados(carregar)
   const [aba, setAba] = useState('responsaveis')
   if (!veCadastro(profile.role)) {
-    return <div className="view"><Vazio titulo="O cadastro é do engenheiro e da diretoria" texto="Seu perfil escolhe responsáveis, funções e equipamentos nas listas de cada tela." /></div>
+    return <div className="view"><Vazio titulo="O cadastro é do engenheiro e da diretoria" texto="Seu perfil escolhe responsáveis, funções, equipamentos e materiais nas listas de cada tela." /></div>
   }
   const edita = podeEditar(profile.role)
   return (
@@ -182,6 +293,12 @@ export default function Cadastro({ profile }) {
           {aba === 'responsaveis' && <Responsaveis responsaveis={data.responsaveis} edita={edita} onSalvo={recarregar} />}
           {aba === 'funcoes' && <Funcoes funcoes={data.funcoes} edita={edita} onSalvo={recarregar} />}
           {aba === 'equipamentos' && <Equipamentos equipamentos={data.equipamentos} edita={edita} onSalvo={recarregar} />}
+          {aba === 'materiais' && (
+            <>
+              <Categorias categorias={data.categorias} materiais={data.materiais} edita={edita} onSalvo={recarregar} />
+              <Materiais materiais={data.materiais} categorias={data.categorias} edita={edita} onSalvo={recarregar} />
+            </>
+          )}
         </div>
       )}
     </>

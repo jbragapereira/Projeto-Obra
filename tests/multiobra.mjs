@@ -6,6 +6,7 @@ import {
   entrar, definirObraAtual, listarMinhasObras, listarServicos, listarLancamentos, listarDiarios,
   listarResponsaveis, listarMedicoes, listarFuncoes, listarGrupos, salvarDatasEap, salvarDiario,
   listarAditivos, buscarDadosOrcamento, buscarCalendario, salvarCalendario, listarRestricoes, salvarRestricao, resolverRestricao, moverRestricao, excluirRestricao,
+  salvarObra, listarMateriais, salvarMaterial, listarCategoriasMaterial, salvarCategoriaMaterial, listarPedidosMaterial, salvarPedidoMaterial, moverPedidoMaterial,
   listarSemanaAtividades, listarSubtarefas, listarContratosEmpreiteiro, listarEquipamentos, salvarEquipamento, salvarContratoEmpreiteiro, moverContratoEmpreiteiro, salvarValorDoContrato, salvarBoletimEmpreiteiro, criarMedicao, listarItensMedicao, salvarQtdPlanejada, iniciarMedicao, descongelarMedicao, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
 } from '../src/lib/dados.js'
 import { addDias, hojeISO } from '../src/lib/datas.js'
@@ -22,7 +23,7 @@ const soDaObra = (lista, obraId) => lista.length > 0 && lista.every((r) => r.obr
 
 // 1. Os dados de exemplo: toda tabela de lançamento tem obra_id válido, e coerente.
 const obraIds = new Set(mock.obras.map((o) => o.id))
-const tabelas = { servicos: mock.servicos, responsaveis: mock.responsaveis, diarios: mock.diarios, lancamentos: mock.lancamentos, fotos: mock.fotos, medicoes: mock.medicoes, medicaoItens: mock.medicaoItens, membros: mock.membros, funcoes: mock.funcoes, efetivo: mock.efetivo, grupos: mock.grupos, aditivos: mock.aditivos, orcamentos: mock.orcamentos, calendarios: mock.calendarios, restricoes: mock.restricoes, semanaAtividades: mock.semanaAtividades, subtarefas: mock.subtarefas, contratosEmpreiteiro: mock.contratosEmpreiteiro, contratoItens: mock.contratoItens, boletinsEmpreiteiro: mock.boletinsEmpreiteiro, boletimLinhas: mock.boletimLinhas, equipamentos: mock.equipamentos }
+const tabelas = { servicos: mock.servicos, responsaveis: mock.responsaveis, diarios: mock.diarios, lancamentos: mock.lancamentos, fotos: mock.fotos, medicoes: mock.medicoes, medicaoItens: mock.medicaoItens, membros: mock.membros, funcoes: mock.funcoes, efetivo: mock.efetivo, grupos: mock.grupos, aditivos: mock.aditivos, orcamentos: mock.orcamentos, calendarios: mock.calendarios, restricoes: mock.restricoes, semanaAtividades: mock.semanaAtividades, subtarefas: mock.subtarefas, contratosEmpreiteiro: mock.contratosEmpreiteiro, contratoItens: mock.contratoItens, boletinsEmpreiteiro: mock.boletinsEmpreiteiro, boletimLinhas: mock.boletimLinhas, equipamentos: mock.equipamentos, materiais: mock.materiais, categoriasMaterial: mock.categoriasMaterial, pedidosMaterial: mock.pedidosMaterial }
 for (const [nome, linhas] of Object.entries(tabelas)) {
   conferir(`${nome}: toda linha tem obra_id de uma obra que existe`, linhas.every((r) => obraIds.has(r.obra_id)), true)
 }
@@ -381,6 +382,41 @@ await entrar('p-dir'); definirObraAtual('obra-vn')
 conferir('diretoria vê, mas não cadastra equipamento', [(await listarEquipamentos()).erro, (await salvarEquipamento({ nome: 'Serra', propriedade: 'Próprio' })).erro !== null], [null, true])
 await entrar('p-lucas'); definirObraAtual('obra-vn')
 conferir('equipe da obra não recebe contratos de empreiteiro (têm R$)', (await listarContratosEmpreiteiro()).erro !== null, true)
+
+// 19. Materiais: catálogo e pedidos por obra; engenheiro e equipe pedem e movem; diretoria vê; fiscalização não.
+await entrar('p-eng'); definirObraAtual('obra-ba')
+const pedidosBA = (await listarPedidosMaterial()).data
+conferir('ARRECIFES: só os pedidos dela, com o nome do material', [pedidosBA.map((p) => p.id), pedidosBA.every((p) => p.material && !p.material.includes('fora'))], [['pm-ba-1', 'pm-ba-2'], true])
+conferir('obra nova nasce com as 3 categorias e os 12 materiais, ligados entre si', await (async () => {
+  const r = await salvarObra({ nome: 'Obra de teste dos materiais', codigo: 'TM-01', cliente: 'Prefeitura (teste)', data_inicio: hojeISO(), data_entrega: hojeISO(), situacao: 'Em andamento' })
+  const cats = mock.categoriasMaterial.filter((c) => c.obra_id === r.data?.id)
+  const mats = mock.materiais.filter((m) => m.obra_id === r.data?.id)
+  return [cats.length, mats.length, mats.every((m) => cats.some((c) => c.id === m.categoria_id))]
+})(), [3, 12, true])
+definirObraAtual('obra-ba')
+conferir('ARRECIFES: catálogo só dela', (await listarMateriais()).data.every((m) => m.obra_id === 'obra-ba'), true)
+conferir('pedido com material de outra obra é recusado', (await salvarPedidoMaterial({ material_id: 'mat-vn-1', quantidade: 10, frente: 'Canteiro', prioridade: 'Normal' })).erros?.material_id !== undefined, true)
+const pmNovo = await salvarPedidoMaterial({ material_id: 'mat-ba-2', quantidade: 6, frente: 'Canteiro', prioridade: 'Normal' })
+conferir('pedido novo entra em Solicitar, na obra escolhida', [pmNovo.data?.status, pmNovo.data?.obra_id, pmNovo.data?.historico.length], ['Solicitar', 'obra-ba', 1])
+conferir('pedido de outra obra não se move daqui', (await moverPedidoMaterial('pm-vn-1', 'Em cotação')).erro !== null, true)
+conferir('comprar sem fornecedor é recusado', (await moverPedidoMaterial(pmNovo.data.id, 'Em cotação').then(() => moverPedidoMaterial(pmNovo.data.id, 'Comprado / a caminho', {}))).erros?.fornecedor !== undefined, true)
+const catNova = await salvarCategoriaMaterial({ nome: 'Impermeabilização', cor: 'Roxo' })
+conferir('categoria nova na obra escolhida, só nela', [catNova.erro, mock.categoriasMaterial.find((c) => c.id === catNova.data?.id)?.obra_id, (await listarCategoriasMaterial()).data.every((c) => c.obra_id === 'obra-ba')], [null, 'obra-ba', true])
+conferir('material com categoria de outra obra é recusado', (await salvarMaterial({ nome: 'Manta asfáltica', unidade: 'rolo', categoria_id: 'cat-vn-1' })).erros?.categoria_id !== undefined, true)
+const matNovo = await salvarMaterial({ nome: 'Manta asfáltica', unidade: 'rolo', categoria_id: catNova.data.id })
+conferir('material novo no catálogo da obra escolhida, com a categoria nova', [mock.materiais.find((m) => m.id === matNovo.data?.id)?.obra_id, (await listarMateriais()).data.find((m) => m.id === matNovo.data?.id)?.categoria], ['obra-ba', 'Impermeabilização'])
+await entrar('p-lucas'); definirObraAtual('obra-vn')
+conferir('equipe faz pedido e move, mas não cadastra material', [
+  (await salvarPedidoMaterial({ material_id: 'mat-vn-1', quantidade: 20, frente: 'Rampa', prioridade: 'Crítico' })).erro,
+  (await moverPedidoMaterial('pm-vn-2', 'Em cotação')).erro,
+  (await salvarMaterial({ nome: 'Prego 18×27', unidade: 'kg', categoria_id: 'cat-vn-1' })).erro !== null,
+  (await salvarCategoriaMaterial({ nome: 'Pregos', cor: 'Cinza' })).erro !== null,
+], [null, null, true, true])
+conferir('INSS: os pedidos não trazem os da ARRECIFES', (await listarPedidosMaterial()).data.every((p) => p.obra_id === 'obra-vn'), true)
+await entrar('p-dir'); definirObraAtual('obra-vn')
+conferir('diretoria vê, mas não pede', [(await listarPedidosMaterial()).erro, (await salvarPedidoMaterial({ material_id: 'mat-vn-1', quantidade: 1, frente: 'x', prioridade: 'Normal' })).erro !== null], [null, true])
+await entrar('p-fiscal'); definirObraAtual('obra-vn')
+conferir('fiscalização não vê os pedidos', (await listarPedidosMaterial()).erro !== null, true)
 
 console.log(`${ok}/${tot} — multi-obra`)
 process.exit(ok === tot ? 0 : 1)
