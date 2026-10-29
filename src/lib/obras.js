@@ -3,6 +3,9 @@ import { validarCronogramaDeMedicoes } from './medicao.js'
 
 export const SITUACOES_OBRA = ['Em andamento', 'Concluída', 'Parada']
 
+// A construtora dona das obras (cabeçalho dos relatórios), como no PLANO.
+export const CONSTRUTORA = 'HCL Engenharia'
+
 // Texto idêntico ao CHECK de responsaveis.tipo.
 // Os dois primeiros podem ter contrato na medição de empreiteiros; mão de obra própria não.
 export const TIPOS_EMPREITEIRO = ['Empreiteiro', 'Empresa especializada']

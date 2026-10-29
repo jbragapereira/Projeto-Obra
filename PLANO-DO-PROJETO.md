@@ -44,6 +44,7 @@ Um só lugar por obra. O estagiário (e quem mais for de campo) lança no celula
 - Orçamento e composição de preço. Isso o engenheiro já resolve; o sistema só **recebe** a planilha de serviços com quantidades e preços.
 - Ler o WhatsApp ou o e-mail sozinho. O que chega por lá e importa vira um registro, lançado à mão (ver módulo Recados e pendências).
 - Editar o cronograma. O MS Project continua sendo a ferramenta do cronograma; o sistema só usa as datas de início e fim de cada serviço.
+- *(Entrou em 29/10/2026, por decisão do engenheiro, o módulo **Qualidade**: pendências de vistoria, FVS com não conformidades e Gemba Walk, com relatório para imprimir. Não é o "Recados e pendências" da Fase 2, que continua à parte.)*
 - Controle de estoque do almoxarifado. *(O **fluxo dos pedidos de material** — Kanban do pedido até a entrega na frente — entrou em 26/10/2026, por decisão do engenheiro; estoque item a item continua fora.)*
 - Pagamento de empreiteiros e financeiro da obra. *(A **medição** de empreiteiros (contrato, valor e boletins) entrou em 26/10/2026, por decisão do engenheiro; o pagamento continua fora.)*
 - Publicar na Play Store ou na App Store. Mesmo assim, no celular ele **funciona como app**: instala pelo navegador e ganha ícone na tela inicial, e o diário pode ser preenchido **sem sinal no canteiro**, com envio automático quando a internet voltar. *(Corrigido pelo engenheiro em 23/10/2026: o item "app de loja" estava errado.)*

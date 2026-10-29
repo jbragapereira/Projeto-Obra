@@ -26,6 +26,7 @@ const PATHS = {
   critico: <path d="M12 3l8 9-8 9-8-9z" />,
   planejamento: <><rect x="3" y="4" width="18" height="17" rx="1" /><path d="M7 9h6M7 13h10M7 17h4" /></>,
   trocar: <><path d="M7 4L3 8l4 4" /><path d="M3 8h14" /><path d="M17 20l4-4-4-4" /><path d="M21 16H7" /></>,
+  local: <><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>,
   // Tipos de restrição do médio prazo
   material: <><path d="M3 8l9-5 9 5v8l-9 5-9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></>,
   metodo: <><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17" /></>,

@@ -22,6 +22,10 @@ export const rotuloDoDiario = (role) => (podeLancar(role) && role !== 'Engenheir
 // Materiais (pedidos): engenheiro e equipe (o almoxarife está nela) pedem e movem; a diretoria vê; a fiscalização não.
 export const veMateriais = (role) => podeVerValores(role) || podeLancar(role)
 export const podeMoverPedidos = (role) => podeLancar(role)
+// Qualidade (pendências, FVS, Gemba): engenheiro e equipe registram e movem; a diretoria vê; a fiscalização
+// não (por enquanto). Aprovar/fechar não conformidade e editar modelo de FVS é do engenheiro (podeEditar).
+export const veQualidade = (role) => podeVerValores(role) || podeLancar(role)
+export const podeRegistrarQualidade = (role) => podeLancar(role)
 // Cadastro (responsáveis com contato, funções, equipamentos, materiais): engenheiro e diretoria; só o engenheiro grava.
 export const veCadastro = (role) => podeVerValores(role)
 
@@ -33,6 +37,7 @@ const PLANEJAMENTO = { id: 'planejamento', rotulo: 'Planejamento', curto: 'Plane
 const MEDICAO = { id: 'medicao', rotulo: 'Medição cliente', curto: 'Med. cliente', icone: 'medicao' }
 const EMPREITEIROS = { id: 'empreiteiros', rotulo: 'Medição empreiteiros', curto: 'Empreiteiros', icone: 'ferramenta' }
 const MATERIAIS = { id: 'materiais', rotulo: 'Materiais', curto: 'Materiais', icone: 'material' }
+const QUALIDADE = { id: 'qualidade', rotulo: 'Qualidade', curto: 'Qualidade', icone: 'check' }
 const CADASTRO = { id: 'cadastro', rotulo: 'Cadastro', curto: 'Cadastro', icone: 'perfil' }
 const RECADOS = { id: 'recados', rotulo: 'Recados', curto: 'Recados', icone: 'recados', fase2: true, secundario: true }
 const PERFIL = { id: 'perfil', rotulo: 'Meu perfil', curto: 'Perfil', icone: 'perfil' }
@@ -41,18 +46,18 @@ export const MENUS = {
   Engenheiro: [
     PAINEL,
     { id: 'diario', rotulo: 'Diário', curto: 'Diário', icone: 'diario' },
-    ORCAMENTO, PLANEJAMENTO, MATERIAIS, MEDICAO, EMPREITEIROS, CADASTRO,
+    ORCAMENTO, PLANEJAMENTO, MATERIAIS, QUALIDADE, MEDICAO, EMPREITEIROS, CADASTRO,
     { id: 'ajustes', rotulo: 'Ajustes', curto: 'Ajustes', icone: 'ajustes' },
     RECADOS,
   ],
   Diretoria: [
     PAINEL,
     { id: 'diario', rotulo: 'Diário', curto: 'Diário', icone: 'diario' },
-    ORCAMENTO, PLANEJAMENTO, MATERIAIS, MEDICAO, EMPREITEIROS, CADASTRO, PERFIL, RECADOS,
+    ORCAMENTO, PLANEJAMENTO, MATERIAIS, QUALIDADE, MEDICAO, EMPREITEIROS, CADASTRO, PERFIL, RECADOS,
   ],
   'Equipe da obra': [
     { id: 'diario', rotulo: 'Lançar o dia', curto: 'Lançar', icone: 'diario' },
-    PAINEL, MATERIAIS, PLANEJAMENTO, ORCAMENTO, PERFIL,
+    PAINEL, MATERIAIS, QUALIDADE, PLANEJAMENTO, ORCAMENTO, PERFIL,
   ],
   Fiscalização: [
     { id: 'avanco', rotulo: 'Avanço por serviço', curto: 'Avanço', icone: 'avanco', fase2: true },

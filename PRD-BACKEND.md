@@ -487,6 +487,62 @@ Para que serve: cada pedido/lote de material e por onde ele anda no Kanban (não
 
 ---
 
+## Tabela `pendencias_qualidade` (desde 29/10/2026)
+
+Para que serve: os problemas achados na vistoria (Qualidade › Pendências) e a correção deles.
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| id | uuid | sim | chave |
+| obra_id | uuid | sim | → obras |
+| numero | integer | sim | #1, #2… único por obra |
+| descricao | text | sim | |
+| local | text | sim | |
+| pavimento | text | não | |
+| empresa_id | uuid | sim | → responsaveis (quem corrige; da mesma obra) |
+| responsavel_id | uuid | sim | → responsaveis (quem acompanha; da mesma obra) |
+| data_vistoria | date | sim | não futura |
+| prazo | date | sim | ≥ data_vistoria |
+| status | text | sim | CHECK: `Pendente`, `Em andamento`, `Resolvido` (`STATUS_PENDENCIA` em `src/lib/qualidade.js`) |
+| vistoriado_por | uuid | sim | → profiles |
+| foto | text | não | caminho no Storage (até 5 MB) |
+| foto_evidencia | text | não | obrigatória ao resolver (CHECK: status = 'Resolvido' exige foto_evidencia) |
+| observacoes | text | sim | acumulativo: a nota nova entra em cima, com [DD/MM/AAAA HH:MM] e o autor; padrão '' |
+| em_andamento_em | date | não | |
+| resolvido_em | date | não | |
+| cancelada | boolean | sim | padrão falso; cancelar não apaga |
+| cancelada_em | date | não | |
+| motivo_cancelamento | text | não | obrigatório quando cancelada (CHECK) |
+| created_at | timestamptz | sim | automático |
+
+**Permissões:** ver, Engenheiro, Diretoria e Equipe da obra, nas obras delas (`minhas_obras()`); criar, mover, anotar e alterar (em aberto), Engenheiro e Equipe da obra; cancelar e reativar, só o Engenheiro; apagar, ninguém. `grant select, insert, update` só para `authenticated`.
+
+---
+
+## Tabela `observacoes_gemba` (desde 29/10/2026)
+
+Para que serve: as observações do Gemba Walk de cada obra. Listas em `src/lib/qualidade.js` (texto idêntico ao CHECK).
+
+Colunas: id, obra_id → obras, numero (por obra), local, descricao, causa_raiz, acao, desperdicios (text[], 1 ou mais; CHECK: cada um em `Retrabalho`, `Espera`, `Transporte`, `Movimentação`, `Estoque`, `Superprodução`, `Processo desnecessário`), responsavel_id → responsaveis, prazo (date, opcional, não antes do registro), status (CHECK: `Pendente`, `Em andamento`, `Resolvido`), foto (caminho no Storage, até 5 MB), registrado_em, registrado_por → profiles, resolvido_em, cancelada, cancelada_em, motivo_cancelamento, created_at.
+
+**Permissões:** ver, Engenheiro, Diretoria e Equipe da obra, nas obras delas (`minhas_obras()`); registrar, alterar e mover, Engenheiro e Equipe da obra; cancelar e reativar, só o Engenheiro; apagar, ninguém. `grant select, insert, update` só para `authenticated`.
+
+---
+
+## Tabelas da FVS (desde 29/10/2026)
+
+Para que servem: as fichas de verificação de serviço de cada obra, as vistorias (checklists) e as não conformidades. Situações e listas em `src/lib/qualidade.js` (texto idêntico ao CHECK).
+
+**`modelos_fvs`** (a ficha): id, obra_id → obras, codigo (FVS-01…, único por obra), nome (único por obra), categoria (CHECK: `Impermeabilização`, `Estrutura`, `Instalações`, `Acabamento`), versao (integer, sobe a cada edição), grupos (jsonb: [{ nome, itens: [{ id, titulo }] }]), ativo, created_at.
+
+**`vistorias_fvs`** (o checklist): id, obra_id, modelo_id → modelos_fvs, codigo_modelo, nome_modelo, versao, **grupos (jsonb: cópia da ficha no dia em que a vistoria abriu)**, ambiente, respostas (jsonb: { item_id: 'OK' | 'NC' | 'N.A.' }), status (CHECK: `Em andamento`, `Concluída`), iniciada_em, iniciada_por → profiles, concluida_em, created_at. Concluída só sem item pendente; depois, só leitura.
+
+**`nao_conformidades`**: id, obra_id, codigo (NC-001…, único por obra), vistoria_id → vistorias_fvs, item_id, item_numero, titulo (do item), servico (nome da ficha), ambiente, descricao, solucao, severidade (CHECK: `Baixa`, `Média`, `Alta`), responsavel_id → responsaveis, fotos (caminhos no Storage, até 3, cada uma até 5 MB), status (CHECK: `Aberta`, `Encaminhada`, `Corrigida`, `Fechada`), aberta_em, fechada_em, timeline (jsonb: [{ quando, texto }]), created_at.
+
+**Permissões:** ver, Engenheiro, Diretoria e Equipe da obra, nas obras delas (`minhas_obras()`); abrir vistoria, responder, registrar NC, encaminhar e marcar corrigida, Engenheiro e Equipe da obra; aprovar/reprovar a correção e criar/editar ficha, só o Engenheiro; apagar, ninguém. `grant select, insert, update` só para `authenticated`.
+
+---
+
 ## Tabela `efetivo` (F1, desde 24/10/2026)
 
 Para que serve: quantas pessoas de cada função, de cada responsável, trabalharam no dia.

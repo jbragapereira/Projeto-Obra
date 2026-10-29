@@ -811,3 +811,217 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
 .cad-cancelados { border-top: 1px solid var(--line) }
 .cad-cancelados summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; padding: 0 var(--s4); color: var(--slate) }
 .cad-cancelados .row .t { color: var(--slate); font-weight: 500 }
+
+/* Qualidade › Pendências: KPIs com borda colorida, em aberto por responsável, grade de cards com foto,
+   botão de câmera flutuante (celular). Card resolvido fica cinza e apagado: dá para ver de longe. */
+.qual-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2) }
+.qual-kpi { --c: var(--slate); background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: var(--r-card); padding: var(--s3) var(--s4) }
+.qual-kpi.red { --c: var(--red) } .qual-kpi.amber { --c: var(--amber) } .qual-kpi.ok { --c: var(--ok) }
+.qual-kpi .num { font-family: var(--display); font-stretch: 75%; font-size: 36px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums }
+.qual-kpi .lbl { font-size: 13px; font-weight: 600; color: var(--slate); margin-top: 4px }
+.qual-resp { display: flex; gap: var(--s2); overflow-x: auto; padding: var(--s3) var(--s4); scrollbar-width: thin }
+.qual-resp-chip { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 6px 0 12px; border: 1.5px solid #C3CDD2; border-radius: 999px; background: #fff; font-weight: 600; font-size: 14px; cursor: pointer }
+.qual-resp-chip b { min-width: 26px; height: 26px; padding: 0 6px; border-radius: 999px; background: var(--red-d); color: #fff; display: inline-grid; place-items: center; font-size: 13px }
+.qual-resp-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff }
+.qual-filtro { flex: 0 1 220px !important }
+.qual-nova { display: none }
+.qual-grid { display: grid; grid-template-columns: 1fr; gap: var(--s3) }
+.qual-card { display: flex; flex-direction: column; gap: 6px; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); padding: var(--s3); cursor: pointer; font: inherit; color: inherit }
+.qual-card:hover { border-color: var(--slate) }
+.qual-card-h { display: flex; justify-content: space-between; align-items: center; gap: var(--s2) }
+.qual-card-h b { font-family: var(--display); font-stretch: 80%; font-size: 20px }
+.qual-foto { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--r-btn); background: var(--track) }
+.qual-foto.vazia { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--slate); font-size: 13px }
+.qual-card.resolvido { opacity: .62 }
+.qual-card.resolvido .qual-foto { filter: grayscale(1) }
+.qual-desc { font-weight: 600; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.qual-card-p { display: flex; justify-content: space-between; gap: var(--s2); flex-wrap: wrap; font-size: 13.5px; color: var(--slate); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px }
+.qual-fab { position: fixed; right: var(--s4); bottom: calc(64px + var(--s4) + 60px + env(safe-area-inset-bottom)); z-index: 31; width: 60px; height: 60px; border-radius: 50%; border: 0; background: var(--brand-d); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 18px rgba(38, 51, 58, .3); cursor: pointer }
+.qual-fotos-detalhe { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--s2) }
+.qual-fotos-detalhe figure { margin: 0 }
+.qual-fotos-detalhe figcaption { font-size: 13px; color: var(--slate); margin-top: 4px }
+.qual-dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s2) var(--s4); margin: 0 }
+.qual-dados dt { font-size: 13px; color: var(--slate) }
+.qual-dados dd { margin: 0; font-weight: 600 }
+.qual-acao { display: flex; flex-direction: column; gap: var(--s3) }
+.qual-nota { display: flex; flex-direction: column; gap: var(--s2) }
+.qual-nota .btn { align-self: flex-start }
+.qual-obs { margin: 0; white-space: pre-wrap; font-family: var(--sans); font-size: 14px; line-height: 1.5; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-btn); padding: var(--s3) }
+.campo-foto-previa { width: 100%; max-width: 320px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-btn); border: 1px solid var(--line) }
+@media (min-width: 640px) { .qual-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+@media (min-width: 900px) {
+  .qual-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+  .qual-fab { display: none }
+  .qual-nova { display: inline-flex }
+}
+@media (min-width: 1200px) { .qual-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) } }
+
+/* Qualidade › Pendências: cancelada (aviso no detalhe) e o bloco recolhido para cancelar. */
+.qual-cancelada { display: flex; gap: var(--s3); align-items: center; justify-content: space-between; flex-wrap: wrap; padding: var(--s3); border-radius: var(--r-btn); background: #E6EAEC; font-weight: 600 }
+.qual-cancelar { border-top: 1px solid var(--line); padding-top: var(--s2); display: flex; flex-direction: column; gap: var(--s2) }
+.qual-cancelar[open] { gap: var(--s2) }
+.qual-cancelar summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; color: var(--red-d) }
+.qual-cancelar > * + * { margin-top: var(--s2) }
+.qual-btn-cancelar { align-self: flex-start; border-color: var(--red-d); color: var(--red-d) }
+
+/* Relatório de qualidade: camada por cima do app na tela; no papel, só ele, 12px, cores mantidas e nenhum
+   registro partido entre páginas. */
+.relatorio { position: fixed; inset: 0; z-index: 120; overflow: auto; background: #E9EDEF }
+.rel-barra { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); justify-content: flex-end; padding: var(--s3); background: var(--ink) }
+.rel-papel { max-width: 860px; margin: var(--s4) auto; background: #fff; padding: 32px 36px; color: var(--ink); font-size: 14px; box-shadow: 0 2px 10px rgba(38, 51, 58, .12) }
+.rel-cab { text-align: center; border-bottom: 2px solid var(--ink); padding-bottom: var(--s3); margin-bottom: var(--s4) }
+.rel-marca { font-family: var(--display); font-stretch: 85%; font-weight: 800; font-size: 20px; letter-spacing: .02em; color: #001A54 }
+.rel-cab h1 { margin: 6px 0 4px; font-size: 22px; letter-spacing: .04em }
+.rel-obra { font-weight: 700; font-size: 16px }
+.rel-meta { color: var(--slate); font-size: 13px; margin-top: 4px }
+.rel-papel h2 { font-size: 17px; margin: var(--s4) 0 var(--s2) }
+.rel-papel h3 { font-size: 14px; margin: 0 0 6px }
+.rel-kpis .qual-kpi .num { font-size: 28px }
+.rel-bloco { margin: var(--s3) 0 }
+.rel-resp { display: flex; flex-wrap: wrap; gap: 6px 16px }
+.rel-registro { display: grid; grid-template-columns: 120px 1fr; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); break-inside: avoid; page-break-inside: avoid }
+.rel-fotos { display: grid; gap: 6px; align-content: start }
+.rel-fotos img, .rel-sem-foto { width: 120px; height: 90px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line) }
+.rel-sem-foto { display: grid; place-items: center; background: #F2F4F5; color: var(--slate); font-size: 12px }
+.rel-titulo { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.rel-titulo b { font-size: 16px }
+.rel-dados dl { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; margin: 6px 0 }
+.rel-dados dt { display: inline; color: var(--slate) }
+.rel-dados dt::after { content: ': ' }
+.rel-dados dd { display: inline; margin: 0; font-weight: 600 }
+.rel-desc { margin: 4px 0 }
+.rel-obs { margin: 4px 0 0; white-space: pre-wrap; font-family: var(--sans); font-size: 12.5px; color: var(--slate) }
+.rel-rodape { margin-top: var(--s5); padding-top: var(--s2); border-top: 1px solid var(--line); font-size: 12px; color: var(--slate); text-align: center }
+/* Botão Relatório na faixa do módulo, à direita das abas; as tabelas da FVS e do Gemba no papel. */
+.qual-topo { display: flex; align-items: center; justify-content: space-between; gap: var(--s2) }
+.qual-topo .tabs { min-width: 0 }
+.qual-btn-relatorio { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--s3); border: 1.5px solid var(--head-sub); border-radius: var(--r-btn); background: transparent; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer }
+.qual-btn-relatorio:hover { background: rgba(255, 255, 255, .08) }
+.rel-tabela { width: 100%; border-collapse: collapse; font-size: 13px }
+.rel-tabela th { text-align: left; font-size: 12px; color: var(--slate); font-weight: 600; border-bottom: 1.5px solid var(--ink); padding: 4px 6px }
+.rel-tabela td { border-bottom: 1px solid var(--line); padding: 6px; vertical-align: top }
+.rel-tabela tr { break-inside: avoid; page-break-inside: avoid }
+.rel-tabela td:first-child { white-space: nowrap }
+.rel-tabela .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.rel-nota { color: var(--slate); font-size: 12px }
+.rel-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px }
+.rel-ranking { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px }
+.rel-ranking li { display: inline-flex; align-items: center; gap: 6px }
+.rel-quebra { border-top: 2px solid var(--ink); padding-top: var(--s3) }
+@media (max-width: 640px) {
+  .qual-btn-relatorio { padding: 0 10px }
+  .rel-tabela { display: block; overflow-x: auto }
+}
+@media (max-width: 640px) {
+  .rel-papel { padding: 20px 16px; margin: 0 }
+  .rel-registro { grid-template-columns: 1fr }
+  .rel-dados dl { grid-template-columns: 1fr }
+}
+@media print {
+  @page { margin: 14mm }
+  body.com-relatorio > :not(.relatorio) { display: none !important }
+  body.com-relatorio { background: #fff }
+  .no-print { display: none !important }
+  .relatorio { position: static; overflow: visible; background: #fff }
+  .rel-papel { max-width: none; margin: 0; padding: 0; box-shadow: none; font-size: 12px }
+  .rel-registro { grid-template-columns: 120px 1fr }
+  .rel-dados dl { grid-template-columns: 1fr 1fr }
+  .relatorio, .relatorio * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+}
+
+/* Qualidade › FVS: barra do andamento (verde OK, vermelho NC, cinza N.A., trilho pendente), checklist com os
+   três botões por item, linha do tempo da NC e o formulário das fichas. */
+.qual-kpis.tres .qual-kpi:last-child { grid-column: span 2 }
+.fvs-barra { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--track) }
+.fvs-barra span { display: block; height: 100% }
+.fvs-barra .ok { background: var(--ok) } .fvs-barra .nc { background: var(--red) } .fvs-barra .na { background: #A9B6BD }
+.fvs-cab { display: flex; flex-direction: column; gap: var(--s2) }
+.fvs-cab-t { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); flex-wrap: wrap }
+.fvs-cab-t h2 { margin: 2px 0; font-size: 20px; line-height: 1.2 }
+.fvs-ambiente { font-weight: 600; color: var(--slate) }
+.fvs-cab-nums { display: flex; flex-wrap: wrap; gap: 4px var(--s4); font-size: 14px }
+.fvs-legenda { color: var(--slate); display: inline-flex; align-items: center; gap: 4px }
+.fvs-legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-left: 6px }
+.fvs-legenda i.ok { background: var(--ok) } .fvs-legenda i.nc { background: var(--red) } .fvs-legenda i.na { background: #A9B6BD }
+.fvs-itens { list-style: none; margin: 0; padding: 0 }
+.fvs-item { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); border-left: 4px solid transparent }
+.fvs-item:last-child { border-bottom: 0 }
+.fvs-item.r-ok { border-left-color: var(--ok) } .fvs-item.r-nc { border-left-color: var(--red); background: #FDF4F3 } .fvs-item.r-na { border-left-color: #A9B6BD }
+.fvs-item-t { font-size: 15px; line-height: 1.35 }
+.fvs-item-t b { margin-right: 4px }
+.fvs-nc-link { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-weight: 700 }
+.fvs-resp { display: flex; gap: 6px }
+.fvs-resp button { flex: 1 1 0; min-height: 44px; border: 1.5px solid #C3CDD2; border-radius: var(--r-btn); background: #fff; font-weight: 700; font-size: 15px; cursor: pointer }
+.fvs-resp button:disabled { cursor: default; opacity: .55 }
+.fvs-resp button[aria-pressed="true"] { color: #fff; opacity: 1 }
+.fvs-resp .r-ok[aria-pressed="true"] { background: var(--ok); border-color: var(--ok) }
+.fvs-resp .r-nc[aria-pressed="true"] { background: var(--red-d); border-color: var(--red-d) }
+.fvs-resp .r-na[aria-pressed="true"] { background: var(--slate); border-color: var(--slate) }
+.fvs-rodape { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 5; display: flex; gap: var(--s3); align-items: center; justify-content: space-between; flex-wrap: wrap; padding: var(--s3); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: 0 -2px 10px rgba(38, 51, 58, .08) }
+.fvs-thumbs { display: flex; gap: var(--s2); flex-wrap: wrap }
+.fvs-thumbs > div { position: relative }
+.fvs-thumbs img { width: 110px; height: 82px; object-fit: cover; border-radius: var(--r-btn); border: 1px solid var(--line) }
+.fvs-thumbs .remover { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(38, 51, 58, .8); color: #fff; cursor: pointer }
+.fvs-nc-row { align-items: center; cursor: pointer; background: none; font: inherit; color: inherit; border-left: 0; border-right: 0; border-top: 0 }
+.fvs-dias { flex: none; display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-size: 12px; color: var(--slate) }
+.fvs-dias b { font-family: var(--display); font-stretch: 80%; font-size: 26px; color: var(--ink); line-height: 1 }
+.fvs-timeline { list-style: none; margin: 0; padding: 0 0 0 var(--s3); border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: var(--s2) }
+.fvs-timeline li { position: relative; font-size: 14px }
+.fvs-timeline li::before { content: ''; position: absolute; left: calc(-1 * var(--s3) - 6px); top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--brand-d) }
+.fvs-timeline li span { display: block; font-size: 12.5px; color: var(--slate) }
+.fvs-ficha { display: flex; flex-direction: column; gap: 6px }
+.fvs-ficha summary { cursor: pointer; font-weight: 600; min-height: 40px; display: flex; align-items: center; color: var(--brand-d) }
+.fvs-ficha-itens { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 14px }
+.fvs-form-grupo { display: flex; flex-direction: column; gap: var(--s2) }
+.fvs-form-linha { display: flex; gap: var(--s2); align-items: center }
+.fvs-form-linha .ipt { flex: 1; min-width: 0 }
+.fvs-form-linha.item { padding-left: var(--s3) }
+.fvs-form-linha .obs { flex: none; width: 34px; font-size: 13px }
+.fvs-form-linha .remover { width: 40px; height: 40px; flex: none; border-radius: var(--r-btn); border: 1.5px solid #C3CDD2; background: #fff; cursor: pointer }
+@media (min-width: 640px) {
+  .fvs-item { flex-direction: row; align-items: center; justify-content: space-between }
+  .fvs-resp { flex: none; width: 240px }
+}
+@media (min-width: 900px) {
+  .qual-kpis.tres { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+  .qual-kpis.tres .qual-kpi:last-child { grid-column: auto }
+  .fvs-rodape { bottom: var(--s3) }
+}
+
+/* Qualidade › Gemba Walk: as cores dos 7 desperdícios (etiqueta, botão do formulário e barra do ranking),
+   o ranking e o quadro de três colunas, que empilham no celular. */
+.gem-cor-vermelho { --gc: #B3261E; --gt: #FBE4E2 } .gem-cor-ambar { --gc: #8A5A00; --gt: #FCEFD2 }
+.gem-cor-azul { --gc: #1F4F86; --gt: #DCE8F7 } .gem-cor-roxo { --gc: #5B3A8C; --gt: #ECE4F6 }
+.gem-cor-verde { --gc: #2E6B3A; --gt: #DFF0E2 } .gem-cor-rosa { --gc: #9C2C6B; --gt: #F8E1EE }
+.gem-cor-cinza { --gc: #4A5960; --gt: #E6EAEC }
+.pill[class*="gem-cor-"] { background: var(--gt); color: var(--gc) }
+.gem-tipos { display: flex; flex-wrap: wrap; gap: var(--s2) }
+.gem-tipo { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--gc); background: #fff; color: var(--gc); font-weight: 600; font-size: 14px; cursor: pointer }
+.gem-tipo[aria-pressed="true"] { background: var(--gc); color: #fff }
+.gem-ranking { list-style: none; margin: 0; padding: var(--s2) var(--s3) var(--s3); display: flex; flex-direction: column; gap: 2px }
+.gem-ranking button { width: 100%; display: grid; grid-template-columns: minmax(110px, 170px) 1fr 28px; align-items: center; gap: var(--s3); min-height: 40px; padding: 0 var(--s2); border: 0; border-radius: var(--r-btn); background: none; font: inherit; color: inherit; cursor: pointer; text-align: left }
+.gem-ranking button:hover { background: #F2F5F6 }
+.gem-ranking button[aria-pressed="true"] { background: var(--brand-tint) }
+.gem-rank-nome { font-weight: 600; font-size: 14px }
+.gem-rank-trilho { height: 12px; border-radius: 999px; background: var(--track); overflow: hidden }
+.gem-rank-barra { display: block; height: 100%; border-radius: 999px; background: var(--gc) }
+.gem-ranking b { font-family: var(--display); font-stretch: 80%; font-size: 20px; text-align: right; font-variant-numeric: tabular-nums }
+.gem-kanban { display: grid; gap: var(--s3); align-items: start }
+.gem-kanban .curto-col { display: block }
+.gem-kanban .g0 .curto-col-h { border-bottom-color: var(--red) }
+.gem-kanban .g1 .curto-col-h { border-bottom-color: var(--amber) }
+.gem-kanban .g2 .curto-col-h { border-bottom-color: var(--ok) }
+.gem-card { display: flex; flex-direction: column; gap: var(--s2) }
+.gem-card-abrir { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer }
+.gem-card.resolvido { opacity: .7 }
+.gem-card.resolvido .qual-foto { filter: grayscale(1) }
+.gem-local { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--slate) }
+.gem-desc { -webkit-line-clamp: 2 }
+.gem-mover { min-height: 40px; font-size: 14px }
+.gem-col-vazia { margin: var(--s2); font-size: 13px }
+.gem-canceladas summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; padding: 0 var(--s4) }
+.gem-canceladas ul { list-style: none; margin: 0; padding: 0 var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s2) }
+.gem-canceladas li { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); font-size: 14px; border-top: 1px solid var(--line); padding-top: var(--s2) }
+@media (min-width: 900px) {
+  .gem-kanban { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+}

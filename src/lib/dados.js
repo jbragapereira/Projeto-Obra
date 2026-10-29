@@ -13,7 +13,7 @@
 // ============================================================
 import * as mock from './mockData.js'
 import { dataHoraLocal, hojeISO, segundaDaSemana } from './datas.js'
-import { podeAtualizarSemana, podeEditar, podeLancar, podeMoverPedidos, podePlanejar, podeRegistrarRestricao, podeVerValores, veMateriais, veTodasAsObras } from './perfis.js'
+import { podeAtualizarSemana, podeEditar, podeLancar, podeMoverPedidos, podePlanejar, podeRegistrarQualidade, podeRegistrarRestricao, podeVerValores, veMateriais, veQualidade, veTodasAsObras } from './perfis.js'
 import { codigoValido, compararCodigos, paiDoCodigo, proximoCodigo, validarDatas } from './planejamento.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, arredondarQtd, minimoDoItemNovo, podeExcluirAditivo, podeExcluirItemNovo, precoUnitario, qtdVigente, validarAditivo, validarItemNovo } from './orcamento.js'
 import { congelarMeta, cronogramaDeMedicoes, itensPelaEap, mesVigente, periodoDaProxima, podeDescongelar, podeIniciar, reconciliarItens, temCronograma, valorEmMontagem } from './medicao.js'
@@ -23,6 +23,16 @@ import { moverSemana, validarRestricao } from './restricoes.js'
 import { SITUACAO_SUBTAREFA, STATUS_SEMANA, causaParaGravar, efeitoDoDiarioNoKanban, planejadaNaSemana, validarCausa } from './curtoPrazo.js'
 import { FUNCOES_PADRAO, diarioTemConteudo, itemTemConteudo, linhasPreenchidas, podeCorrigir, porQueNaoLanca, podeLancarData, validarEfetivo, zeraAlgumLancamento } from './diario.js'
 import { LIMITE_FOTO_TEXTO, ORIGENS_DATA, ORIGENS_GPS, cabeNoLimite, coordenadaValida, montarEndereco } from './fotos.js'
+import {
+  MODELOS_FVS_PADRAO, NC_ABERTA, numerarItens, NC_FECHADA, RESP_NC, VISTORIA_ANDAMENTO, VISTORIA_CONCLUIDA, limparModelo, montarModeloPadrao,
+  motivoParaNaoFinalizar, motivoParaNaoMoverNc, motivoParaNaoResponder, proximoCodigoFvs, proximoCodigoNc, textoDoPassoNc,
+  validarModelo, validarNc, validarVistoria,
+} from './qualidade.js'
+import {
+  EM_ANDAMENTO as PEND_EM_ANDAMENTO, PENDENTE, RESOLVIDO as PEND_RESOLVIDO, anexarObservacao, camposAlterados, motivoParaNaoAlterar,
+  motivoParaNaoAvancar, motivoParaNaoCancelar as motivoParaNaoCancelarPendencia, proximoNumero, validarPendencia,
+} from './qualidade.js'
+import { motivoParaNaoCancelarGemba, motivoParaNaoMoverGemba, validarObservacao } from './qualidade.js'
 import { CADASTROS, aceitaNoRegistro, motivoParaNaoCancelar, motivoParaNaoReativar } from './cadastros.js'
 import { CATALOGO_PADRAO, CATEGORIAS_PADRAO, SOLICITAR, aplicarMovimento, validarCategoria, validarMaterial, validarMovimento, validarPedido } from './materiais.js'
 import { ATIVO, ENVIADO, GLOBAL, POR_ESCOPO, EM_ELABORACAO, globalPorValor, linhaPorQuantidade, medidoDoContrato, motivoParaNaoMover, pctMedido, proximoNumeroDeBoletim, validarBoletim, validarValorDoContrato, valorDoBoletim, valorDoContrato } from './empreiteiros.js'
@@ -126,6 +136,7 @@ export function salvarObra(obra) {
     idCategoria[nome] = novoId('cat')
     mock.categoriasMaterial.push({ id: idCategoria[nome], obra_id: nova.id, nome, cor, ativo: true })
   })
+  MODELOS_FVS_PADRAO.forEach((m) => mock.modelosFvs.push({ id: novoId('mf'), obra_id: nova.id, codigo: proximoCodigoFvs(mock.modelosFvs.filter((x) => x.obra_id === nova.id)), ...montarModeloPadrao(m), ativo: true }))
   CATALOGO_PADRAO.forEach(([nome, unidade, categoria]) => mock.materiais.push({ id: novoId('mat'), obra_id: nova.id, nome, unidade, categoria_id: idCategoria[categoria], ativo: true }))
   // Quem cria a obra passa a ter acesso a ela.
   mock.membros.push({ id: novoId('m'), obra_id: nova.id, profile_id: sessao.id, ativo: true })
@@ -552,6 +563,320 @@ export function salvarEquipamento({ nome, propriedade, fornecedor, identificacao
   }
   mock.equipamentos.push(novo)
   return ok(copia(novo))
+}
+
+/* ── Qualidade: pendências de vistoria ── */
+
+const SEM_ACESSO_QUALIDADE = 'A qualidade é do engenheiro, da equipe da obra e da diretoria.'
+const fotoValida = (f) => !f || cabeNoLimite(f.tamanho_bytes)
+
+// Pendências da obra, já com o nome da empresa, de quem acompanha e de quem vistoriou.
+export function listarPendencias() {
+  const e = checar(); if (e) return falha(e)
+  if (!veQualidade(sessao.role)) return falha(SEM_ACESSO_QUALIDADE)
+  const nomeResp = Object.fromEntries(daObra(mock.responsaveis).map((r) => [r.id, r.nome]))
+  const nomePessoa = Object.fromEntries(mock.profiles.map((p) => [p.id, p.nome]))
+  return ok(copia(daObra(mock.pendencias).map((p) => ({
+    ...p, empresa: nomeResp[p.empresa_id] ?? '—', responsavel: nomeResp[p.responsavel_id] ?? '—', vistoriador: nomePessoa[p.vistoriado_por] ?? '—',
+  }))))
+}
+
+// Pendência nova: entra como Pendente, com o próximo número da obra. Empresa e responsável: do Cadastro (ativos).
+export function salvarPendencia({ descricao, local, pavimento, empresa_id, responsavel_id, data_vistoria, prazo, foto }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra registram pendências.')
+  const ativos = daObra(mock.responsaveis).filter((r) => r.ativo).map((r) => r.id)
+  const erros = validarPendencia({ descricao, local, empresa_id, responsavel_id, data_vistoria, prazo }, ativos, hojeISO())
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  if (!fotoValida(foto)) return falha(`A foto passa de ${LIMITE_FOTO_TEXTO}.`)
+  const nova = {
+    id: novoId('pq'), obra_id: obraAtual, numero: proximoNumero(daObra(mock.pendencias)), descricao: descricao.trim(), local: local.trim(),
+    pavimento: pavimento?.trim() ?? '', empresa_id, responsavel_id, data_vistoria, prazo, status: PENDENTE, vistoriado_por: sessao.id,
+    foto: foto ?? null, foto_evidencia: null, observacoes: '', em_andamento_em: null, resolvido_em: null,
+    cancelada: false, cancelada_em: null, motivo_cancelamento: '',
+  }
+  mock.pendencias.push(nova)
+  return ok(copia(nova))
+}
+
+// Próxima etapa: Pendente → Em andamento → Resolvido (resolver pede a foto da correção e grava a data).
+export function avancarPendencia(id, para, { foto_evidencia } = {}) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra movem as pendências.')
+  const p = daObra(mock.pendencias).find((x) => x.id === id)
+  if (!p) return falha('Pendência não encontrada nesta obra.')
+  const motivo = motivoParaNaoAvancar(p, para, { foto_evidencia })
+  if (motivo) return falha(motivo)
+  if (!fotoValida(foto_evidencia)) return falha(`A foto passa de ${LIMITE_FOTO_TEXTO}.`)
+  p.status = para
+  if (para === PEND_EM_ANDAMENTO) p.em_andamento_em = hojeISO()
+  if (para === PEND_RESOLVIDO) Object.assign(p, { resolvido_em: hojeISO(), foto_evidencia })
+  return ok(copia(p))
+}
+
+const ROTULOS_PENDENCIA = {
+  descricao: 'descrição', local: 'local', pavimento: 'pavimento', empresa_id: 'empresa', responsavel_id: 'quem acompanha',
+  data_vistoria: 'data da vistoria', prazo: 'prazo',
+}
+const autorDaSessao = () => mock.profiles.find((x) => x.id === sessao.id)?.nome ?? ''
+// Registro automático nas observações (alteração, cancelamento, reativação), com data, hora e autor.
+const registrar = (p, texto) => { p.observacoes = anexarObservacao(p.observacoes, `${texto} (${autorDaSessao()})`, dataHoraLocal(new Date())) }
+
+// Alterar os dados de uma pendência em aberto. Empresa e responsável: ativos do Cadastro, ou os que já estavam.
+// O que mudou fica registrado nas observações.
+export function alterarPendencia(id, { descricao, local, pavimento, empresa_id, responsavel_id, data_vistoria, prazo, foto }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra alteram pendências.')
+  const p = daObra(mock.pendencias).find((x) => x.id === id)
+  if (!p) return falha('Pendência não encontrada nesta obra.')
+  const motivo = motivoParaNaoAlterar(p)
+  if (motivo) return falha(motivo)
+  const aceitos = [...daObra(mock.responsaveis).filter((r) => r.ativo).map((r) => r.id), p.empresa_id, p.responsavel_id]
+  const erros = validarPendencia({ descricao, local, empresa_id, responsavel_id, data_vistoria, prazo }, aceitos, hojeISO())
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  if (!fotoValida(foto)) return falha(`A foto passa de ${LIMITE_FOTO_TEXTO}.`)
+  const novos = { descricao: descricao.trim(), local: local.trim(), pavimento: pavimento?.trim() ?? '', empresa_id, responsavel_id, data_vistoria, prazo }
+  const mudou = camposAlterados(p, novos, ROTULOS_PENDENCIA)
+  const trocouFoto = (foto?.url_previa ?? null) !== (p.foto?.url_previa ?? null)
+  if (!mudou.length && !trocouFoto) return ok(copia(p))
+  Object.assign(p, novos, { foto: foto ?? null })
+  registrar(p, `Dados alterados: ${[...mudou, ...(trocouFoto ? ['foto'] : [])].join(', ')}.`)
+  return ok(copia(p))
+}
+
+// Cancelar não apaga: sai da grade e dos números, guarda o motivo e pode ser reativada. Só o engenheiro.
+export function cancelarPendencia(id, motivo) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cancela pendências.')
+  const p = daObra(mock.pendencias).find((x) => x.id === id)
+  if (!p) return falha('Pendência não encontrada nesta obra.')
+  const bloqueio = motivoParaNaoCancelarPendencia(p, motivo)
+  if (bloqueio) return falha(bloqueio)
+  Object.assign(p, { cancelada: true, cancelada_em: hojeISO(), motivo_cancelamento: motivo.trim() })
+  registrar(p, `Pendência cancelada: ${motivo.trim()}`)
+  return ok(copia(p))
+}
+
+export function reativarPendencia(id) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro reativa pendências.')
+  const p = daObra(mock.pendencias).find((x) => x.id === id)
+  if (!p) return falha('Pendência não encontrada nesta obra.')
+  if (!p.cancelada) return falha('Esta pendência não está cancelada.')
+  Object.assign(p, { cancelada: false, cancelada_em: null, motivo_cancelamento: '' })
+  registrar(p, 'Pendência reativada.')
+  return ok(copia(p))
+}
+
+// Observação a qualquer momento: entra em cima do histórico, com data, hora e quem escreveu.
+export function anotarPendencia(id, nota) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra anotam nas pendências.')
+  const p = daObra(mock.pendencias).find((x) => x.id === id)
+  if (!p) return falha('Pendência não encontrada nesta obra.')
+  if (!nota?.trim()) return falha('Escreva a observação.')
+  registrar(p, nota.trim())
+  return ok(copia(p))
+}
+
+/* ── Qualidade: FVS (fichas, vistorias e não conformidades) ── */
+
+const vistoriaDaObra = (id) => daObra(mock.vistoriasFvs).find((v) => v.id === id)
+const ncDaObra = (id) => daObra(mock.naoConformidades).find((n) => n.id === id)
+const agoraLocal = () => dataHoraLocal(new Date())
+
+export function listarModelosFvs() {
+  const e = checar(); if (e) return falha(e)
+  if (!veQualidade(sessao.role)) return falha(SEM_ACESSO_QUALIDADE)
+  return ok(copia(daObra(mock.modelosFvs).filter((m) => m.ativo).sort((a, b) => a.codigo.localeCompare(b.codigo))))
+}
+
+// Ficha nova (sem id) ou edição (com id; a versão sobe). Só o engenheiro. Vistorias já abertas guardam a
+// cópia da ficha do dia: editar a ficha não muda o que já foi vistoriado.
+export function salvarModeloFvs({ id, nome, categoria, grupos }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cria ou edita fichas de FVS.')
+  const atual = id ? daObra(mock.modelosFvs).find((m) => m.id === id) : null
+  if (id && !atual) return falha('Ficha não encontrada nesta obra.')
+  const outros = daObra(mock.modelosFvs).filter((m) => m.id !== id).map((m) => m.nome)
+  const erros = validarModelo({ nome, categoria, grupos }, outros)
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const campos = { nome: nome.trim(), categoria, grupos: limparModelo(grupos) }
+  if (atual) {
+    Object.assign(atual, campos, { versao: atual.versao + 1 })
+    return ok(copia(atual))
+  }
+  const novo = { id: novoId('mf'), obra_id: obraAtual, codigo: proximoCodigoFvs(daObra(mock.modelosFvs)), versao: 1, ...campos, ativo: true }
+  mock.modelosFvs.push(novo)
+  return ok(copia(novo))
+}
+
+export function listarVistoriasFvs() {
+  const e = checar(); if (e) return falha(e)
+  if (!veQualidade(sessao.role)) return falha(SEM_ACESSO_QUALIDADE)
+  return ok(copia(daObra(mock.vistoriasFvs)))
+}
+
+// Vistoria nova: a ficha escolhida é copiada (grupos e itens) e o checklist começa todo pendente.
+export function iniciarVistoriaFvs({ modelo_id, ambiente }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra fazem vistorias.')
+  const fichas = daObra(mock.modelosFvs).filter((m) => m.ativo)
+  const erros = validarVistoria({ modelo_id, ambiente }, fichas.map((m) => m.id))
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  const ficha = fichas.find((m) => m.id === modelo_id)
+  const nova = {
+    id: novoId('vf'), obra_id: obraAtual, modelo_id, codigo_modelo: ficha.codigo, nome_modelo: ficha.nome, versao: ficha.versao,
+    grupos: copia(ficha.grupos), ambiente: ambiente.trim(), status: VISTORIA_ANDAMENTO, respostas: {},
+    iniciada_em: hojeISO(), iniciada_por: sessao.id, concluida_em: null,
+  }
+  mock.vistoriasFvs.push(nova)
+  return ok(copia(nova))
+}
+
+// OK ou N.A. num item (null volta a pendente). NC vai por registrarNcFvs.
+export function responderItemFvs(vistoriaId, itemId, resposta) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra fazem vistorias.')
+  const v = vistoriaDaObra(vistoriaId)
+  if (!v) return falha('Vistoria não encontrada nesta obra.')
+  const motivo = motivoParaNaoResponder(v, itemId, resposta)
+  if (motivo) return falha(motivo)
+  if (resposta === null) delete v.respostas[itemId]
+  else v.respostas[itemId] = resposta
+  return ok(copia(v))
+}
+
+// Marcar NC num item = registrar a não conformidade (descrição, solução, severidade, responsável, fotos).
+export function registrarNcFvs(vistoriaId, itemId, { descricao, solucao, severidade, responsavel_id, fotos = [] }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra registram não conformidades.')
+  const v = vistoriaDaObra(vistoriaId)
+  if (!v) return falha('Vistoria não encontrada nesta obra.')
+  if (v.status === VISTORIA_CONCLUIDA) return falha('Vistoria concluída: só leitura.')
+  if (v.respostas[itemId] === RESP_NC) return falha('Este item já tem não conformidade registrada.')
+  const item = numerarItens(v.grupos).find((it) => it.id === itemId)
+  if (!item) return falha('Item fora desta ficha.')
+  const ativos = daObra(mock.responsaveis).filter((r) => r.ativo).map((r) => r.id)
+  const erros = validarNc({ descricao, solucao, severidade, responsavel_id, fotos }, ativos)
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  if (fotos.some((f) => !fotoValida(f))) return falha(`Há foto acima de ${LIMITE_FOTO_TEXTO}.`)
+  const nova = {
+    id: novoId('nc'), obra_id: obraAtual, codigo: proximoCodigoNc(daObra(mock.naoConformidades)), vistoria_id: v.id, item_id: itemId,
+    item_numero: item.numero, titulo: item.titulo, servico: v.nome_modelo, ambiente: v.ambiente, descricao: descricao.trim(),
+    solucao: solucao.trim(), severidade, responsavel_id, fotos, status: NC_ABERTA, aberta_em: hojeISO(), fechada_em: null,
+    timeline: [{ quando: agoraLocal(), texto: `Aberta por ${autorDaSessao()}` }],
+  }
+  mock.naoConformidades.push(nova)
+  v.respostas[itemId] = RESP_NC
+  return ok(copia({ vistoria: v, nc: nova }))
+}
+
+// Finalizar: só sem item pendente; depois fica travada (só leitura).
+export function finalizarVistoriaFvs(id) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra fazem vistorias.')
+  const v = vistoriaDaObra(id)
+  if (!v) return falha('Vistoria não encontrada nesta obra.')
+  const motivo = motivoParaNaoFinalizar(v)
+  if (motivo) return falha(motivo)
+  Object.assign(v, { status: VISTORIA_CONCLUIDA, concluida_em: hojeISO() })
+  return ok(copia(v))
+}
+
+// Não conformidades da obra, já com o nome do responsável.
+export function listarNcs() {
+  const e = checar(); if (e) return falha(e)
+  if (!veQualidade(sessao.role)) return falha(SEM_ACESSO_QUALIDADE)
+  const nomeResp = Object.fromEntries(daObra(mock.responsaveis).map((r) => [r.id, r.nome]))
+  return ok(copia(daObra(mock.naoConformidades).map((n) => ({ ...n, responsavel: nomeResp[n.responsavel_id] ?? '—' }))))
+}
+
+// Um passo no tratamento da NC; aprovar e reprovar são do engenheiro. Cada passo entra na linha do tempo.
+export function moverNc(id, para) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra tratam não conformidades.')
+  const n = ncDaObra(id)
+  if (!n) return falha('Não conformidade não encontrada nesta obra.')
+  const motivo = motivoParaNaoMoverNc(n, para, podeEditar(sessao.role))
+  if (motivo) return falha(motivo)
+  const responsavel = daObra(mock.responsaveis).find((r) => r.id === n.responsavel_id)?.nome ?? '—'
+  n.timeline.push({ quando: agoraLocal(), texto: `${textoDoPassoNc(para, n.status, responsavel)} (${autorDaSessao()})` })
+  n.status = para
+  n.fechada_em = para === NC_FECHADA ? hojeISO() : null
+  return ok(copia({ ...n, responsavel }))
+}
+
+/* ── Qualidade: Gemba Walk (observações de desperdício) ── */
+
+const observacaoDaObra = (id) => daObra(mock.observacoesGemba).find((o) => o.id === id)
+
+// Observações da obra, já com o nome do responsável.
+export function listarObservacoesGemba() {
+  const e = checar(); if (e) return falha(e)
+  if (!veQualidade(sessao.role)) return falha(SEM_ACESSO_QUALIDADE)
+  const nomeResp = Object.fromEntries(daObra(mock.responsaveis).map((r) => [r.id, r.nome]))
+  return ok(copia(daObra(mock.observacoesGemba).map((o) => ({ ...o, responsavel: nomeResp[o.responsavel_id] ?? '—' }))))
+}
+
+// Observação nova (sem id: entra como Pendente, com o próximo número) ou alteração dos dados (com id).
+// Responsável: ativo do Cadastro, ou o que já estava. Prazo opcional.
+export function salvarObservacaoGemba({ id, local, descricao, causa_raiz, acao, desperdicios = [], responsavel_id, prazo, foto }) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra registram observações.')
+  const atual = id ? observacaoDaObra(id) : null
+  if (id && !atual) return falha('Observação não encontrada nesta obra.')
+  if (atual?.cancelada) return falha('Observação cancelada: reative para alterar.')
+  const aceitos = [...daObra(mock.responsaveis).filter((r) => r.ativo).map((r) => r.id), ...(atual ? [atual.responsavel_id] : [])]
+  const dados = { local, descricao, acao, desperdicios, responsavel_id, prazo: prazo || null }
+  const erros = validarObservacao(dados, aceitos, atual?.registrado_em ?? hojeISO())
+  if (Object.keys(erros).length) return Promise.resolve({ data: null, erro: 'Confira os campos marcados.', erros })
+  if (!fotoValida(foto)) return falha(`A foto passa de ${LIMITE_FOTO_TEXTO}.`)
+  const limpos = {
+    local: local.trim(), descricao: descricao.trim(), causa_raiz: causa_raiz?.trim() ?? '', acao: acao.trim(),
+    desperdicios: [...desperdicios], responsavel_id, prazo: prazo || null, foto: foto ?? null,
+  }
+  if (atual) { Object.assign(atual, limpos); return ok(copia(atual)) }
+  const nova = {
+    id: novoId('gw'), obra_id: obraAtual, numero: proximoNumero(daObra(mock.observacoesGemba)), ...limpos, status: PENDENTE,
+    registrado_em: hojeISO(), registrado_por: sessao.id, resolvido_em: null, cancelada: false, cancelada_em: null, motivo_cancelamento: '',
+  }
+  mock.observacoesGemba.push(nova)
+  return ok(copia(nova))
+}
+
+// Mudar de coluna (para a frente ou para trás). Resolvido grava a data; sair de Resolvido a apaga.
+export function moverObservacaoGemba(id, para) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeRegistrarQualidade(sessao.role)) return falha('Só o engenheiro e a equipe da obra movem as observações.')
+  const o = observacaoDaObra(id)
+  if (!o) return falha('Observação não encontrada nesta obra.')
+  const motivo = motivoParaNaoMoverGemba(o, para)
+  if (motivo) return falha(motivo)
+  Object.assign(o, { status: para, resolvido_em: para === PEND_RESOLVIDO ? hojeISO() : null })
+  return ok(copia(o))
+}
+
+// Cancelar não apaga: sai do quadro e do ranking, guarda o motivo e pode ser reativada. Só o engenheiro.
+export function cancelarObservacaoGemba(id, motivo) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro cancela observações.')
+  const o = observacaoDaObra(id)
+  if (!o) return falha('Observação não encontrada nesta obra.')
+  const bloqueio = motivoParaNaoCancelarGemba(o, motivo)
+  if (bloqueio) return falha(bloqueio)
+  Object.assign(o, { cancelada: true, cancelada_em: hojeISO(), motivo_cancelamento: motivo.trim() })
+  return ok(copia(o))
+}
+
+export function reativarObservacaoGemba(id) {
+  const e = checar(); if (e) return falha(e)
+  if (!podeEditar(sessao.role)) return falha('Só o engenheiro reativa observações.')
+  const o = observacaoDaObra(id)
+  if (!o) return falha('Observação não encontrada nesta obra.')
+  if (!o.cancelada) return falha('Esta observação não está cancelada.')
+  Object.assign(o, { cancelada: false, cancelada_em: null, motivo_cancelamento: '' })
+  return ok(copia(o))
 }
 
 /* ── Cancelar e reativar cadastros (módulo Cadastro) ── */

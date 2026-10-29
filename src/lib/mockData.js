@@ -14,6 +14,7 @@ import { addDias, hojeISO, segundaDaSemana } from './datas.js'
 import { congelarMeta, cronogramaDeMedicoes } from './medicao.js'
 import { FUNCOES_PADRAO } from './diario.js'
 import { CATALOGO_PADRAO, CATEGORIAS_PADRAO } from './materiais.js'
+import { MODELOS_FVS_PADRAO, montarModeloPadrao } from './qualidade.js'
 import { CRITICO_A_MAO, ORIGENS_ITEM, precoUnitario } from './orcamento.js'
 import { CALENDARIO_PADRAO } from './calendario.js'
 import { STATUS_SEMANA, SITUACAO_SUBTAREFA } from './curtoPrazo.js'
@@ -191,6 +192,92 @@ export const pedidosMaterial = [
   pedido('pm-ba-1', 'ba', 1, 80, 'Canteiro de obras', 'Normal', hist(['Solicitar', -2])),
   pedido('pm-ba-2', 'ba', 3, 12, 'Base do reservatório', 'Crítico', hist(['Solicitar', -7], ['Em cotação', -5], ['Comprado / a caminho', -2]),
     { fornecedor: 'Pedreira Jordão', previsao_entrega: d(3) }),
+]
+// Qualidade, aba Pendências: o que a vistoria achou, quem corrige (empresa), quem acompanha e o prazo.
+// Fotos de exemplo não existem (url_previa null): o card mostra o espaço da foto vazio.
+const pendencia = (id, obra, numero, descricao, local, pavimento, empresa_id, responsavel_id, vistoria, prazo, status, extra = {}) => ({
+  id, obra_id: `obra-${obra}`, numero, descricao, local, pavimento, empresa_id, responsavel_id,
+  data_vistoria: d(vistoria), prazo: d(prazo), status, vistoriado_por: 'p-eng', foto: null, foto_evidencia: null,
+  observacoes: '', em_andamento_em: null, resolvido_em: null, cancelada: false, cancelada_em: null, motivo_cancelamento: '', ...extra,
+})
+export const pendencias = [
+  pendencia('pq-vn-1', 'vn', 1, 'Fissura diagonal na alvenaria ao lado da janela', 'Fachada norte', '1º pavimento', 'r-pedra', 'r-pedra', -12, -3, 'Pendente',
+    { observacoes: `[${d(-5).split('-').reverse().join('/')} 10:20] Empresa avisada por telefone; vem na próxima semana.` }),
+  pendencia('pq-vn-2', 'vn', 2, 'Tomada sem espelho e com fiação exposta', 'Sala de atendimento', 'Térreo', 'r-ponto', 'r-ponto', -6, 2, 'Em andamento',
+    { em_andamento_em: d(-2) }),
+  pendencia('pq-vn-3', 'vn', 3, 'Rejunte falhado no piso do box', 'Banheiro acessível masculino', 'Térreo', 'r-vn-prop', 'r-pedra', -4, 0, 'Pendente'),
+  pendencia('pq-vn-4', 'vn', 4, 'Porta corta-fogo arrastando no piso', 'Escada de emergência', '2º pavimento', 'r-pedra', 'r-pedra', -3, 6, 'Pendente'),
+  pendencia('pq-vn-5', 'vn', 5, 'Mancha de umidade no forro de gesso', 'Copa', 'Térreo', 'r-vn-prop', 'r-vn-prop', -15, -6, 'Resolvido',
+    { em_andamento_em: d(-12), resolvido_em: d(-8), foto_evidencia: { url_previa: null, tamanho_bytes: 1 },
+      observacoes: `[${d(-8).split('-').reverse().join('/')} 16:40] Calha desentupida e forro trocado.` }),
+  pendencia('pq-vn-6', 'vn', 6, 'Disjuntor sem identificação no quadro', 'Quadro elétrico do térreo', 'Térreo', 'r-ponto', 'r-vn-prop', -1, 4, 'Pendente'),
+  pendencia('pq-ba-1', 'ba', 1, 'Tapume do canteiro solto na esquina', 'Canteiro de obras', '', 'r-silva', 'r-ba-prop', -2, 1, 'Pendente'),
+]
+// Qualidade, aba FVS: as fichas (modelos) de cada obra, as vistorias (com a cópia da ficha do dia em que
+// abriram) e as não conformidades, com a linha do tempo. A ARRECIFES só tem as fichas.
+export const modelosFvs = ['vn', 'ba'].flatMap((o) => MODELOS_FVS_PADRAO.map((m, i) => ({
+  id: `mf-${o}-${i + 1}`, obra_id: `obra-${o}`, codigo: `FVS-0${i + 1}`, ...montarModeloPadrao(m), ativo: true,
+})))
+const fichaVn = (i) => modelosFvs.find((m) => m.id === `mf-vn-${i}`)
+const vistoria = (id, ficha, ambiente, status, respostas, iniciada, concluida = null) => ({
+  id, obra_id: 'obra-vn', modelo_id: ficha.id, codigo_modelo: ficha.codigo, nome_modelo: ficha.nome, versao: ficha.versao,
+  grupos: structuredClone(ficha.grupos), ambiente, status, respostas, iniciada_em: d(iniciada), iniciada_por: 'p-eng', concluida_em: concluida === null ? null : d(concluida),
+})
+export const vistoriasFvs = [
+  vistoria('vf-vn-1', fichaVn(1), 'Banheiro acessível masculino · Térreo', 'Concluída', {
+    'g1-1': 'OK', 'g1-2': 'NC', 'g1-3': 'OK', 'g2-1': 'OK', 'g2-2': 'OK', 'g2-3': 'NC', 'g2-4': 'OK', 'g3-1': 'OK', 'g3-2': 'N.A.',
+  }, -14, -9),
+  vistoria('vf-vn-2', fichaVn(2), 'Copa · Térreo', 'Em andamento', { 'g1-1': 'OK', 'g1-2': 'OK', 'g1-4': 'NC', 'g1-5': 'NC' }, -2),
+]
+const passo = (dia, hora, texto) => ({ quando: `${d(dia)}T${hora}:00`, texto })
+const nc = (id, codigo, vist, itemId, numero, descricao, solucao, severidade, responsavel_id, status, aberta, timeline, fechada = null) => {
+  const v = vistoriasFvs.find((x) => x.id === vist)
+  return {
+    id, obra_id: 'obra-vn', codigo, vistoria_id: vist, item_id: itemId, item_numero: numero,
+    titulo: v.grupos.flatMap((g) => g.itens).find((it) => it.id === itemId).titulo, servico: v.nome_modelo, ambiente: v.ambiente,
+    descricao, solucao, severidade, responsavel_id, fotos: [], status, aberta_em: d(aberta), fechada_em: fechada === null ? null : d(fechada), timeline,
+  }
+}
+export const naoConformidades = [
+  nc('nc-vn-1', 'NC-001', 'vf-vn-1', 'g1-2', '1.2', 'Canto vivo entre piso e parede, sem meia-cana', 'Executar meia-cana com argamassa antes da manta', 'Média', 'r-pedra', 'Fechada', -12, [
+    passo(-12, '09:40', 'Aberta por Engenheiro Responsável'), passo(-12, '10:05', 'Encaminhada para correção a Construtora Pedra Firme'),
+    passo(-10, '16:20', 'Marcada como corrigida'), passo(-9, '08:30', 'Aprovada e fechada'),
+  ], -9),
+  nc('nc-vn-2', 'NC-002', 'vf-vn-1', 'g2-3', '2.3', 'Manta subiu só 15 cm na parede do box', 'Complementar a subida até 30 cm com sobreposição', 'Alta', 'r-pedra', 'Corrigida', -11, [
+    passo(-11, '11:10', 'Aberta por Engenheiro Responsável'), passo(-11, '11:30', 'Encaminhada para correção a Construtora Pedra Firme'),
+    passo(-3, '17:45', 'Marcada como corrigida'),
+  ]),
+  nc('nc-vn-3', 'NC-003', 'vf-vn-2', 'g1-4', '1.4', 'Juntas desalinhadas na parede da pia', 'Remover as peças e reassentar com espaçador', 'Média', 'r-vn-prop', 'Encaminhada', -2, [
+    passo(-2, '14:18', 'Aberta por Lucas Andrade'), passo(-1, '08:05', 'Encaminhada para correção a Mão de obra própria'),
+  ]),
+  nc('nc-vn-4', 'NC-004', 'vf-vn-2', 'g1-5', '1.5', 'Água empoça perto do ralo', 'Refazer o caimento do contrapiso', 'Alta', 'r-pedra', 'Aberta', -1, [
+    passo(-1, '15:50', 'Aberta por Lucas Andrade'),
+  ]),
+]
+// Qualidade, aba Gemba Walk: o que se viu andando pela obra, a causa, o que será feito e os desperdícios.
+// prazo null = sem prazo. A ARRECIFES tem uma observação só.
+const gemba = (id, obra, numero, local, descricao, causa_raiz, acao, desperdicios, responsavel_id, registrada, prazo, status, extra = {}) => ({
+  id, obra_id: `obra-${obra}`, numero, local, descricao, causa_raiz, acao, desperdicios, responsavel_id,
+  registrado_em: d(registrada), registrado_por: 'p-eng', prazo: prazo === null ? null : d(prazo), status, foto: null,
+  resolvido_em: null, cancelada: false, cancelada_em: null, motivo_cancelamento: '', ...extra,
+})
+export const observacoesGemba = [
+  gemba('gw-vn-1', 'vn', 1, 'Fachada norte', 'Reboco da fachada refeito pela segunda vez: o primeiro saiu sem chapisco', 'Chapisco não conferido antes de liberar o reboco',
+    'Conferir o chapisco na FVS antes de liberar a frente', ['Retrabalho'], 'r-pedra', -9, -2, 'Pendente'),
+  gemba('gw-vn-2', 'vn', 2, 'Pátio de descarga', 'Pedreiros parados 40 min esperando o caminhão de argamassa', 'Pedido feito no dia, sem janela de entrega',
+    'Programar a argamassa com 2 dias de antecedência', ['Espera'], 'r-vn-prop', -6, 3, 'Em andamento'),
+  gemba('gw-vn-3', 'vn', 3, 'Almoxarifado', 'Blocos levados no carrinho do portão até o 2º pavimento, ida e volta pela escada', 'Guincho desmontado desde a semana passada',
+    'Remontar o guincho e descarregar os blocos ao lado dele', ['Transporte', 'Movimentação'], 'r-pedra', -5, 1, 'Pendente'),
+  gemba('gw-vn-4', 'vn', 4, 'Térreo, depósito', '300 sacos de cimento estocados, 2 semanas de consumo; alguns empedrando', 'Compra do mês inteiro de uma vez',
+    'Comprar a cada semana pelo Kanban de Materiais', ['Estoque'], 'r-vn-prop', -12, null, 'Pendente'),
+  gemba('gw-vn-5', 'vn', 5, 'Banheiro acessível masculino', 'Cortaram cerâmica para o banheiro inteiro antes de conferir o prumo da parede', 'Equipe adiantou o corte para ganhar tempo',
+    'Cortar só depois da FVS de base liberada', ['Superprodução', 'Retrabalho'], 'r-pedra', -8, -1, 'Em andamento'),
+  gemba('gw-vn-6', 'vn', 6, 'Escritório da obra', 'Requisição de material assinada por três pessoas antes de chegar ao comprador', 'Fluxo antigo de aprovação',
+    'Só o engenheiro assina; o resto acompanha pelo app', ['Processo desnecessário', 'Espera'], 'r-vn-prop', -15, -10, 'Resolvido', { resolvido_em: d(-10) }),
+  gemba('gw-vn-7', 'vn', 7, 'Sala de atendimento', 'Eletricista volta ao almoxarifado a cada caixa de passagem que precisa', 'Material não separado por frente de trabalho',
+    'Montar o kit da frente no início do dia', ['Movimentação'], 'r-ponto', -3, 4, 'Pendente'),
+  gemba('gw-ba-1', 'ba', 1, 'Canteiro de obras', 'Areia descarregada longe da betoneira, levada no carrinho', 'Baia de areia montada no lugar errado',
+    'Mudar a baia para junto da betoneira', ['Transporte'], 'r-silva', -1, 5, 'Pendente'),
 ]
 // Medição de empreiteiros: contratos (Kanban), itens do escopo (do Orçamento), boletins e linhas dos boletins.
 export const contratosEmpreiteiro = []

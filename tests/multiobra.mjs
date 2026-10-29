@@ -6,7 +6,9 @@ import {
   entrar, definirObraAtual, listarMinhasObras, listarServicos, listarLancamentos, listarDiarios,
   listarResponsaveis, listarMedicoes, listarFuncoes, listarGrupos, salvarDatasEap, salvarDiario,
   listarAditivos, buscarDadosOrcamento, buscarCalendario, salvarCalendario, listarRestricoes, salvarRestricao, resolverRestricao, moverRestricao, excluirRestricao,
-  cancelarCadastro, reativarCadastro, salvarObra, listarMateriais, salvarMaterial, listarCategoriasMaterial, salvarCategoriaMaterial, listarPedidosMaterial, salvarPedidoMaterial, moverPedidoMaterial,
+  listarModelosFvs, salvarModeloFvs, listarVistoriasFvs, iniciarVistoriaFvs, responderItemFvs, registrarNcFvs, finalizarVistoriaFvs, listarNcs, moverNc,
+  listarObservacoesGemba, salvarObservacaoGemba, moverObservacaoGemba, cancelarObservacaoGemba, reativarObservacaoGemba,
+  listarPendencias, salvarPendencia, avancarPendencia, anotarPendencia, alterarPendencia, cancelarPendencia, reativarPendencia, cancelarCadastro, reativarCadastro, salvarObra, listarMateriais, salvarMaterial, listarCategoriasMaterial, salvarCategoriaMaterial, listarPedidosMaterial, salvarPedidoMaterial, moverPedidoMaterial,
   listarSemanaAtividades, listarSubtarefas, listarContratosEmpreiteiro, listarEquipamentos, salvarEquipamento, salvarContratoEmpreiteiro, moverContratoEmpreiteiro, salvarValorDoContrato, salvarBoletimEmpreiteiro, criarMedicao, listarItensMedicao, salvarQtdPlanejada, iniciarMedicao, descongelarMedicao, mudarStatusAtividade, definirResponsavelDaSemana, tirarDaSemana, salvarSubtarefa, mudarSubtarefa, excluirSubtarefa, salvarAditivo, salvarItemNovo, excluirAditivo, excluirItemNovo, arquivarServico,
 } from '../src/lib/dados.js'
 import { addDias, hojeISO } from '../src/lib/datas.js'
@@ -23,7 +25,7 @@ const soDaObra = (lista, obraId) => lista.length > 0 && lista.every((r) => r.obr
 
 // 1. Os dados de exemplo: toda tabela de lançamento tem obra_id válido, e coerente.
 const obraIds = new Set(mock.obras.map((o) => o.id))
-const tabelas = { servicos: mock.servicos, responsaveis: mock.responsaveis, diarios: mock.diarios, lancamentos: mock.lancamentos, fotos: mock.fotos, medicoes: mock.medicoes, medicaoItens: mock.medicaoItens, membros: mock.membros, funcoes: mock.funcoes, efetivo: mock.efetivo, grupos: mock.grupos, aditivos: mock.aditivos, orcamentos: mock.orcamentos, calendarios: mock.calendarios, restricoes: mock.restricoes, semanaAtividades: mock.semanaAtividades, subtarefas: mock.subtarefas, contratosEmpreiteiro: mock.contratosEmpreiteiro, contratoItens: mock.contratoItens, boletinsEmpreiteiro: mock.boletinsEmpreiteiro, boletimLinhas: mock.boletimLinhas, equipamentos: mock.equipamentos, materiais: mock.materiais, categoriasMaterial: mock.categoriasMaterial, pedidosMaterial: mock.pedidosMaterial }
+const tabelas = { servicos: mock.servicos, responsaveis: mock.responsaveis, diarios: mock.diarios, lancamentos: mock.lancamentos, fotos: mock.fotos, medicoes: mock.medicoes, medicaoItens: mock.medicaoItens, membros: mock.membros, funcoes: mock.funcoes, efetivo: mock.efetivo, grupos: mock.grupos, aditivos: mock.aditivos, orcamentos: mock.orcamentos, calendarios: mock.calendarios, restricoes: mock.restricoes, semanaAtividades: mock.semanaAtividades, subtarefas: mock.subtarefas, contratosEmpreiteiro: mock.contratosEmpreiteiro, contratoItens: mock.contratoItens, boletinsEmpreiteiro: mock.boletinsEmpreiteiro, boletimLinhas: mock.boletimLinhas, equipamentos: mock.equipamentos, materiais: mock.materiais, categoriasMaterial: mock.categoriasMaterial, pedidosMaterial: mock.pedidosMaterial, pendencias: mock.pendencias, modelosFvs: mock.modelosFvs, vistoriasFvs: mock.vistoriasFvs, naoConformidades: mock.naoConformidades, observacoesGemba: mock.observacoesGemba }
 for (const [nome, linhas] of Object.entries(tabelas)) {
   conferir(`${nome}: toda linha tem obra_id de uma obra que existe`, linhas.every((r) => obraIds.has(r.obra_id)), true)
 }
@@ -454,6 +456,117 @@ conferir('diário novo não grava responsável nem função cancelados', await (
 })(), 'Há responsável ou função cancelado no efetivo. Escolha um da lista.')
 await entrar('p-dir'); definirObraAtual('obra-vn')
 conferir('diretoria não cancela cadastro', (await cancelarCadastro('funcoes', umaFuncao.id)).erro !== null, true)
+
+// 21. Qualidade, pendências: cada obra vê só as suas; engenheiro e equipe registram; diretoria vê; fiscalização não.
+await entrar('p-eng'); definirObraAtual('obra-ba')
+conferir('ARRECIFES: só as pendências dela, com os nomes', (await listarPendencias()).data.map((p) => [p.id, p.empresa]), [['pq-ba-1', 'Empreiteira Silva & Filhos']])
+const pendNova = await salvarPendencia({ descricao: 'Guarda-corpo sem fixação', local: 'Laje', pavimento: '', empresa_id: 'r-silva', responsavel_id: 'r-ba-prop', data_vistoria: hojeISO(), prazo: addDias(hojeISO(), 3) })
+conferir('pendência nova na obra escolhida, número seguinte, Pendente', [pendNova.data?.obra_id, pendNova.data?.numero, pendNova.data?.status], ['obra-ba', 2, 'Pendente'])
+conferir('empresa de outra obra é recusada', (await salvarPendencia({ descricao: 'x', local: 'y', empresa_id: 'r-pedra', responsavel_id: 'r-ba-prop', data_vistoria: hojeISO(), prazo: hojeISO() })).erros?.empresa_id !== undefined, true)
+conferir('pendência de outra obra não anda daqui', (await avancarPendencia('pq-vn-1', 'Em andamento')).erro !== null, true)
+conferir('resolver sem foto da correção é recusado; com foto, resolve e grava a data', [
+  (await avancarPendencia(pendNova.data.id, 'Em andamento')).erro,
+  (await avancarPendencia(pendNova.data.id, 'Resolvido')).erro,
+  (await avancarPendencia(pendNova.data.id, 'Resolvido', { foto_evidencia: { url_previa: null, tamanho_bytes: 1000 } })).data?.resolvido_em,
+], [null, 'Tire a foto da correção para resolver.', hojeISO()])
+conferir('observação entra com carimbo e autor', /^\[\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}\] Fixado\. \(Engenheiro Responsável\)$/.test((await anotarPendencia(pendNova.data.id, 'Fixado.')).data?.observacoes), true)
+const pendAlt = await salvarPendencia({ descricao: 'Ralo entupido', local: 'Copa', pavimento: '', empresa_id: 'r-silva', responsavel_id: 'r-ba-prop', data_vistoria: hojeISO(), prazo: addDias(hojeISO(), 2) })
+const alterada = await alterarPendencia(pendAlt.data.id, { ...pendAlt.data, local: 'Copa do canteiro', prazo: addDias(hojeISO(), 5) })
+conferir('alterar: grava os dados e registra o que mudou', [alterada.data?.local, alterada.data?.observacoes.includes('Dados alterados: local, prazo.')], ['Copa do canteiro', true])
+conferir('resolvida não se altera nem se cancela', [
+  (await alterarPendencia(pendNova.data.id, { ...pendNova.data, local: 'x' })).erro, (await cancelarPendencia(pendNova.data.id, 'x')).erro,
+], ['Pendência resolvida não muda mais.', 'Pendência resolvida não se cancela.'])
+conferir('cancelar pede motivo; cancelada sai e volta com reativar', [
+  (await cancelarPendencia(pendAlt.data.id, ' ')).erro,
+  (await cancelarPendencia(pendAlt.data.id, 'Registro em duplicidade')).data?.cancelada,
+  (await avancarPendencia(pendAlt.data.id, 'Em andamento')).erro,
+  (await reativarPendencia(pendAlt.data.id)).data?.cancelada,
+], ['Diga por que está cancelando.', true, 'Pendência cancelada: reative para mexer.', false])
+await entrar('p-lucas'); definirObraAtual('obra-vn')
+conferir('equipe altera, mas não cancela', [
+  (await alterarPendencia('pq-vn-6', { ...mock.pendencias.find((x) => x.id === 'pq-vn-6'), pavimento: 'Térreo, junto à escada' })).erro,
+  (await cancelarPendencia('pq-vn-6', 'teste')).erro,
+], [null, 'Só o engenheiro cancela pendências.'])
+conferir('equipe registra e anota; INSS sem as da ARRECIFES', [
+  (await anotarPendencia('pq-vn-2', 'Eletricista na obra.')).erro, (await listarPendencias()).data.every((p) => p.obra_id === 'obra-vn'),
+], [null, true])
+await entrar('p-dir'); definirObraAtual('obra-vn')
+conferir('diretoria vê, mas não registra', [(await listarPendencias()).erro, (await anotarPendencia('pq-vn-2', 'x')).erro !== null], [null, true])
+await entrar('p-fiscal'); definirObraAtual('obra-vn')
+conferir('fiscalização não vê as pendências', (await listarPendencias()).erro !== null, true)
+
+// 22. Qualidade, FVS: fichas, vistorias e NCs por obra; engenheiro e equipe vistoriam; só o engenheiro aprova e edita ficha.
+await entrar('p-eng'); definirObraAtual('obra-ba')
+conferir('ARRECIFES: as duas fichas dela, sem vistoria nem NC', [
+  (await listarModelosFvs()).data.map((m) => m.id), (await listarVistoriasFvs()).data.length, (await listarNcs()).data.length,
+], [['mf-ba-1', 'mf-ba-2'], 0, 0])
+conferir('ficha de outra obra não abre vistoria aqui', (await iniciarVistoriaFvs({ modelo_id: 'mf-vn-1', ambiente: 'Banheiro' })).erros?.modelo_id !== undefined, true)
+const vistNova = await iniciarVistoriaFvs({ modelo_id: 'mf-ba-2', ambiente: 'Vestiário · Canteiro' })
+conferir('vistoria nova: na obra, com a cópia da ficha, toda pendente', [vistNova.data?.obra_id, vistNova.data?.grupos.length, Object.keys(vistNova.data?.respostas ?? {}).length], ['obra-ba', 2, 0])
+const itensBA = vistNova.data.grupos.flatMap((g) => g.itens.map((it) => it.id))
+conferir('não finaliza com pendente; NC só pelo painel', [
+  (await finalizarVistoriaFvs(vistNova.data.id)).erro, (await responderItemFvs(vistNova.data.id, itensBA[0], 'NC')).erro,
+], ['Faltam 7 itens para verificar.', 'Registre a não conformidade no painel do item.'])
+const ncNova = await registrarNcFvs(vistNova.data.id, itensBA[0], { descricao: 'Base fora do prumo', solucao: 'Regularizar com argamassa', severidade: 'Média', responsavel_id: 'r-silva' })
+conferir('NC registrada: NC-001 da ARRECIFES, Aberta, item marcado NC, linha do tempo com quem abriu', [
+  ncNova.data?.nc.codigo, ncNova.data?.nc.obra_id, ncNova.data?.nc.status, ncNova.data?.vistoria.respostas[itensBA[0]], ncNova.data?.nc.timeline[0].texto,
+], ['NC-001', 'obra-ba', 'Aberta', 'NC', 'Aberta por Engenheiro Responsável'])
+for (const id of itensBA.slice(1)) await responderItemFvs(vistNova.data.id, id, 'OK')
+conferir('finaliza sem pendente e trava', [(await finalizarVistoriaFvs(vistNova.data.id)).data?.status, (await responderItemFvs(vistNova.data.id, itensBA[1], 'N.A.')).erro],
+  ['Concluída', 'Vistoria concluída: só leitura.'])
+const fichaEditada = await salvarModeloFvs({ ...mock.modelosFvs.find((m) => m.id === 'mf-ba-2'), nome: 'Revestimento Cerâmico de parede' })
+conferir('editar ficha sobe a versão e não mexe na vistoria já aberta', [fichaEditada.data?.versao, (await listarVistoriasFvs()).data.find((v) => v.id === vistNova.data.id).nome_modelo],
+  [2, 'Revestimento Cerâmico'])
+await entrar('p-lucas'); definirObraAtual('obra-ba')
+conferir('equipe encaminha e marca corrigida, mas não aprova nem edita ficha', [
+  (await moverNc(ncNova.data.nc.id, 'Encaminhada')).data?.status, (await moverNc(ncNova.data.nc.id, 'Corrigida')).data?.status,
+  (await moverNc(ncNova.data.nc.id, 'Fechada')).erro, (await salvarModeloFvs({ nome: 'X', categoria: 'Estrutura', grupos: [{ nome: 'G', itens: [{ titulo: 'i' }] }] })).erro,
+], ['Encaminhada', 'Corrigida', 'Só o engenheiro aprova ou reprova a correção.', 'Só o engenheiro cria ou edita fichas de FVS.'])
+await entrar('p-eng'); definirObraAtual('obra-ba')
+const fechada = await moverNc(ncNova.data.nc.id, 'Fechada')
+conferir('engenheiro aprova e fecha: data de fechamento e linha do tempo', [fechada.data?.fechada_em, fechada.data?.timeline.length, fechada.data?.timeline.at(-1).texto], [hojeISO(), 4, 'Aprovada e fechada (Engenheiro Responsável)'])
+const vistFotos = await iniciarVistoriaFvs({ modelo_id: 'mf-ba-1', ambiente: 'Banheiro do canteiro' })
+const itemFotos = vistFotos.data.grupos[0].itens[0].id
+const ncDados = { descricao: 'x', solucao: 'y', severidade: 'Baixa', responsavel_id: 'r-silva' }
+conferir('NC com mais de 3 fotos é recusada pela camada; com 3, passa', [
+  (await registrarNcFvs(vistFotos.data.id, itemFotos, { ...ncDados, fotos: [1, 2, 3, 4].map(() => ({ url_previa: null, tamanho_bytes: 10 })) })).erros?.fotos,
+  (await registrarNcFvs(vistFotos.data.id, itemFotos, { ...ncDados, fotos: [1, 2, 3].map(() => ({ url_previa: null, tamanho_bytes: 10 })) })).data?.nc.fotos.length,
+], ['No máximo 3 fotos por não conformidade.', 3])
+conferir('NC de outra obra não se move daqui', (await moverNc('nc-vn-4', 'Encaminhada')).erro !== null, true)
+definirObraAtual('obra-vn')
+conferir('INSS: 2 vistorias e 4 NCs dela, sem as da ARRECIFES', [(await listarVistoriasFvs()).data.length, (await listarNcs()).data.map((n) => n.codigo)], [2, ['NC-001', 'NC-002', 'NC-003', 'NC-004']])
+await entrar('p-fiscal'); definirObraAtual('obra-vn')
+conferir('fiscalização não vê a FVS', [(await listarVistoriasFvs()).erro !== null, (await listarNcs()).erro !== null], [true, true])
+
+// 23. Qualidade, Gemba Walk: observações por obra; engenheiro e equipe registram e movem; só o engenheiro cancela.
+await entrar('p-eng'); definirObraAtual('obra-ba')
+conferir('ARRECIFES: só a observação dela, com o nome', (await listarObservacoesGemba()).data.map((o) => [o.id, o.responsavel]), [['gw-ba-1', 'Empreiteira Silva & Filhos']])
+const obsNova = await salvarObservacaoGemba({ local: 'Laje', descricao: 'Fôrma cortada sob medida e jogada fora', causa_raiz: '', acao: 'Reaproveitar as fôrmas', desperdicios: ['Retrabalho', 'Estoque'], responsavel_id: 'r-silva', prazo: '' })
+conferir('observação nova na obra escolhida, número seguinte, Pendente, sem prazo', [obsNova.data?.obra_id, obsNova.data?.numero, obsNova.data?.status, obsNova.data?.prazo], ['obra-ba', 2, 'Pendente', null])
+conferir('responsável de outra obra e desperdício fora da lista são recusados', Object.keys((await salvarObservacaoGemba({ local: 'x', descricao: 'y', acao: 'z', desperdicios: ['Atraso'], responsavel_id: 'r-pedra' })).erros ?? {}),
+  ['desperdicios', 'responsavel_id'])
+conferir('observação de outra obra não se move nem se altera daqui', [
+  (await moverObservacaoGemba('gw-vn-1', 'Resolvido')).erro !== null, (await salvarObservacaoGemba({ ...mock.observacoesGemba.find((o) => o.id === 'gw-vn-1'), local: 'x' })).erro,
+], [true, 'Observação não encontrada nesta obra.'])
+conferir('move para a frente e para trás; resolvido grava a data e voltar apaga', [
+  (await moverObservacaoGemba(obsNova.data.id, 'Resolvido')).data?.resolvido_em, (await moverObservacaoGemba(obsNova.data.id, 'Em andamento')).data?.resolvido_em,
+], [hojeISO(), null])
+conferir('alterar grava os dados', (await salvarObservacaoGemba({ ...obsNova.data, local: 'Laje do 1º pavimento', prazo: addDias(hojeISO(), 2) })).data?.local, 'Laje do 1º pavimento')
+await entrar('p-lucas'); definirObraAtual('obra-ba')
+conferir('equipe registra e move, mas não cancela', [
+  (await moverObservacaoGemba(obsNova.data.id, 'Pendente')).erro, (await cancelarObservacaoGemba(obsNova.data.id, 'x')).erro,
+], [null, 'Só o engenheiro cancela observações.'])
+await entrar('p-eng'); definirObraAtual('obra-ba')
+conferir('cancelar pede motivo; cancelada não anda e volta com reativar', [
+  (await cancelarObservacaoGemba(obsNova.data.id, ' ')).erro, (await cancelarObservacaoGemba(obsNova.data.id, 'Duplicada')).data?.cancelada,
+  (await moverObservacaoGemba(obsNova.data.id, 'Resolvido')).erro, (await reativarObservacaoGemba(obsNova.data.id)).data?.cancelada,
+], ['Diga por que está cancelando.', true, 'Observação cancelada: reative para mexer.', false])
+definirObraAtual('obra-vn')
+conferir('INSS: as 7 dela, sem as da ARRECIFES', (await listarObservacoesGemba()).data.map((o) => o.obra_id), Array(7).fill('obra-vn'))
+await entrar('p-dir'); definirObraAtual('obra-vn')
+conferir('diretoria vê, mas não registra', [(await listarObservacoesGemba()).erro, (await moverObservacaoGemba('gw-vn-1', 'Resolvido')).erro !== null], [null, true])
+await entrar('p-fiscal'); definirObraAtual('obra-vn')
+conferir('fiscalização não vê o Gemba', (await listarObservacoesGemba()).erro !== null, true)
 
 console.log(`${ok}/${tot} — multi-obra`)
 process.exit(ok === tot ? 0 : 1)

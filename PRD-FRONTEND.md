@@ -42,9 +42,9 @@ O **seletor de obra** fica no alto de todas as telas, menos no Login e no aviso 
 ```
 Login  →  Conta aguardando liberação
 │
-├── Engenheiro:      Painel do mês · Diário · Orçamento · Planejamento · Materiais · Medição cliente · Medição empreiteiros · Cadastro · Ajustes · Recados (F2)
-├── Diretoria:       Painel do mês · Diário (aba Fotos ainda não feita) · Orçamento · Planejamento · Materiais · Medição cliente · Medição empreiteiros · Cadastro · Meu perfil · Recados (F2)
-├── Equipe da obra:  Lançar o dia · Painel do mês · Materiais · Planejamento · Orçamento (sem R$) · Meu perfil
+├── Engenheiro:      Painel do mês · Diário · Orçamento · Planejamento · Materiais · Qualidade · Medição cliente · Medição empreiteiros · Cadastro · Ajustes · Recados (F2)
+├── Diretoria:       Painel do mês · Diário (aba Fotos ainda não feita) · Orçamento · Planejamento · Materiais · Qualidade · Medição cliente · Medição empreiteiros · Cadastro · Meu perfil · Recados (F2)
+├── Equipe da obra:  Lançar o dia · Painel do mês · Materiais · Qualidade · Planejamento · Orçamento (sem R$) · Meu perfil
 └── Fiscalização:    Avanço por serviço (F2) · Fotos da semana (F2) · Meu perfil
 ```
 
@@ -499,6 +499,39 @@ Cada card é um **pedido/lote** ("50 sacos de cimento") que anda por 5 colunas: 
 - **Comprar** pede fornecedor e previsão de entrega (nasce com hoje). **Receber** abre o **checklist**: a quantidade bate com a nota? (sim/não), chegou em perfeito estado? (sim/não), avarias (opcional) e foto da nota (opcional, comprimida até 5 MB, com prévia). Um "não" marca o card com alerta. **Entregar** confirma a frente de aplicação; o card sai do quadro e aparece com **"Ver entregues"**.
 - Cada mudança grava {situação, data} no histórico; é dele que saem os dias na coluna e o lead time. O card muda de coluna na hora (otimista); se a gravação falhar, volta e avisa.
 - **No celular**, uma coluna por vez (abas), como os outros quadros do app; a partir de 900 px, as colunas lado a lado.
+
+---
+
+## Tela: Qualidade (desde 29/10/2026)
+
+**Quem acessa:** Engenheiro e Equipe da obra (registram e movem), Diretoria (vê). Fiscalização não vê, por enquanto. Nada de R$.
+**Chega aqui por:** menu **Qualidade** (depois de Materiais).
+**Decidido pelo engenheiro em 29/10/2026:** entra agora, em quatro etapas (Pendências, FVS, Gemba Walk, relatório para imprimir). Empresa que corrige e responsável vêm do **Cadastro › Responsáveis**. Não confundir com "Recados e pendências" (Fase 2).
+
+Abas no alto: **Pendências · FVS · Gemba Walk**.
+
+**Aba Pendências (Etapa 1):** cada registro é um problema achado na vistoria: nº (#1, #2… por obra), foto, descrição, local, pavimento (opcional), empresa que corrige, quem acompanha, data da vistoria (nasce com hoje, sem data futura), quem vistoriou (quem registrou), prazo (nasce com hoje + 7 dias; não antes da vistoria) e situação **Pendente → Em andamento → Resolvido**.
+- **No alto:** 4 números com borda colorida (Total, Pendentes em vermelho, Em andamento em âmbar, Resolvidos em verde); 2 por linha no celular, 4 no computador. Depois, **"Em aberto por responsável"**, da maior para a menor (toca para filtrar; rola para o lado no celular).
+- **Filtros:** busca (descrição, local, pavimento; sem acento), situação, responsável e prazo (**Todos · Atrasados · Hoje · Esta semana**).
+- **Grade de cards** (1 coluna no celular, 2 no tablet, 3 no computador grande): nº e situação no alto, foto grande, descrição (2 linhas), local, responsável e prazo. **"Vencido"** em vermelho quando o prazo passou e não foi resolvida. Resolvida fica com a foto **cinza** e o card apagado. Ordem: vencidas, depois pelo prazo; resolvidas no fim.
+- **Nova pendência:** botão redondo de **câmera** no canto (celular) ou "＋ Nova pendência" (computador). A foto abre a câmera, é comprimida até 5 MB e mostra a prévia.
+- **Detalhe** (toca no card): fotos (problema e, depois, correção), dados, **"Colocar em andamento"** e **"Resolver"** — resolver **pede a foto da correção** e grava a data. **Observações** a qualquer momento: a nova entra em cima, com **[DD/MM/AAAA HH:MM]** e quem escreveu.
+- **Alterar dados** (no detalhe; Engenheiro e Equipe): enquanto a pendência não está resolvida nem cancelada, todos os campos e a foto podem ser corrigidos; o que mudou entra sozinho nas observações ("Dados alterados: local, prazo.").
+- **Cancelar** (só o Engenheiro; pedido de 29/10/2026): no fim do detalhe, com **motivo obrigatório** e confirmação. Não apaga: sai da grade e dos números, o motivo entra nas observações e ela aparece no filtro de situação **"Canceladas"**, com **"Reativar"**. Resolvida não se cancela.
+- **Relatório** (botão no alto do módulo, ao lado das abas; vale de qualquer aba): abre a versão para imprimir. Cabeçalho (HCL Engenharia, "RELATÓRIO DE QUALIDADE", obra, data e os filtros ativos das abas Pendências e Gemba Walk). **Pendências:** os 4 números, "em aberto por responsável" e cada pendência com a foto à esquerda (120 px no papel), os dados em duas colunas, descrição e observações — só as que os filtros da aba mostram. **FVS:** os 3 números, a tabela de andamento (ficha e ambiente, OK, NC, % de conformidade, situação) e a tabela das NCs (código, item, severidade, situação, responsável, dias em aberto). **Gemba Walk:** o ranking dos desperdícios e as observações em aberto, com os filtros da aba. Rodapé "Relatório gerado automaticamente em…". No papel sai só o relatório (12 px, cores mantidas, nenhum registro ou linha de tabela partido entre páginas).
+- Muda na hora (otimista); se a gravação falhar, volta e avisa.
+
+**Aba Gemba Walk (Etapa 3, caça aos desperdícios):** cada registro é uma **observação**: local, o que se viu, causa raiz (opcional), o que será feito, responsável (Cadastro), prazo (opcional; nasce com hoje + 7 e pode ficar em branco), foto (opcional) e **um ou mais dos 7 desperdícios**: Retrabalho, Espera, Transporte, Movimentação, Estoque, Superprodução, Processo desnecessário (cada um com a sua cor).
+- **"Onde a obra mais perde"** no alto: ranking dos desperdícios (quantas observações citam cada um, do maior para o menor, com barra). Tocar num desperdício filtra o quadro.
+- **Quadro de três colunas** (Pendente · Em andamento · Resolvido; no celular, empilhadas): card com foto (se tiver), local, descrição (2 linhas), etiquetas coloridas, responsável e prazo (selo vermelho "Vencido"). Muda de coluna pelo seletor do card ou pelos botões do detalhe, para a frente ou para trás (sem arrastar). Resolvido grava a data e fica acinzentado.
+- **Filtros:** desperdício, prazo (Todos, Vencidos, Hoje, Esta semana, Sem prazo) e busca (local, descrição, causa e ação).
+- Engenheiro e equipe registram, alteram e movem; **só o engenheiro cancela** (com motivo, sem apagar: sai do quadro e do ranking, fica em "Canceladas", com Reativar).
+
+**Aba FVS (Etapa 2, Ficha de Verificação de Serviço):** no alto, 3 números: **% conforme geral** (OK ÷ (OK + NC) somando todas as vistorias), **NCs em aberto** e **vistorias concluídas**. Três partes:
+- **Vistorias:** cards com a ficha, o ambiente, a situação (Em andamento / ✓ Concluída), a **barra do andamento** (verde OK, vermelho NC, cinza N.A., trilho pendente), "X de Y itens verificados" e a % de conformidade. **"＋ Nova vistoria"**: escolhe a ficha e o ambiente (texto livre, ex.: "Banheiro Social · Térreo") e abre o checklist. A vistoria guarda a **cópia da ficha do dia**: editar a ficha depois não muda o que já foi vistoriado.
+- **Checklist:** itens numerados por grupo (1.1, 1.2, 2.1…), cada um com **OK | NC | N.A.**; tocar de novo na resposta desmarca. **NC abre o painel da não conformidade**: até 3 fotos (comprimidas, com prévia), descrição, solução proposta, severidade (Baixa, Média, Alta) e responsável (Cadastro); ao registrar, nasce a NC (NC-001…) ligada ao item, e o item fica NC (não volta). **"Finalizar vistoria"** só sem item pendente (pergunta antes); concluída fica só leitura, com o selo "✓ Concluída em…".
+- **Não conformidades:** lista com código, item, ficha · ambiente, situação, severidade, responsável e **dias em aberto** (filtro Em aberto / Todas; em aberto primeiro, Alta na frente). Detalhe com fotos, problema, solução e a **linha do tempo** (cada passo com data, hora e quem). Fluxo: **Aberta → "Encaminhar p/ correção" → Encaminhada → "Marcar corrigida" → Corrigida → "Aprovar e fechar" (Fechada) ou "Reprovar" (volta para Encaminhada)**. Aprovar e reprovar: só o Engenheiro.
+- **Fichas:** lista com código (FVS-01…), nome, categoria (Impermeabilização, Estrutura, Instalações, Acabamento), versão e quantidade de itens ("Ver os itens"). Só o Engenheiro cria e edita (grupos e itens; tirar item ou grupo com texto pergunta antes); **editar sobe a versão**. Toda obra nasce com 2 fichas: "Impermeabilização — Áreas Molhadas" (3 grupos, 9 itens) e "Revestimento Cerâmico" (2 grupos, 7 itens).
 
 ---
 

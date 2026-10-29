@@ -39,7 +39,7 @@ Uma pergunta decide: **"isto continuaria verdade se a tela fosse outra?"**
 
 1. `if` de negócio dentro de tela vai para `lib`, mesmo com três linhas.
 2. Constante compartilhada tem um dono só: papéis e menus em `perfis.js`; situações de obra, tipos de responsável e próprio/locado
-   do equipamento em `obras.js`; de medição em `medicao.js`; de contrato e boletim de empreiteiro em `empreiteiros.js`; situação e prioridade do pedido de material e cores das categorias de material em `materiais.js`; clima em `diario.js`; situação de serviço em `painel.js`;
+   do equipamento em `obras.js`; de medição em `medicao.js`; de contrato e boletim de empreiteiro em `empreiteiros.js`; situação e prioridade do pedido de material e cores das categorias de material em `materiais.js`; nome da construtora (cabeçalho dos relatórios) em `obras.js`; situação da pendência de qualidade, da vistoria FVS, da não conformidade, da observação do Gemba e os 7 tipos de desperdício em `qualidade.js`; clima em `diario.js`; situação de serviço em `painel.js`;
    fontes e origem do item do orçamento em `orcamento.js`; dias úteis e feriados em `calendario.js`;
    situação no prazo do cronograma em `planejamento.js`; tipos de restrição em `restricoes.js`;
    status do kanban, situação de subtarefa e causas em `curtoPrazo.js`.
