@@ -535,6 +535,50 @@ Abas no alto: **Pendências · FVS · Gemba Walk**.
 
 ---
 
+## Tela: Relatórios (desde 29/10/2026)
+
+**Decidido pelo engenheiro em 29/10/2026:** o BI da obra, para o **Engenheiro e a Diretoria** (a equipe e a fiscalização não veem). Feito em quatro etapas. Gráficos feitos à mão (CSS e SVG), sem biblioteca. Cada painel lê o seu módulo na obra aberta; painel sem dado mostra "Sem dados ainda", diz onde lançar e leva ao módulo — nunca NaN. As contas moram em `src/lib/relatorios.js`.
+
+**Painel Executivo (Etapa 1):**
+- **Evolução:** % real × % planejado hoje ("47% | plan 59%"), com seta verde (à frente) ou vermelha (atrás) e a diferença em pontos. Mesma conta do Planejamento: só os itens da EAP com datas, ponderados pelo valor; o planejado conta os dias úteis do calendário da obra.
+- **Prazo:** dias corridos até a data de entrega da obra (depois dela, "dias de atraso").
+- **Custo medido:** R$ somado das medições do cliente já **fechadas** (Medição cliente).
+- **Curva S:** uma linha por semana, do início mais cedo da EAP ao fim mais tarde: planejado acumulado (cinza tracejado) e real acumulado (turquesa, com área), marca de hoje (na semana atual, planejado e real medidos no mesmo dia, hoje); passar o mouse mostra a semana. No celular o gráfico rola de lado.
+- **PPC geral:** donut com as atividades do Kanban concluídas ÷ planejadas nas últimas 8 semanas (mesma regra do Curto prazo).
+
+**Painel Ritmo e produção (Etapa 2):**
+- **PPC semanal:** uma coluna por semana (as mesmas 8), verde = concluídas, vermelho = não concluídas, altura pelo total de atividades e a % em cima. A semana atual aparece mais clara, marcada "atual" (ainda em andamento).
+- **Pareto das causas:** as causas das atividades e subtarefas não realizadas nessas 8 semanas (sem as tiradas da semana pelo engenheiro), da mais frequente para a menos, com a % e a % acumulada; empate em ordem alfabética.
+- **Clima e efetivo:** os últimos 15 diários; coluna = pessoas na obra no dia (efetivo somado), ícone em cima = clima do dia (o pior entre manhã e tarde: sol, nuvem, chuva, chuva forte), dia com chuva com fundo azulado. Passar o mouse mostra o dia.
+
+**Painel Contratos e medições (Etapa 3, empreiteiros):**
+- **Fluxo dos contratos:** 4 mini-cartões (Em elaboração, Enviado p/ aprovação, Aprovado / Ativo, Concluído) com a quantidade e o R$ de cada etapa; contrato ainda sem valor conta, soma R$ 0 e aparece como "sem valor".
+- **Empreiteiros:** tabela Empreiteiro | Valor total | % medido (barra dentro da célula) | Saldo a medir, só com os contratos aprovados/ativos e concluídos, do maior valor para o menor.
+- **Saldo a medir por contrato ativo:** barras em R$, do maior saldo para o menor — o que ainda vai sair do caixa.
+
+**Painel Materiais (Etapa 3, pedidos do Kanban):**
+- **Pedidos por etapa:** 5 mini-cartões com a contagem de cada coluna do Kanban.
+- **Atrasados:** cartão vermelho com a quantidade e a lista (material, frente, selo Crítico, dias de atraso) dos pedidos comprados com a previsão de entrega vencida; sem atraso, o cartão fica verde.
+- **Lead time médio:** dias do pedido à chegada no almoxarifado (a última chegada), dos pedidos que já chegaram; ao lado, a tendência das últimas 4 semanas (média por semana de chegada; semana sem chegada mostra "—").
+- Não há estoque (insumos) no app: essa parte do modelo não aparece.
+- No computador largo (1400 px ou mais), Contratos e Materiais ficam lado a lado.
+
+**Painel Qualidade e entrega (Etapa 4):**
+- **% conforme por ficha de FVS:** barras com a % na ponta (OK ÷ (OK + NC), somando as vistorias de cada ficha), da pior para a melhor; abaixo de 80% a barra fica vermelha.
+- **Pendências em aberto por empresa:** donut (conic-gradient) com o total no furo e a legenda (empresa, quantidade, %); com 6 empresas ou mais, as 4 maiores aparecem e o resto vira "Outras".
+- **Mapa das pendências por local:** blocos lado a lado, cada um maior e mais escuro conforme o número de pendências em aberto do local.
+- **Ranking de desperdícios:** o mesmo da aba Gemba Walk, com as cores de cada desperdício.
+- **Não conformidades em aberto:** faixa no alto do painel com quantas NCs da FVS estão em aberto (não fechadas) e quantas são de severidade alta; segue o filtro de empresa (responsável da NC).
+- Legendas: a barra da FVS fica vermelha abaixo de 80% (legenda "Abaixo de 80%"); no mapa, "bloco maior e mais escuro: mais pendências em aberto".
+
+**Filtros cruzados (Etapa 4):** barra no alto da tela (fixa no computador; no celular rola junto), valendo para todos os painéis:
+- **Empresa** (Cadastro › Responsáveis): serviços dela (Evolução, Curva S, PPC, Pareto), o efetivo dela no diário, os contratos dela, as pendências em que ela corrige, as NCs e as observações do Gemba dela. Pedidos de material e vistorias de FVS não têm empresa, e o Custo medido é da medição do cliente: esses ficam da obra toda, com um aviso.
+- **Período** (Tudo · Este mês · Últimas 4 semanas): o PPC e o Pareto usam as semanas da janela (Tudo = 8 semanas; "Este mês" começa na semana do dia 1); diários, vistorias e observações do Gemba contam a partir do início da janela; o lead time médio conta os pedidos que chegaram na janela; a Curva S começa no início da janela (os valores continuam acumulados). Pedidos (etapas e atrasados), pendências e NCs em aberto e contratos são a **situação de hoje**: o período não os esconde (um pedido atrasado antigo continua atrasado), e a tela avisa. Os KPIs de hoje (Evolução, Prazo, Custo medido) não mudam com o período.
+
+**Imprimir relatório executivo (Etapa 4):** abre por cima do app a versão para imprimir, como o relatório da Qualidade: cabeçalho centralizado (HCL Engenharia, "RELATÓRIO EXECUTIVO DA OBRA", obra, data e os filtros ativos), os 5 painéis empilhados com os mesmos filtros, e o rodapé "Gerado automaticamente em…". No papel sai só o relatório, com as cores, sem os botões, os gráficos sem rolagem e nenhum gráfico partido entre páginas.
+
+---
+
 ## Tela: Recados e pendências (F2)
 
 **Quem acessa:** Engenheiro e Diretoria.

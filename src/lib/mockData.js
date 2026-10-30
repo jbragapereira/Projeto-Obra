@@ -189,6 +189,8 @@ export const pedidosMaterial = [
     { fornecedor: 'Gesso Nordeste', previsao_entrega: d(-5), recebimento: { qtd_bate_nf: true, estado_ok: false, avarias: '3 sacos rasgados na descarga', foto_nf: null } }),
   pedido('pm-vn-9', 'vn', 4, 2, 'Fachada', 'Normal', hist(['Solicitar', -25], ['Em cotação', -22], ['Comprado / a caminho', -18], ['No almoxarifado', -14], ['Entregue na frente', -10]),
     { fornecedor: 'Cerâmica Paudalho', previsao_entrega: d(-15), recebimento: { qtd_bate_nf: true, estado_ok: true, avarias: '', foto_nf: null }, frente_aplicada: 'Fachada' }),
+  pedido('pm-vn-10', 'vn', 3, 8, 'Contrapiso do térreo', 'Normal', hist(['Solicitar', -30], ['Em cotação', -28], ['Comprado / a caminho', -26], ['No almoxarifado', -22], ['Entregue na frente', -21]),
+    { fornecedor: 'Pedreira Jordão', previsao_entrega: d(-23), recebimento: { qtd_bate_nf: true, estado_ok: true, avarias: '', foto_nf: null }, frente_aplicada: 'Contrapiso do térreo' }),
   pedido('pm-ba-1', 'ba', 1, 80, 'Canteiro de obras', 'Normal', hist(['Solicitar', -2])),
   pedido('pm-ba-2', 'ba', 3, 12, 'Base do reservatório', 'Crítico', hist(['Solicitar', -7], ['Em cotação', -5], ['Comprado / a caminho', -2]),
     { fornecedor: 'Pedreira Jordão', previsao_entrega: d(3) }),
@@ -211,6 +213,9 @@ export const pendencias = [
     { em_andamento_em: d(-12), resolvido_em: d(-8), foto_evidencia: { url_previa: null, tamanho_bytes: 1 },
       observacoes: `[${d(-8).split('-').reverse().join('/')} 16:40] Calha desentupida e forro trocado.` }),
   pendencia('pq-vn-6', 'vn', 6, 'Disjuntor sem identificação no quadro', 'Quadro elétrico do térreo', 'Térreo', 'r-ponto', 'r-vn-prop', -1, 4, 'Pendente'),
+  pendencia('pq-vn-7', 'vn', 7, 'Barra de apoio do vaso solta', 'Banheiro acessível masculino', 'Térreo', 'r-pedra', 'r-pedra', -4, 2, 'Em andamento',
+    { em_andamento_em: d(-2) }),
+  pendencia('pq-vn-8', 'vn', 8, 'Espelho inclinado fora da altura de norma', 'Banheiro acessível masculino', 'Térreo', 'r-pedra', 'r-vn-prop', -4, 5, 'Pendente'),
   pendencia('pq-ba-1', 'ba', 1, 'Tapume do canteiro solto na esquina', 'Canteiro de obras', '', 'r-silva', 'r-ba-prop', -2, 1, 'Pendente'),
 ]
 // Qualidade, aba FVS: as fichas (modelos) de cada obra, as vistorias (com a cópia da ficha do dia em que

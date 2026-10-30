@@ -1025,3 +1025,159 @@ label.btn:focus-within { outline: 3px solid var(--brand); outline-offset: 2px }
 @media (min-width: 900px) {
   .gem-kanban { grid-template-columns: repeat(3, minmax(0, 1fr)) }
 }
+
+/* Relatórios (o BI da obra): painéis em cartões (2 colunas no computador), KPIs, gráficos feitos com SVG
+   (Curva S) e CSS (donut com conic-gradient), e o aviso "Sem dados ainda". */
+.bi { display: grid; gap: var(--s4) }
+.bi-painel { padding: 0; break-inside: avoid; page-break-inside: avoid }
+.bi-painel-h { padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line) }
+.bi-painel-h h2 { margin: 0; font-size: 18px }
+.bi-painel-h p { margin: 2px 0 0; font-size: 13.5px; color: var(--slate) }
+.bi-painel-b { padding: var(--s4); display: grid; gap: var(--s4) }
+.bi-kpis { display: grid; grid-template-columns: 1fr; gap: var(--s2) }
+.bi-kpi { --c: var(--brand); display: flex; flex-direction: column; gap: 2px; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: var(--r-card); background: var(--card) }
+.bi-kpi.ok { --c: var(--ok) } .bi-kpi.red { --c: var(--red) }
+.bi-kpi .lbl { font-size: 13px; font-weight: 600; color: var(--slate) }
+.bi-kpi .num { font-family: var(--display); font-stretch: 80%; font-size: 32px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums }
+.bi-kpi .num small { font-size: 16px; font-weight: 600; color: var(--slate) }
+.bi-kpi .sub { font-size: 13px; color: var(--slate) }
+.bi-kpi.ok .sub { color: var(--ok) } .bi-kpi.red .sub { color: var(--red-d) }
+.bi-dupla { display: grid; gap: var(--s4) }
+.bi-grafico { margin: 0; display: flex; flex-direction: column; gap: var(--s2); min-width: 0 }
+.bi-grafico figcaption { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); flex-wrap: wrap; font-size: 14px }
+.bi-legenda { display: inline-flex; gap: var(--s3); flex-wrap: wrap; font-size: 12.5px; color: var(--slate) }
+.bi-leg { display: inline-flex; align-items: center; gap: 5px }
+.bi-leg i { width: 14px; height: 4px; border-radius: 2px; background: var(--brand) }
+.bi-leg i.plan { background: #8A979E } .bi-leg i.cinza { background: var(--track); height: 10px; width: 10px }
+.bi-leg i.real { height: 10px; width: 10px }
+.bi-rola { overflow-x: auto }
+.bi-svg { display: block; width: 100%; min-width: 480px; height: auto }
+.bi-grade { stroke: var(--line); stroke-width: 1 }
+.bi-eixo { font-size: 11px; fill: var(--slate); font-family: var(--sans) }
+.bi-eixo.forte { fill: var(--ink); font-weight: 600 }
+.bi-hoje { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3 }
+.bi-area { fill: var(--brand); opacity: .14 }
+.bi-linha { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round }
+.bi-linha.plan { stroke: #8A979E; stroke-dasharray: 6 4 }
+.bi-linha.real { stroke: var(--brand-d) }
+.bi-alvo { fill: transparent }
+.bi-alvo:hover { fill: rgba(38, 51, 58, .05) }
+.bi-donut-caixa { display: flex; flex-direction: column; align-items: center; gap: var(--s2); padding: var(--s2) 0 }
+.bi-donut { width: 168px; height: 168px; border-radius: 50%; background: conic-gradient(var(--brand) 0 var(--p), var(--track) var(--p) 100%); display: grid; place-items: center }
+.bi-donut-furo { width: 112px; height: 112px; border-radius: 50%; background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center }
+.bi-donut-furo b { font-family: var(--display); font-stretch: 80%; font-size: 34px; line-height: 1 }
+.bi-donut-furo span { font-size: 12px; color: var(--slate) }
+.bi-nota { font-size: 13px; color: var(--slate); text-align: center }
+.bi-sem-dados { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 180px; padding: var(--s4); border: 1.5px dashed var(--line); border-radius: var(--r-card); color: var(--slate); text-align: center; font-size: 13.5px }
+.bi-sem-dados b { color: var(--ink); font-size: 15px }
+@media (min-width: 640px) {
+  .bi-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) }
+}
+@media (min-width: 1100px) {
+  .bi-dupla { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) }
+}
+/* Relatórios › Ritmo e produção: colunas empilhadas do PPC, barras horizontais (Pareto) e o gráfico de clima. */
+.bi-leg i.sim { background: var(--ok); height: 10px; width: 10px } .bi-leg i.nao { background: var(--red); height: 10px; width: 10px }
+.bi-leg i.chuva { background: #DCEBF7; height: 10px; width: 10px; box-shadow: inset 0 0 0 1px #B9D3EA }
+.bi-colunas { display: flex; align-items: stretch; gap: 6px; min-width: 420px; height: 200px }
+.bi-coluna { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0 }
+.bi-coluna-v { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums }
+.bi-coluna-trilho { flex: 1; width: 100%; max-width: 44px; display: flex; flex-direction: column; justify-content: flex-end; border-bottom: 1px solid var(--line) }
+.bi-pilha { display: flex; flex-direction: column; gap: 2px; min-height: 4px }
+.bi-pilha i { display: block; min-height: 3px }
+.bi-pilha i:first-child { border-radius: 4px 4px 0 0 }
+.bi-pilha .sim { background: var(--ok) } .bi-pilha .nao { background: var(--red) }
+.bi-coluna-x { font-size: 11px; color: var(--slate) }
+.bi-barras-h { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px }
+.bi-barras-h li { display: grid; grid-template-columns: minmax(90px, 130px) 1fr auto; align-items: center; gap: var(--s2); font-size: 14px }
+.bi-barras-h .nome { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.bi-barras-h .trilho { height: 14px; background: var(--track); border-radius: 0 4px 4px 0 }
+.bi-barras-h .barra { display: block; height: 100%; background: var(--brand-d); border-radius: 0 4px 4px 0 }
+.bi-barras-h .valor { font-variant-numeric: tabular-nums; white-space: nowrap }
+.bi-barras-h .valor small { color: var(--slate); font-size: 12px }
+.bi-efetivo { fill: var(--brand) }
+.bi-chuva { fill: #DCEBF7 }
+.bi-sol { fill: var(--amber) }
+.bi-nuvem { fill: #B7C3C9 }
+.bi-gota { stroke: #3B7DBF; stroke-width: 1.5; stroke-linecap: round }
+@media (min-width: 1100px) {
+  .bi-dupla.meio { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) }
+}
+.bi-coluna.atual .bi-pilha { opacity: .55 }
+.bi-coluna.atual .bi-coluna-x { font-weight: 700; color: var(--ink) }
+/* Relatórios › Contratos e Materiais: mini-cartões de contagem, tabela com barra na célula, barras em R$,
+   o cartão dos atrasados e o lead time. No computador largo, os dois painéis ficam lado a lado. */
+.bi-par { display: grid; gap: var(--s4); align-items: start }
+.bi-contagens { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: var(--s2) }
+.bi-contagem { display: flex; flex-direction: column; gap: 2px; padding: var(--s2) var(--s3); border: 1px solid var(--line); border-top: 3px solid var(--brand); border-radius: var(--r-btn); background: var(--card) }
+.bi-contagem.zero { border-top-color: var(--track) }
+.bi-contagem .lbl { font-size: 12.5px; font-weight: 600; color: var(--slate); line-height: 1.25 }
+.bi-contagem b { font-family: var(--display); font-stretch: 80%; font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums }
+.bi-contagem.zero b { color: var(--slate) }
+.bi-contagem .sub { font-size: 12px; color: var(--slate) }
+.bi-tabela { width: 100%; min-width: 440px; border-collapse: collapse; font-size: 14px }
+.bi-tabela th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--slate); border-bottom: 1.5px solid var(--ink); padding: 6px 8px }
+.bi-tabela td { border-bottom: 1px solid var(--line); padding: 8px; vertical-align: middle }
+.bi-tabela td small { color: var(--slate); font-size: 12px }
+.bi-tabela .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.bi-celula-barra { position: relative; height: 22px; min-width: 110px; border-radius: 4px; background: var(--track); overflow: hidden }
+.bi-celula-barra span { position: absolute; inset: 0 auto 0 0; background: var(--brand); border-radius: 4px }
+.bi-celula-barra b { position: relative; display: block; line-height: 22px; padding-left: 8px; font-size: 13px; font-variant-numeric: tabular-nums }
+.bi-barras-h.largo li { grid-template-columns: minmax(120px, 190px) 1fr auto }
+.bi-barras-h .nome small { display: block; font-weight: 400; font-size: 12px; color: var(--slate); overflow: hidden; text-overflow: ellipsis }
+.bi-atrasados { padding: var(--s3) var(--s4); border-radius: var(--r-card); background: var(--red-tint); border: 1px solid #F3C2BD; border-left: 4px solid var(--red) }
+.bi-atrasados.nenhum { background: var(--ok-tint); border-color: #BFDFCB; border-left-color: var(--ok) }
+.bi-atrasados-h { display: flex; align-items: baseline; gap: 8px; font-weight: 600 }
+.bi-atrasados-h b { font-family: var(--display); font-stretch: 80%; font-size: 30px; color: var(--red-d) }
+.bi-atrasados.nenhum .bi-atrasados-h b { color: var(--ok) }
+.bi-atrasados ul { list-style: none; margin: var(--s2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px }
+.bi-atrasados li { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); font-size: 14px; border-top: 1px solid #F3C2BD; padding-top: 6px }
+.bi-atrasados li .pill { margin-left: 6px }
+.bi-atrasados li small { color: var(--slate) }
+.bi-atrasados .dias { font-weight: 700; color: var(--red-d); white-space: nowrap }
+.bi-atrasados .sub { font-size: 13px; color: var(--slate) }
+.bi-lead { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-height: 150px }
+.bi-lead b { font-family: var(--display); font-stretch: 80%; font-size: 44px; line-height: 1 }
+.bi-lead b small { font-size: 18px; color: var(--slate) }
+.bi-lead span { font-size: 13px; color: var(--slate) }
+.bi-colunas.baixo { height: 170px; min-width: 0 }
+.bi-pilha .lead { background: var(--brand-d); border-radius: 4px 4px 0 0 }
+@media (min-width: 1400px) {
+  .bi-par { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) }
+}
+.bi-barras-h.largo .nome { white-space: normal; line-height: 1.25 }
+/* Relatórios › Qualidade, filtros e relatório executivo: donut com legenda, treemap de locais, barra de
+   filtros fixa no alto, e o papel (painéis empilhados, gráficos sem rolagem, nada partido entre páginas). */
+.bi-barras-h .barra.baixa { background: var(--red) }
+.bi-barras-h .barra[class*="gem-cor-"] { background: var(--gc) }
+.bi-nota.esq { text-align: left; margin: 0 }
+.bi-donut-legenda { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s4); padding: var(--s2) 0 }
+.bi-legenda-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; min-width: 180px }
+.bi-legenda-lista li { display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 8px }
+.bi-legenda-lista i { width: 12px; height: 12px; border-radius: 3px }
+.bi-legenda-lista b { font-variant-numeric: tabular-nums }
+.bi-legenda-lista small { color: var(--slate); font-size: 12px; min-width: 34px; text-align: right }
+.bi-mapa { display: flex; flex-wrap: wrap; gap: 4px }
+.bi-mapa-bloco { display: flex; flex-direction: column; justify-content: space-between; min-height: 76px; padding: 8px 10px; border-radius: 4px; color: #fff; background: rgba(0, 124, 137, var(--forca)); overflow: hidden }
+.bi-mapa-bloco b { font-family: var(--display); font-stretch: 80%; font-size: 24px; line-height: 1 }
+.bi-mapa-bloco span { font-size: 13px; font-weight: 600; line-height: 1.2; text-shadow: 0 1px 1px rgba(0, 0, 0, .25) }
+.bi-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); padding: var(--s2) var(--s4); background: var(--paper); border-bottom: 1px solid var(--line) }
+.bi-filtros select { flex: 0 1 260px }
+.bi-filtros .filters { margin: 0 }
+.bi-imprimir { margin-left: auto }
+@media (min-width: 900px) {
+  .bi-filtros { position: sticky; top: 0; z-index: 6 }
+}
+.bi-papel .bi { gap: var(--s3) }
+.bi-papel .bi-svg, .bi-papel .bi-colunas, .bi-papel .bi-tabela { min-width: 0 }
+.bi-papel .bi-rola { overflow: visible }
+.bi-papel .bi-grafico { break-inside: avoid; page-break-inside: avoid }
+@media print {
+  .bi-papel .bi-par { grid-template-columns: 1fr }
+  .bi-papel .bi-painel { box-shadow: none }
+}
+.bi-ncs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: var(--s2) var(--s4); border-radius: var(--r-card); background: var(--red-tint); border-left: 4px solid var(--red); font-weight: 600 }
+.bi-ncs b { font-family: var(--display); font-stretch: 80%; font-size: 26px; color: var(--red-d) }
+.bi-ncs.nenhum { background: var(--ok-tint); border-left-color: var(--ok) }
+.bi-ncs.nenhum b { color: var(--ok) }
+.bi-ncs small { flex-basis: 100%; font-weight: 400; color: var(--slate) }

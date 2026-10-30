@@ -22,6 +22,8 @@ export const PRAZO_PADRAO_DIAS = 7
 // Prazo passou e ainda não foi resolvida (cancelada não vence).
 export const vencida = (p, hoje) => !p.cancelada && p.status !== RESOLVIDO && !!p.prazo && p.prazo < hoje
 const ativas = (lista) => lista.filter((p) => !p.cancelada)
+// Em aberto: nem resolvida nem cancelada.
+export const pendenciaEmAberto = (p) => !p.cancelada && p.status !== RESOLVIDO
 
 // A próxima situação no fluxo (Pendente → Em andamento → Resolvido), ou null.
 export const proximaSituacao = (status) => STATUS_PENDENCIA[STATUS_PENDENCIA.indexOf(status) + 1] ?? null
@@ -39,7 +41,7 @@ export function kpisPendencias(todas) {
 // Em aberto (não resolvidas) por responsável, da maior para a menor. nomeDe: { id: nome }.
 export function abertasPorResponsavel(lista, nomeDe = {}) {
   const conta = {}
-  for (const p of ativas(lista)) if (p.status !== RESOLVIDO) conta[p.responsavel_id] = (conta[p.responsavel_id] ?? 0) + 1
+  for (const p of lista.filter(pendenciaEmAberto)) conta[p.responsavel_id] = (conta[p.responsavel_id] ?? 0) + 1
   return Object.entries(conta)
     .map(([id, n]) => ({ id, nome: nomeDe[id] ?? '—', n }))
     .sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, 'pt-BR'))

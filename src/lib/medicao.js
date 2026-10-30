@@ -5,6 +5,7 @@ import { precoTotal, truncar2 } from './orcamento.js'
 import { addDias, diasEntre, ehDeMesesInteiros, rotuloDoMes } from './datas.js'
 
 export const SITUACOES_MEDICAO = ['Planejando', 'Em andamento', 'Fechada']
+export const MEDICAO_FECHADA = SITUACOES_MEDICAO[2]
 
 const centavos = (v) => Math.round(v * 100) / 100
 

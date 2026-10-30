@@ -24,9 +24,10 @@ const Planejamento = lazy(() => import('../screens/planejamento.jsx'))
 const Empreiteiros = lazy(() => import('../screens/empreiteiros.jsx'))
 const Qualidade = lazy(() => import('../screens/qualidade.jsx'))
 const Materiais = lazy(() => import('../screens/materiais.jsx'))
+const Relatorios = lazy(() => import('../screens/relatorios.jsx'))
 const Cadastro = lazy(() => import('../screens/cadastro.jsx'))
 
-const TELAS = { painel: Painel, diario: Diario, orcamento: Orcamento, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos, planejamento: Planejamento, empreiteiros: Empreiteiros, cadastro: Cadastro, materiais: Materiais, qualidade: Qualidade }
+const TELAS = { painel: Painel, diario: Diario, orcamento: Orcamento, medicao: Medicao, recados: Recados, ajustes: Ajustes, perfil: Perfil, avanco: Avanco, fotos: Fotos, planejamento: Planejamento, empreiteiros: Empreiteiros, cadastro: Cadastro, materiais: Materiais, qualidade: Qualidade, relatorios: Relatorios }
 
 export default function Shell({ profile, onSair }) {
   const { obras, obra, obraId, erro, trocarObra } = useObra()

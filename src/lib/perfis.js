@@ -28,6 +28,8 @@ export const veQualidade = (role) => podeVerValores(role) || podeLancar(role)
 export const podeRegistrarQualidade = (role) => podeLancar(role)
 // Cadastro (responsáveis com contato, funções, equipamentos, materiais): engenheiro e diretoria; só o engenheiro grava.
 export const veCadastro = (role) => podeVerValores(role)
+// Relatórios (o BI da obra): engenheiro e diretoria, que decidem e veem valores.
+export const veRelatorios = (role) => podeVerValores(role)
 
 // id = tela; rotulo = menu lateral; curto = barra inferior; fase2 = ainda não construída;
 // secundario = fica em "Mais" (celular) e no fim do menu lateral, fora do limite de 6 itens.
@@ -38,6 +40,7 @@ const MEDICAO = { id: 'medicao', rotulo: 'Medição cliente', curto: 'Med. clien
 const EMPREITEIROS = { id: 'empreiteiros', rotulo: 'Medição empreiteiros', curto: 'Empreiteiros', icone: 'ferramenta' }
 const MATERIAIS = { id: 'materiais', rotulo: 'Materiais', curto: 'Materiais', icone: 'material' }
 const QUALIDADE = { id: 'qualidade', rotulo: 'Qualidade', curto: 'Qualidade', icone: 'check' }
+const RELATORIOS = { id: 'relatorios', rotulo: 'Relatórios', curto: 'Relatórios', icone: 'avanco' }
 const CADASTRO = { id: 'cadastro', rotulo: 'Cadastro', curto: 'Cadastro', icone: 'perfil' }
 const RECADOS = { id: 'recados', rotulo: 'Recados', curto: 'Recados', icone: 'recados', fase2: true, secundario: true }
 const PERFIL = { id: 'perfil', rotulo: 'Meu perfil', curto: 'Perfil', icone: 'perfil' }
@@ -46,14 +49,14 @@ export const MENUS = {
   Engenheiro: [
     PAINEL,
     { id: 'diario', rotulo: 'Diário', curto: 'Diário', icone: 'diario' },
-    ORCAMENTO, PLANEJAMENTO, MATERIAIS, QUALIDADE, MEDICAO, EMPREITEIROS, CADASTRO,
+    ORCAMENTO, PLANEJAMENTO, MATERIAIS, QUALIDADE, MEDICAO, EMPREITEIROS, RELATORIOS, CADASTRO,
     { id: 'ajustes', rotulo: 'Ajustes', curto: 'Ajustes', icone: 'ajustes' },
     RECADOS,
   ],
   Diretoria: [
     PAINEL,
     { id: 'diario', rotulo: 'Diário', curto: 'Diário', icone: 'diario' },
-    ORCAMENTO, PLANEJAMENTO, MATERIAIS, QUALIDADE, MEDICAO, EMPREITEIROS, CADASTRO, PERFIL, RECADOS,
+    ORCAMENTO, PLANEJAMENTO, MATERIAIS, QUALIDADE, MEDICAO, EMPREITEIROS, RELATORIOS, CADASTRO, PERFIL, RECADOS,
   ],
   'Equipe da obra': [
     { id: 'diario', rotulo: 'Lançar o dia', curto: 'Lançar', icone: 'diario' },
